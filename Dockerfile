@@ -9,14 +9,14 @@ RUN bun install
 RUN bun run build
 
 # Etap 2: Produkcja
-FROM oven/bun:latest
+FROM oven/bun:alpine
 WORKDIR /app
 
 # Pobieranie zbudowanej aplikacji z poprzedniego etapu
-COPY --from=builder /app ./
+COPY --from=builder /app/.output ./
 
 # Ustawienie portu
 EXPOSE 3000
 
 # Uruchomienie aplikacji (skrypt "preview" package.json)
-CMD ["bun", "run", "preview"]
+CMD ["bun", "run", "server/index.mjs"]
