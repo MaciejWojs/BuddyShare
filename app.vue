@@ -8,21 +8,23 @@ function handleClick() {
 <template>
   <div>
     <NuxtRouteAnnouncer />
-    <NuxtPage />
+    <NuxtLayout>
+      <NuxtPage />
+    </NuxtLayout>
 
-    <div v-if="status === 'success'">
+    <!-- <div v-if="status === 'success'">
       <pre>{{ data }}</pre>
     </div>
     <div v-else-if="status === 'loading'">Loading...</div>
-    <div v-else>Error loading data.</div>
+    <div v-else>Error loading data.</div> -->
   </div>
-  <div>
+  <!-- <div>
     <v-btn>
       Button
     </v-btn>
     <v-card title="Card title" subtitle="Subtitle" text="..." @click="handleClick">
     </v-card>
-  </div>
+  </div> -->
 
 
 </template>
