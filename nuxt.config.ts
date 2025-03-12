@@ -1,18 +1,27 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
-import vuetify, { transformAssetUrls } from 'vite-plugin-vuetify'
+
+import vuetify, { transformAssetUrls } from "vite-plugin-vuetify";
 
 export default defineNuxtConfig({
   //...
   build: {
-    transpile: ['vuetify'],
+    transpile: ["vuetify"],
+  },
+
+  runtimeConfig: {
+    public: {
+      SALT: process.env.SALT,
+      PEPPER: process.env.PEPPER,
+      BACK_PORT: process.env.BACK_PORT,
+    },
   },
 
   modules: [
     (_options, nuxt) => {
-      nuxt.hooks.hook('vite:extendConfig', (config) => {
+      nuxt.hooks.hook("vite:extendConfig", (config) => {
         // @ts-expect-error
-        config.plugins.push(vuetify({ autoImport: true }))
-      })
+        config.plugins.push(vuetify({ autoImport: true }));
+      });
     },
     //...
   ],
@@ -25,6 +34,6 @@ export default defineNuxtConfig({
     },
   },
 
-  compatibilityDate: '2025-03-10',
-  devtools: { enabled: true }
-})
+  compatibilityDate: "2025-03-10",
+  devtools: { enabled: true },
+});
