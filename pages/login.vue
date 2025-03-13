@@ -1,22 +1,17 @@
 <template>
   <v-container>
     <v-row justify="center">
-      <v-col
-        cols="12"
-        md="4"
-      >
+      <v-col cols="12" md="4">
         <v-card>
           <v-card-title>Logowanie</v-card-title>
           <v-card-text>
-            <v-text-field
-              label="Email"
-              v-model="email"
-            ></v-text-field>
-            <v-text-field
-              label="Hasło"
-              type="password"
-              v-model="password"
-            ></v-text-field>
+            <v-text-field label="Email" v-model="email"></v-text-field>
+            <v-text-field label="Hasło" type="password" v-model="password" @keydown.enter="login"></v-text-field>
+
+            <!-- Wyświetlanie komunikatu o błędzie -->
+            <v-alert v-if="errorMessage" type="error" dismissible>
+              {{ errorMessage }}
+            </v-alert>
           </v-card-text>
           <v-card-actions>
             <v-btn @click="login">Zaloguj się</v-btn>
@@ -31,29 +26,27 @@
 import { ref } from "vue";
 
 import CryptoJS from "crypto-js";
+import StatusCodes from "http-status-codes"; 
 
 const email = ref("");
 const password = ref("");
+const errorMessage = ref("");
 const config = useRuntimeConfig();
 
 const login = () => {
   // console.log(`Logowanie: ${email.value}`);
-
+  
+  // Environment variables
   const SALT = config.public.SALT;
-
   const PEPPER = config.public.PEPPER;
-
-  const PASS = SALT + password.value + PEPPER;
-
   const BACK_PORT = config.public.BACK_PORT;
-
+  
+  const PASS = SALT + password.value + PEPPER;
   const HASH = CryptoJS.SHA256(PASS).toString(CryptoJS.enc.Hex);
 
   // console.log(SALT, PEPPER);
-
   // console.log(`hasło: ${PASS}`);
-
-  console.log(`hash: ${HASH}`);
+  // console.log(`hash: ${HASH}`);
 
   const dataREQUEST = JSON.stringify({
     username: email.value,
@@ -69,14 +62,19 @@ const login = () => {
     body: dataREQUEST,
   })
     .then((response) => {
-      // console.log(response.json());
-      if (response.status === 200) {
+      console.log(response);
+      if (response.status === StatusCodes.OK) {
         return response.json();
-      } else {
-        throw new Error("Login failed");
+      } else if (response.status === StatusCodes.UNAUTHORIZED) {
+        errorMessage.value = "Błąd logowania";
+        setTimeout(() => {
+          errorMessage.value = "";
+        }, 5000);
+        return response.json();
       }
     })
     .then((data) => {
+      console.log(data);
       if (data.success) {
         // Handle successful login
         console.log("Login successful");
