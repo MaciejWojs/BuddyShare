@@ -5,7 +5,7 @@
         <v-card>
           <v-card-title>Logowanie</v-card-title>
           <v-card-text>
-            <v-text-field label="Email" v-model="email"></v-text-field>
+            <v-text-field label="Username or email" v-model="email"></v-text-field>
             <v-text-field label="Hasło" type="password" v-model="password" @keydown.enter="login"></v-text-field>
 
             <!-- Wyświetlanie komunikatu o błędzie -->
@@ -24,8 +24,7 @@
 
 <script setup>
 import { ref } from "vue";
-
-import CryptoJS from "crypto-js";
+import { getPasswordHash } from "@/src/utils/crypto/hash";
 import StatusCodes from "http-status-codes"; 
 
 const email = ref("");
@@ -34,6 +33,13 @@ const errorMessage = ref("");
 const config = useRuntimeConfig();
 
 const login = () => {
+  if (!email.value || !password.value) {
+    errorMessage.value = "Wypełnij wszystkie pola";
+    setTimeout(() => {
+      errorMessage.value = "";
+    }, 5000);
+    return;
+  }
   // console.log(`Logowanie: ${email.value}`);
   
   // Environment variables
@@ -41,8 +47,9 @@ const login = () => {
   const PEPPER = config.public.PEPPER;
   const BACK_PORT = config.public.BACK_PORT;
   
-  const PASS = SALT + password.value + PEPPER;
-  const HASH = CryptoJS.SHA256(PASS).toString(CryptoJS.enc.Hex);
+  // const PASS = SALT + password.value + PEPPER;
+  // const HASH = CryptoJS.SHA256(PASS).toString(CryptoJS.enc.Hex);
+  const HASH = getPasswordHash(password.value, SALT, PEPPER);
 
   // console.log(SALT, PEPPER);
   // console.log(`hasło: ${PASS}`);
@@ -59,6 +66,7 @@ const login = () => {
     headers: {
       "Content-Type": "application/json",
     },
+    credentials: "include",
     body: dataREQUEST,
   })
     .then((response) => {
