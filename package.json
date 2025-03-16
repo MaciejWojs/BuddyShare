@@ -7,12 +7,16 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare"
+    "postinstall": "nuxt prepare",
+    "prod": "nuxt start",
+    "test": "bunx vitest --run"
   },
   "dependencies": {
     "@mdi/font": "^7.4.47",
+    "@types/crypto-js": "^4.2.2",
     "crypto-js": "^4.2.0",
     "dotenv": "^16.4.7",
+    "email-validator": "^2.0.4",
     "http-status-codes": "^2.3.0",
     "nuxt": "^3.16.0",
     "vue": "latest",
@@ -20,6 +24,7 @@
   },
   "devDependencies": {
     "vite-plugin-vuetify": "^2.1.0",
+    "vitest": "^3.0.8",
     "vuetify": "^3.7.16"
   }
 }
