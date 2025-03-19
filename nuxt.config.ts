@@ -23,6 +23,8 @@ export default defineNuxtConfig({
         config.plugins.push(vuetify({ autoImport: true }));
       });
     },
+    '@pinia/nuxt', // required
+    'pinia-plugin-persistedstate/nuxt',
     //...
   ],
 
