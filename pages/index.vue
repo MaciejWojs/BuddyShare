@@ -5,8 +5,8 @@
 const authStore = useAuthStore();
 </script>
 <template>
-  <div v-if="authStore.isAuthenticated">
-    <h1>Witaj, {{ authStore.user?.displayName }}!</h1>
+  <div v-if="authStore.authenticated">
+    <h1>Witaj, {{ authStore.userName }}!</h1>
     <button @click="authStore.logout">Wyloguj</button>
   </div>
   <v-container>
