@@ -1,8 +1,9 @@
-<!-- <script setup lang="ts">
-definePageMeta({
-  layout: "what_layout_to_use",
-});
-</script> -->
+<script setup lang="ts">
+// definePageMeta({
+// const authStore = useAuthStore();
+// });
+const authStore = useAuthStore();
+</script>
 <template>
   <v-container>
     <v-row>
@@ -12,6 +13,10 @@ definePageMeta({
         cols="12"
         md="3"
       >
+        <div v-if="authStore.isAuthenticated">
+          <h1>Witaj, {{ authStore.user?.displayName }}!</h1>
+          <button @click="authStore.logout">Wyloguj</button>
+        </div>
         <v-card>
           <!-- <v-img src="/placeholder.png" height="150px"></v-img> -->
           <v-card-title>Popularne Video</v-card-title>

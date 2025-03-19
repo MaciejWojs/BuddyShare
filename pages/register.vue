@@ -1,18 +1,39 @@
 <template>
   <v-container>
     <v-row justify="center">
-      <v-col cols="12" md="4">
+      <v-col
+        cols="12"
+        md="4"
+      >
         <v-card>
           <v-card-title>Rejestracja</v-card-title>
           <v-card-text>
-            <v-text-field label="Username" v-model="username"></v-text-field>
-            <v-text-field label="Email" v-model="email"></v-text-field>
-            <v-text-field label="Hasło" type="password" v-model="password"></v-text-field>
-            <v-text-field label="Powtórz hasło" type="password" v-model="confirmPassword"
-              @keydown.enter="register"></v-text-field>
+            <v-text-field
+              label="Username"
+              v-model="username"
+            ></v-text-field>
+            <v-text-field
+              label="Email"
+              v-model="email"
+            ></v-text-field>
+            <v-text-field
+              label="Hasło"
+              type="password"
+              v-model="password"
+            ></v-text-field>
+            <v-text-field
+              label="Powtórz hasło"
+              type="password"
+              v-model="confirmPassword"
+              @keydown.enter="register"
+            ></v-text-field>
 
             <!-- Wyświetlanie komunikatu o błędzie -->
-            <v-alert v-if="errorMessage" type="error" dismissible>
+            <v-alert
+              v-if="errorMessage"
+              type="error"
+              dismissible
+            >
               {{ errorMessage }}
             </v-alert>
           </v-card-text>
@@ -28,7 +49,7 @@
 <script setup>
 import { ref } from "vue";
 import StatusCodes from "http-status-codes";
-import * as EmailValidator from 'email-validator';
+import * as EmailValidator from "email-validator";
 
 //TODO weryfikacja emaila
 //TODO weryfikacja hasła (długość, wielkie litery, cyfry)
@@ -48,7 +69,12 @@ const clearErrorMessage = () => {
 };
 
 const register = () => {
-  if (!username.value || !email.value || !password.value || !confirmPassword.value) {
+  if (
+    !username.value ||
+    !email.value ||
+    !password.value ||
+    !confirmPassword.value
+  ) {
     errorMessage.value = "Wypełnij wszystkie pola";
     clearErrorMessage();
     return;
@@ -67,8 +93,7 @@ const register = () => {
   }
 
   // Environment variables
-  const BACK_PORT = config.public.BACK_PORT;
-
+  const BACK_HOST = config.public.BACK_HOST;
 
   const dataREQUEST = JSON.stringify({
     username: username.value,
@@ -79,7 +104,7 @@ const register = () => {
 
   // console.log(dataREQUEST);
 
-  fetch("http://localhost:" + BACK_PORT + "/register", {
+  fetch(`http://${BACK_HOST}/register`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -93,9 +118,12 @@ const register = () => {
         const respJSON = await response.json();
         // Handle different error types
         if (response.status === StatusCodes.CONFLICT) {
-          console.log(" response.statusText",  response.statusText)
-          console.log("respJSON",  respJSON["cause"])
-          const whatsWrong = respJSON["cause"] === "username" ? "podanej nazwie" : "podanym emailu";
+          console.log(" response.statusText", response.statusText);
+          console.log("respJSON", respJSON["cause"]);
+          const whatsWrong =
+            respJSON["cause"] === "username"
+              ? "podanej nazwie"
+              : "podanym emailu";
           errorMessage.value = `Użytkownik o ${whatsWrong} już istnieje`;
         } else if (response.status === StatusCodes.BAD_REQUEST) {
           errorMessage.value = "Błąd rejestracji";
