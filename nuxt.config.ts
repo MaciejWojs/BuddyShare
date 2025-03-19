@@ -12,7 +12,8 @@ export default defineNuxtConfig({
     public: {
       SALT: process.env.SALT,
       PEPPER: process.env.PEPPER,
-      BACK_PORT: process.env.BACK_PORT,
+      // BACK_PORT: process.env.BACK_PORT,
+      BACK_HOST: process.env.BACK_HOST,
     },
   },
 
@@ -23,8 +24,8 @@ export default defineNuxtConfig({
         config.plugins.push(vuetify({ autoImport: true }));
       });
     },
-    '@pinia/nuxt', // required
-    'pinia-plugin-persistedstate/nuxt',
+    "@pinia/nuxt", // required
+    "pinia-plugin-persistedstate/nuxt",
     //...
   ],
 

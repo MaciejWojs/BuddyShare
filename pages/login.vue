@@ -1,15 +1,30 @@
 <template>
   <v-container>
     <v-row justify="center">
-      <v-col cols="12" md="4">
+      <v-col
+        cols="12"
+        md="4"
+      >
         <v-card>
           <v-card-title>Logowanie</v-card-title>
           <v-card-text>
-            <v-text-field label="Username or email" v-model="email"></v-text-field>
-            <v-text-field label="Hasło" type="password" v-model="password" @keydown.enter="login"></v-text-field>
+            <v-text-field
+              label="Username or email"
+              v-model="email"
+            ></v-text-field>
+            <v-text-field
+              label="Hasło"
+              type="password"
+              v-model="password"
+              @keydown.enter="login"
+            ></v-text-field>
 
             <!-- Wyświetlanie komunikatu o błędzie -->
-            <v-alert v-if="errorMessage" type="error" dismissible>
+            <v-alert
+              v-if="errorMessage"
+              type="error"
+              dismissible
+            >
               {{ errorMessage }}
             </v-alert>
           </v-card-text>
@@ -25,8 +40,9 @@
 <script setup>
 import { ref } from "vue";
 import { getPasswordHash } from "@/src/utils/crypto/hash";
-import StatusCodes from "http-status-codes"; 
+import StatusCodes from "http-status-codes";
 
+const authStore = useAuthStore();
 const email = ref("");
 const password = ref("");
 const errorMessage = ref("");
@@ -41,12 +57,12 @@ const login = () => {
     return;
   }
   // console.log(`Logowanie: ${email.value}`);
-  
+
   // Environment variables
   const SALT = config.public.SALT;
   const PEPPER = config.public.PEPPER;
-  const BACK_PORT = config.public.BACK_PORT;
-  
+  const BACK_HOST = config.public.BACK_HOST;
+
   // const PASS = SALT + password.value + PEPPER;
   // const HASH = CryptoJS.SHA256(PASS).toString(CryptoJS.enc.Hex);
   const HASH = getPasswordHash(password.value, SALT, PEPPER);
@@ -61,7 +77,7 @@ const login = () => {
   });
 
   // console.log(dataREQUEST);
-  fetch("http://localhost:" + BACK_PORT + "/login", {
+  fetch(`http://${BACK_HOST}/login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -81,11 +97,12 @@ const login = () => {
         return response.json();
       }
     })
-    .then((data) => {
+    .then(async (data) => {
       console.log(data);
       if (data.success) {
         // Handle successful login
         console.log("Login successful");
+        await authStore.fetchUser();
         navigateTo("/", { replace: true });
       } else {
         // Handle login failure
