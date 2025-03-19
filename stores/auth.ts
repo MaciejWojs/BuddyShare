@@ -68,7 +68,24 @@ export const useAuthStore = defineStore("auth", {
     async logout() {
       const config = useRuntimeConfig();
       const BACK_HOST = config.public.BACK_HOST;
-      const response = await fetch(`http://${BACK_HOST}/logout`);
+      const headers = useRequestHeaders(["cookie"]);
+      
+      try {
+        await $fetch(`http://${BACK_HOST}/logout`, {
+          method: "GET", // lub "GET" w zależności od backendu
+          headers: {
+            ...headers,
+          },
+          credentials: "include"
+        });
+      } catch (error) {
+        console.error("Błąd podczas wylogowywania:", error);
+      }
+      
+      // Usuń ciasteczko
+      const cookie = useCookie("JWT");
+      cookie.value = null;
+      
       this.clearUser();
     },
   },
