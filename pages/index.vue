@@ -5,6 +5,10 @@
 const authStore = useAuthStore();
 </script>
 <template>
+  <div v-if="authStore.isAuthenticated">
+    <h1>Witaj, {{ authStore.user?.displayName }}!</h1>
+    <button @click="authStore.logout">Wyloguj</button>
+  </div>
   <v-container>
     <v-row>
       <v-col
@@ -13,10 +17,6 @@ const authStore = useAuthStore();
         cols="12"
         md="3"
       >
-        <div v-if="authStore.isAuthenticated">
-          <h1>Witaj, {{ authStore.user?.displayName }}!</h1>
-          <button @click="authStore.logout">Wyloguj</button>
-        </div>
         <v-card>
           <!-- <v-img src="/placeholder.png" height="150px"></v-img> -->
           <v-card-title>Popularne Video</v-card-title>
