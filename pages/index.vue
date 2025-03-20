@@ -2,13 +2,9 @@
 // definePageMeta({
 // const authStore = useAuthStore();
 // });
-const authStore = useAuthStore();
+// const authStore = useAuthStore();
 </script>
 <template>
-  <div v-if="authStore.authenticated">
-    <h1>Witaj, {{ authStore.userName }}!</h1>
-    <button @click="authStore.logout">Wyloguj</button>
-  </div>
   <v-container>
     <v-row>
       <v-col
