@@ -48,7 +48,7 @@ export const useAuthStore = defineStore("auth", {
       try {
         console.log("fetchUser");
         try {
-          this.user = await $fetch<User>(`http://${BACK_HOST}/me`, {
+          this.user = await $fetch<User>(`http://${BACK_HOST}/auth/me`, {
             method: "GET",
             headers: {
               ...headers,
@@ -77,7 +77,7 @@ export const useAuthStore = defineStore("auth", {
       const headers = useRequestHeaders(["cookie"]);
 
       try {
-        await $fetch(`http://${BACK_HOST}/logout`, {
+        await $fetch(`http://${BACK_HOST}/auth/logout`, {
           method: "GET",
           headers: {
             ...headers,

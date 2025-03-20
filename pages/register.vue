@@ -104,7 +104,7 @@ const register = () => {
 
   // console.log(dataREQUEST);
 
-  fetch(`http://${BACK_HOST}/register`, {
+  fetch(`http://${BACK_HOST}/auth/register`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
