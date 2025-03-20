@@ -1,98 +1,77 @@
 import { defineStore } from "pinia";
-import { Role } from "../types/Roles";
+import type { User } from "../types/User"; // Wydziel interfejs do osobnego pliku
 
-interface User {
-  id: number;
-  email: string;
-  displayName: string;
-  profilePicture: string | null;
-  role: Role;
-  createdAt: string;
-  lastLogin: string;
-}
-
-interface AuthState {
-  user: User | null;
-  isAuthenticated: boolean;
-}
-
-export const useAuthStore = defineStore("auth", {
-  state: (): AuthState => ({
-    user: null,
-    isAuthenticated: false,
-  }),
-
-  getters: {
-    // Podstawowe gettery
-    currentUser: (state) => state.user,
-    authenticated: (state) => state.isAuthenticated,
-
-    // Gettery z dodatkową logiką
-    userName: (state) => state.user?.displayName || null,
-    userEmail: (state) => state.user?.email || null,
-    userRole: (state) => state.user?.role || null,
-
-    // Gettery sprawdzające role
-    // isAdmin: (state) => state.user?.role === Role.ADMIN,
-
-    // Getter sprawdzający czy aplikacja jest gotowa
-    isReady: (state) => state.isAuthenticated,
-  },
-
-  actions: {
-    async fetchUser() {
-      const headers = useRequestHeaders(["cookie"]);
-      const config = useRuntimeConfig();
-      const BACK_HOST = config.public.BACK_HOST;
-      console.log("BACK_HOST", BACK_HOST);
-      try {
-        console.log("fetchUser");
-        try {
-          this.user = await $fetch<User>(`http://${BACK_HOST}/auth/me`, {
-            method: "GET",
-            headers: {
-              ...headers,
-            },
-            credentials: "include",
-          });
-          this.isAuthenticated = (this.user) ? true : false;
-          console.log("fetchUser success", this.user);
-        } catch (error) {
-          console.error("Error fetching user:", error);
-          this.clearUser();
-        }
-      } catch (error) {
-        this.clearUser();
-      }
-    },
-
-    clearUser() {
-      this.user = null;
-      this.isAuthenticated = false;
-    },
-
-    async logout() {
-      const config = useRuntimeConfig();
-      const BACK_HOST = config.public.BACK_HOST;
-      const headers = useRequestHeaders(["cookie"]);
-
-      try {
-        await $fetch(`http://${BACK_HOST}/auth/logout`, {
-          method: "GET",
-          headers: {
-            ...headers,
-          },
-          credentials: "include"
-        });
-      } catch (error) {
-        console.error("Błąd podczas wylogowywania:", error);
-      }
-
-      // Usuń ciasteczko
-      const cookie = useCookie("JWT");
-      cookie.value = null;
-
-      this.clearUser();
-    },
-  },
+export const useAuthStore = defineStore('auth', () => {
+  // state
+  const user = ref<User | null>(null);
+  const isAuthenticated = ref(false);
+  
+  // getters
+  const currentUser = computed(() => user.value);
+  const authenticated = computed(() => isAuthenticated.value);
+  const userName = computed(() => user.value?.displayName || null);
+  const userEmail = computed(() => user.value?.email || null);
+  const userRole = computed(() => user.value?.role || null);
+  const isReady = computed(() => isAuthenticated.value);
+  
+  // Lazy imports dla funkcji Nuxt
+  const lazyFetch = () => {
+    const config = useRuntimeConfig();
+    const BACK_HOST = config.public.BACK_HOST;
+    const headers = useRequestHeaders(["cookie"]);
+    return { config, BACK_HOST, headers };
+  };
+  
+  // actions
+  async function fetchUser() {
+    const { BACK_HOST, headers } = lazyFetch();
+    
+    try {
+      user.value = await $fetch<User>(`http://${BACK_HOST}/auth/me`, {
+        method: "GET",
+        headers,
+        credentials: "include",
+      });
+      isAuthenticated.value = !!user.value;
+    } catch (error) {
+      clearUser();
+    }
+  }
+  
+  function clearUser() {
+    user.value = null;
+    isAuthenticated.value = false;
+  }
+  
+  async function logout() {
+    const { BACK_HOST, headers } = lazyFetch();
+    
+    try {
+      await $fetch(`http://${BACK_HOST}/auth/logout`, {
+        method: "GET",
+        headers,
+        credentials: "include"
+      });
+    } catch (error) {
+      console.error("Błąd podczas wylogowywania:", error);
+    }
+    
+    const cookie = useCookie("JWT");
+    cookie.value = null;
+    clearUser();
+  }
+  
+  return {
+    user,
+    isAuthenticated,
+    currentUser,
+    authenticated,
+    userName,
+    userEmail,
+    userRole,
+    isReady,
+    fetchUser,
+    clearUser,
+    logout
+  };
 });
