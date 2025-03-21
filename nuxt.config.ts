@@ -7,6 +7,10 @@ export default defineNuxtConfig({
   build: {
     transpile: ["vuetify"],
   },
+  
+  nitro: {
+    preset: "bun",
+  },
 
   runtimeConfig: {
     public: {
