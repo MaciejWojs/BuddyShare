@@ -1,21 +1,74 @@
-name: Pull reqests tests
+name: Pull requests tests
 
 on: pull_request
 
 jobs:
   PR_tests:
     runs-on: ubuntu-latest
-
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_PASSWORD: 12345
+          POSTGRES_USER: admin
+          POSTGRES_DB: mydb
+        ports:
+          - 5400:5432
+        # Health check to wait until postgres has started
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Set up Git repository
         uses: actions/checkout@v4
+        with:
+          path: frontend
+
+      - name: Checkout tools repo
+        uses: actions/checkout@v4
+        with:
+          repository: maciejwojs/buddyShareBackend
+          token: ${{ secrets.PAT }}
+          path: backend
 
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
-      - name: install dependecies
+      - name: Install dependencies
+        working-directory: frontend
         run: bun install
-
-      - name: run tests
-        run: bun test
+      
+      - name: Install backend dependencies
+        working-directory: backend
+        run: bun install
+      
+      - name: Run backend tests
+        working-directory: backend
+        env:
+          DATABASE_URL: postgres://admin:12345@localhost:5400/mydb
+        run: bun run test
+      
+      - name: Run backend
+        working-directory: backend
+        env:
+          DATABASE_URL: postgres://admin:12345@localhost:5400/mydb
+        run: |
+          bun x prisma db push
+          bun run build
+          bun run prod &
+          
+      - name: Wait for backend to be ready
+        run: |
+          echo "Waiting for backend to start..."
+          sleep 5
+          
+      - name: Run frontend tests
+        working-directory: frontend
+        env:
+          DATABASE_URL: postgres://admin:12345@localhost:5400/mydb
+        run: |
+          # Only run tests in the frontend repository, excluding backend tests
+          bun run test

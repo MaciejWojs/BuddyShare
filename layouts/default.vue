@@ -8,10 +8,18 @@
       color="transparent"
       class="px-8"
     >
-      <v-app-bar-nav-icon
-        @click.stop="drawer = !drawer"
-        class="mr-4"
-      />
+      <v-tooltip
+        location="bottom"
+        text="Menu"
+      >
+        <template #activator="{ props }">
+          <v-app-bar-nav-icon
+            v-bind="props"
+            @click.stop="drawer = !drawer"
+            class="mr-4"
+          />
+        </template>
+      </v-tooltip>
       <v-img
         src="/Buddyshare.svg"
         max-width="45"
@@ -40,19 +48,26 @@
           offset-y
         >
           <template #activator="{ props }">
-            <v-badge
-              :content="unreadCount"
-              :model-value="unreadCount > 0"
-              color="red"
-              class="mr-2"
+            <v-tooltip
+              location="bottom"
+              text="Notifications"
             >
-              <v-btn
-                variant="text"
-                icon="mdi-bell-outline"
-                color="white"
-                v-bind="props"
-              />
-            </v-badge>
+              <template #activator="{ props: tooltipProps }">
+                <v-badge
+                  :content="unreadCount"
+                  :model-value="unreadCount > 0"
+                  color="red"
+                  class="mr-2"
+                >
+                  <v-btn
+                    variant="text"
+                    icon="mdi-bell-outline"
+                    color="white"
+                    v-bind="{ ...props, ...tooltipProps }"
+                  />
+                </v-badge>
+              </template>
+            </v-tooltip>
           </template>
 
           <v-card width="350">
@@ -139,14 +154,21 @@
           Logout
         </v-btn>
 
-        <v-avatar
+        <v-tooltip
           v-if="authStore.authenticated"
-          size="45"
-          class="ml-4"
-          @click="navigateTo(`/user/${authStore.userName}`)"
+          location="bottom"
+          text="Your Profile"
         >
-          <v-img src="/Buddyshare.svg" />
-        </v-avatar>
+          <template #activator="{ props }">
+            <Icon
+              name="ic:baseline-person-outline"
+              size="2em"
+              v-bind="props"
+              @click="navigateTo(`/user/${authStore.userName}`)"
+              class="cursor-pointer transition-opacity hover:opacity-80"
+            />
+          </template>
+        </v-tooltip>
       </div>
     </v-app-bar>
 
@@ -221,15 +243,22 @@ const notifications = ref([
 const unreadCount = computed(
   () => notifications.value.filter((n) => !n.read).length
 );
-
-const navItems = [
+const navItems = computed(() => [
   { title: "Home", to: "/", icon: "mdi-home" },
   { title: "Discover", to: "/discover", icon: "mdi-compass" },
-  { title: "Following", to: "/following", icon: "mdi-heart" },
-  { title: "Profile", to: `/user/${authStore.userName}`, icon: "mdi-account" },
-  { title: "Settings", to: "/user/settings", icon: "mdi-cog" },
+  ...(authStore.authenticated
+    ? [
+        { title: "Following", to: "/following", icon: "mdi-heart" },
+        {
+          title: "Profile",
+          to: `/user/${authStore.userName}`,
+          icon: "mdi-account",
+        },
+        { title: "Settings", to: "/user/settings", icon: "mdi-cog" },
+      ]
+    : []),
   { title: "About", to: "/about", icon: "mdi-information" },
-];
+]);
 
 const formatTime = (date: Date) => {
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });

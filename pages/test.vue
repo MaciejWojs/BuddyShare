@@ -12,7 +12,7 @@ const config = useRuntimeConfig();
 const status = ref();
 const BACK_HOST = config.public.BACK_HOST;
 
-const { data } = useFetch(`http://${BACK_HOST}/auth-test`, { headers });
+const { data } = useFetch(`http://${BACK_HOST}/auth/test`, { headers });
 status.value = data;
 // console.log(data);
 </script>
