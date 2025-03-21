@@ -73,7 +73,7 @@ const login = () => {
 
   const dataREQUEST = JSON.stringify({
     username: email.value,
-    reqHASH: HASH,
+    passwordHash: HASH,
   });
 
   // console.log(dataREQUEST);

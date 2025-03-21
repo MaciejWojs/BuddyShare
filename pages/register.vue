@@ -112,7 +112,7 @@ const register = () => {
     body: dataREQUEST,
   })
     .then(async (response) => {
-      if (response.status === StatusCodes.OK) {
+      if (response.status === StatusCodes.CREATED) {
         return response.json();
       } else {
         const respJSON = await response.json();
