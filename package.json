@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@mdi/font": "^7.4.47",
+    "@nuxt/icon": "^1.11.0",
     "@nuxt/image": "^1.10.0",
     "@nuxt/kit": "^3.16.1",
     "@pinia/nuxt": "^0.10.1",
