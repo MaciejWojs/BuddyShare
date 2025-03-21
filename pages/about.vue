@@ -3,11 +3,7 @@
 <template>
   <div class="about-container">
     <div class="github-link">
-      <a
-        href="https://github.com/MaciejWojs/BuddyShare"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
+      <a href="https://github.com/MaciejWojs/BuddyShare" target="_blank" rel="noopener noreferrer">
         View on GitHub
       </a>
     </div>
@@ -16,8 +12,24 @@
       <h2>About BuddyShare</h2>
       <p>Page created by 2 students for an academic project:</p>
       <div class="creators">
-        <div class="creator">Arkadiusz R</div>
-        <div class="creator">Maciej W</div>
+        <div class="creator">
+          <div>Arkadiusz R</div>
+          <v-tooltip text="Arkadiusz R">
+            <template v-slot:activator="{ props }">
+              <Icon name="uil:github" size="2em" v-bind="props"
+                @click="navigateTo('https://github.com/ar00k', { external: true, open: { target: '_blank' } })" />
+            </template>
+          </v-tooltip>
+        </div>
+        <div class="creator">
+          <div>Maciej W</div>
+          <v-tooltip text="Maciej W">
+            <template v-slot:activator="{ props }">
+              <Icon name="uil:github" size="2em" v-bind="props"
+                @click="navigateTo('https://github.com/MaciejWojs', { external: true, open: { target: '_blank' } })" />
+            </template>
+          </v-tooltip>
+        </div>
       </div>
     </div>
   </div>
@@ -71,6 +83,10 @@
     .creator {
       font-weight: 600;
       font-size: 1.2rem;
+
+      .icon {
+        color: white;
+      }
     }
   }
 }
