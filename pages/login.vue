@@ -73,11 +73,11 @@ const login = () => {
 
   const dataREQUEST = JSON.stringify({
     username: email.value,
-    reqHASH: HASH,
+    passwordHash: HASH,
   });
 
   // console.log(dataREQUEST);
-  fetch(`http://${BACK_HOST}/login`, {
+  fetch(`http://${BACK_HOST}/auth/login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

@@ -1,0 +1,39 @@
+html {
+  font-size: 62.5%;
+  font-family: sans-serif;
+  scroll-behavior: smooth;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+}
+
+/* Chrome, Edge and Safari */
+*::-webkit-scrollbar {
+  width: 0.5rem;
+}
+
+*::-webkit-scrollbar-track {
+  border-radius: 0.5rem;
+}
+
+*::-webkit-scrollbar-thumb {
+  border-radius: 0.5rem;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+:autofill,
+:-webkit-autofill,
+:-webkit-autofill:hover,
+:-webkit-autofill:focus :-internal-autofill-selected {
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: $color_text_primary;
+  transition: background-color 5000s ease-in-out 0s;
+  box-shadow: inset 0 0 20px 20px $color_background_variant;
+}

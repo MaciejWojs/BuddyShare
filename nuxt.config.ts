@@ -7,6 +7,10 @@ export default defineNuxtConfig({
   build: {
     transpile: ["vuetify"],
   },
+  
+  nitro: {
+    preset: "bun",
+  },
 
   runtimeConfig: {
     public: {
@@ -24,6 +28,8 @@ export default defineNuxtConfig({
         config.plugins.push(vuetify({ autoImport: true }));
       });
     },
+    "@nuxt/icon",
+    "@nuxt/image",
     "@pinia/nuxt", // required
     "pinia-plugin-persistedstate/nuxt",
     //...

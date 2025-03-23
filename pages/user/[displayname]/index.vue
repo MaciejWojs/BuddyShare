@@ -200,6 +200,10 @@
 </template>
 
 <script setup lang="ts">
+definePageMeta({
+  middleware: ["user-exists"],
+});
+
 const route = useRoute();
 const displayName = route.params.displayname;
 const isLive = ref(true);
