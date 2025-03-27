@@ -1,11 +1,11 @@
 import { defineStore } from "pinia";
 import type { User } from "../types/User"; // Wydziel interfejs do osobnego pliku
 
-export const useAuthStore = defineStore('auth', () => {
+export const useAuthStore = defineStore("auth", () => {
   // state
   const user = ref<User | null>(null);
   const isAuthenticated = ref(false);
-  
+
   // getters
   const currentUser = computed(() => user.value);
   const authenticated = computed(() => isAuthenticated.value);
@@ -13,7 +13,7 @@ export const useAuthStore = defineStore('auth', () => {
   const userEmail = computed(() => user.value?.email || null);
   const userRole = computed(() => user.value?.role || null);
   const isReady = computed(() => isAuthenticated.value);
-  
+
   // Lazy imports dla funkcji Nuxt
   const lazyFetch = () => {
     const config = useRuntimeConfig();
@@ -21,11 +21,11 @@ export const useAuthStore = defineStore('auth', () => {
     const headers = useRequestHeaders(["cookie"]);
     return { config, BACK_HOST, headers };
   };
-  
+
   // actions
   async function fetchUser() {
     const { BACK_HOST, headers } = lazyFetch();
-    
+
     try {
       user.value = await $fetch<User>(`http://${BACK_HOST}/auth/me`, {
         method: "GET",
@@ -37,30 +37,30 @@ export const useAuthStore = defineStore('auth', () => {
       clearUser();
     }
   }
-  
+
   function clearUser() {
     user.value = null;
     isAuthenticated.value = false;
   }
-  
+
   async function logout() {
     const { BACK_HOST, headers } = lazyFetch();
-    
+
     try {
       await $fetch(`http://${BACK_HOST}/auth/logout`, {
         method: "GET",
         headers,
-        credentials: "include"
+        credentials: "include",
       });
     } catch (error) {
       console.error("Błąd podczas wylogowywania:", error);
     }
-    
+
     const cookie = useCookie("JWT");
     cookie.value = null;
     clearUser();
   }
-  
+
   return {
     user,
     isAuthenticated,
@@ -72,6 +72,6 @@ export const useAuthStore = defineStore('auth', () => {
     isReady,
     fetchUser,
     clearUser,
-    logout
+    logout,
   };
 });

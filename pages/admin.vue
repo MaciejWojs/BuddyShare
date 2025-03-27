@@ -87,14 +87,14 @@
                 <v-tooltip
                   v-if="authStore.authenticated"
                   location="bottom"
-                  text="Your Profile"
+                  text="User Profile"
                 >
                   <template #activator="{ props }">
                     <Icon
                       name="ic:baseline-person-outline"
                       size="2em"
                       v-bind="props"
-                      @click="navigateTo(`/user/${user.name}`)"
+                      @click="navigateTo(`/user/${user.displayName}`)"
                       class="cursor-pointer transition-opacity hover:opacity-80"
                     />
                   </template>
@@ -102,7 +102,7 @@
 
                 <div class="d-flex align-center">
                   <v-list-item-title class="font-weight-medium">
-                    {{ user.name }}
+                    {{ user.displayName }}
                   </v-list-item-title>
                   <v-chip
                     size="small"
@@ -113,8 +113,12 @@
                     {{ user.role }}
                   </v-chip>
                 </div>
-                <v-list-item-subtitle class="text-caption">
-                  {{ user.email }}
+                <v-list-item-subtitle>
+                  <div class="text-caption">{{ user.email }}</div>
+                  <div class="text-caption mt-1">
+                    Created: {{ formatDate(user.createdAt) }} | Last login:
+                    {{ formatDate(user.lastLogin) }}
+                  </div>
                 </v-list-item-subtitle>
 
                 <template #append>
@@ -154,36 +158,38 @@
 </template>
 
 <script setup lang="ts">
+import { Role } from "~/types/Roles";
 const authStore = useAuthStore();
 
 const searchQuery = ref("");
 const selectedRoles = ref([]);
+const config = useRuntimeConfig();
 
-// Sample user data
-const users = ref([
-  {
-    id: 1,
-    name: "John Doe",
-    email: "john@example.com",
-    avatar: "",
-    role: "Admin",
-  },
-  {
-    id: 2,
-    name: "Jane Smith",
-    email: "jane@example.com",
-    avatar: "",
-    role: "Moderator",
-  },
-  {
-    id: 3,
-    name: "Bob Johnson",
-    email: "bob@example.com",
-    avatar: "",
-    role: "User",
-  },
-  // Add more sample users as needed
-]);
+const BACK_HOST = config.public.BACK_HOST;
+
+const endpoint = `http://${BACK_HOST}/users/getAll`;
+
+console.log("Fetching users from:", endpoint);
+const users = ref([]);
+try {
+  const response = await $fetch(endpoint);
+  users.value = response || []; // Use empty array if response is null/undefined
+  console.log("Fetched users:", users.value);
+} catch (error) {
+  console.error("Failed to fetch users:", error);
+  // users.value remains an empty array
+}
+
+// Format date to a readable format
+const formatDate = (dateString: string) => {
+  if (!dateString) return "N/A";
+  const date = new Date(dateString);
+  return (
+    date.toLocaleDateString() +
+    " " +
+    date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+  );
+};
 
 // Extract unique roles for filter dropdown
 const availableRoles = computed(() => {
@@ -198,7 +204,7 @@ const filteredUsers = computed(() => {
     const query = searchQuery.value.toLowerCase();
     filtered = filtered.filter(
       (user) =>
-        user.name.toLowerCase().includes(query) ||
+        user.displayName?.toLowerCase().includes(query) ||
         user.email.toLowerCase().includes(query) ||
         user.role.toLowerCase().includes(query)
     );
@@ -206,9 +212,7 @@ const filteredUsers = computed(() => {
 
   // Filter by selected roles
   if (selectedRoles.value.length > 0) {
-    filtered = filtered.filter((user) =>
-      selectedRoles.value.includes(user.role)
-    );
+    filtered = filtered.filter((usr) => selectedRoles.value.includes(usr.role));
   }
 
   return filtered;
