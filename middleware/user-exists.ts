@@ -16,7 +16,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
       statusMessage: "Username is required",
     });
   }
-  const baben = `http://${BACK_HOST}/users/${username}/exists`;
+  const baben = `http://${BACK_HOST}/users/${username}`;
 
   console.log("Checking if user exists:", baben);
   const { error } = await useFetch(baben);

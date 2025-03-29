@@ -9,9 +9,9 @@ export const useAuthStore = defineStore("auth", () => {
   // getters
   const currentUser = computed(() => user.value);
   const authenticated = computed(() => isAuthenticated.value);
-  const userName = computed(() => user.value?.displayName || null);
-  const userEmail = computed(() => user.value?.email || null);
-  const userRole = computed(() => user.value?.role || null);
+  const userName = computed(() => user.value?.userInfo.username || null);
+  const userEmail = computed(() => user.value?.userInfo.email || null);
+  const userRole = computed(() => user.value?.userInfo.userRole || null);
   const isReady = computed(() => isAuthenticated.value);
 
   // Lazy imports dla funkcji Nuxt

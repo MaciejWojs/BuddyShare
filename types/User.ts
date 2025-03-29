@@ -1,10 +1,24 @@
 import { Role } from './Roles';
+
 export interface User {
-  id: number;
+  userId: number;
+  userInfoId: number;
+  userSettingsId: number;
+  userInfo: UserInfo;
+  settings?: {
+    notificationsEnabled: boolean;
+    darkMode: boolean;
+  }
+};
+
+export interface UserInfo {
+  userInfoId: number;
+  username: string;
+  profilePicture: string;
+  description: string;
   email: string;
-  displayName: string;
-  profilePicture: string | null;
-  role: Role;
-  createdAt: string;
-  lastLogin: string;
+  isBanned: boolean;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+  userRole: Role;
 }

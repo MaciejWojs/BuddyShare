@@ -1,30 +1,15 @@
 <template>
   <v-container>
     <v-row justify="center">
-      <v-col
-        cols="12"
-        md="4"
-      >
+      <v-col cols="12" md="4">
         <v-card>
           <v-card-title>Logowanie</v-card-title>
           <v-card-text>
-            <v-text-field
-              label="Username or email"
-              v-model="email"
-            ></v-text-field>
-            <v-text-field
-              label="Hasło"
-              type="password"
-              v-model="password"
-              @keydown.enter="login"
-            ></v-text-field>
+            <v-text-field label="Username or email" v-model="email"></v-text-field>
+            <v-text-field label="Hasło" type="password" v-model="password" @keydown.enter="login"></v-text-field>
 
             <!-- Wyświetlanie komunikatu o błędzie -->
-            <v-alert
-              v-if="errorMessage"
-              type="error"
-              dismissible
-            >
+            <v-alert v-if="errorMessage" type="error" dismissible>
               {{ errorMessage }}
             </v-alert>
           </v-card-text>
@@ -86,15 +71,25 @@ const login = () => {
     body: dataREQUEST,
   })
     .then((response) => {
+      const respJSON = response.json();
       console.log(response);
       if (response.status === StatusCodes.OK) {
-        return response.json();
-      } else if (response.status === StatusCodes.UNAUTHORIZED) {
-        errorMessage.value = "Błąd logowania";
-        setTimeout(() => {
-          errorMessage.value = "";
-        }, 5000);
-        return response.json();
+        return respJSON;
+      } else {
+        // Handle non-OK responses
+        return respJSON.then(data => {
+          if (response.status === StatusCodes.UNAUTHORIZED) {
+            errorMessage.value = data.cause === "credentials" ?
+              "Invalid credentials" : "You are banned";
+          } else {
+            errorMessage.value = "Sorry, something went wrong";
+          }
+          setTimeout(() => {
+            errorMessage.value = "";
+          }, 5000);
+
+          return data;
+        });
       }
     })
     .then(async (data) => {

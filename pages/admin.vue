@@ -80,8 +80,9 @@
               class="pt-0"
             >
               <v-list-item
+                v-if="filteredUsers.length > 0"
                 v-for="user in filteredUsers"
-                :key="user.id"
+                :key="user.username"
                 class="px-4 py-3"
               >
                 <v-tooltip
@@ -94,7 +95,7 @@
                       name="ic:baseline-person-outline"
                       size="2em"
                       v-bind="props"
-                      @click="navigateTo(`/user/${user.displayName}`)"
+                      @click="navigateTo(`/user/${user.username}`)"
                       class="cursor-pointer transition-opacity hover:opacity-80"
                     />
                   </template>
@@ -102,7 +103,7 @@
 
                 <div class="d-flex align-center">
                   <v-list-item-title class="font-weight-medium">
-                    {{ user.displayName }}
+                    {{ user.username }}
                   </v-list-item-title>
                   <v-chip
                     size="small"
@@ -110,14 +111,14 @@
                     variant="outlined"
                     label
                   >
-                    {{ user.role }}
+                    {{ user.userRole }}
                   </v-chip>
                 </div>
                 <v-list-item-subtitle>
                   <div class="text-caption">{{ user.email }}</div>
                   <div class="text-caption mt-1">
                     Created: {{ formatDate(user.createdAt) }} | Last login:
-                    {{ formatDate(user.lastLogin) }}
+                    <!-- {{ formatDate(user.lastLogin) }} -->
                   </div>
                 </v-list-item-subtitle>
 
@@ -158,32 +159,42 @@
 </template>
 
 <script setup lang="ts">
-import { Role } from "~/types/Roles";
+import type { UserInfo } from "~/types/User";
+import {Role} from "~/types/Roles";
 const authStore = useAuthStore();
+const headers = useRequestHeaders(["cookie"]);
 
 const searchQuery = ref("");
-const selectedRoles = ref([]);
+const selectedRoles = ref<string[]>([]);
 const config = useRuntimeConfig();
 
 const BACK_HOST = config.public.BACK_HOST;
 
-const endpoint = `http://${BACK_HOST}/users/getAll`;
+const endpoint = `http://${BACK_HOST}/users`;
 
 console.log("Fetching users from:", endpoint);
-const users = ref([]);
+const users = ref<UserInfo[]>([]);
+
 try {
-  const response = await $fetch(endpoint);
-  users.value = response || []; // Use empty array if response is null/undefined
-  console.log("Fetched users:", users.value);
+  const response = await $fetch(endpoint, {
+    method: "GET",
+    headers,
+    credentials: "include",
+  });
+  console.log("Response:", response);
+  // Mapowanie danych z API do oczekiwanego formatu
+  users.value = Array.isArray(response) 
+    ? response
+    : [];
 } catch (error) {
   console.error("Failed to fetch users:", error);
-  // users.value remains an empty array
+  users.value = []; // Pusta tablica w przypadku błędu
 }
 
 // Format date to a readable format
-const formatDate = (dateString: string) => {
-  if (!dateString) return "N/A";
-  const date = new Date(dateString);
+const formatDate = (dateInput: string | Date) => {
+  if (!dateInput) return "N/A";
+  const date = dateInput instanceof Date ? dateInput : new Date(dateInput);
   return (
     date.toLocaleDateString() +
     " " +
@@ -193,26 +204,28 @@ const formatDate = (dateString: string) => {
 
 // Extract unique roles for filter dropdown
 const availableRoles = computed(() => {
-  return [...new Set(users.value.map((user) => user.role))];
+  return Object.values(Role);
 });
 
 const filteredUsers = computed(() => {
+  if (!users.value || !Array.isArray(users.value)) return [];
+  
   let filtered = users.value;
 
   // Filter by search query
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase();
     filtered = filtered.filter(
-      (user) =>
-        user.displayName?.toLowerCase().includes(query) ||
+      (user: UserInfo) =>
+        user.username?.toLowerCase().includes(query) ||
         user.email.toLowerCase().includes(query) ||
-        user.role.toLowerCase().includes(query)
+        user.userRole.toLowerCase().includes(query)
     );
   }
 
   // Filter by selected roles
   if (selectedRoles.value.length > 0) {
-    filtered = filtered.filter((usr) => selectedRoles.value.includes(usr.role));
+    filtered = filtered.filter((usr) => selectedRoles.value.includes(usr.userRole));
   }
 
   return filtered;
