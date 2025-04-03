@@ -12,8 +12,8 @@
       <v-col cols="12">
         <v-card class="h-100">
           <!-- Admin Panel Header -->
-          <v-card-title class="d-flex align-center py-3 px-4 bg-grey-darken-4">
-            <h2 class="text-h5 font-weight-bold">User Management</h2>
+          <v-toolbar flat class="bg-grey-darken-4">
+            <v-toolbar-title class="font-weight-bold">User Management</v-toolbar-title>
             <v-spacer />
             <v-text-field
               v-model="searchQuery"
@@ -22,7 +22,7 @@
               variant="outlined"
               hide-details
               prepend-inner-icon="mdi-magnify"
-              class="ml-4"
+              class="mx-4"
               style="max-width: 300px"
             />
             <v-menu>
@@ -31,7 +31,6 @@
                   v-bind="props"
                   icon
                   variant="text"
-                  class="ml-2"
                 >
                   <v-icon>mdi-filter</v-icon>
                   <v-badge
@@ -42,115 +41,131 @@
                   />
                 </v-btn>
               </template>
-              <v-card min-width="200px">
-                <v-card-title class="text-subtitle-1"
-                  >Filter by Role</v-card-title
-                >
-                <v-divider></v-divider>
-                <v-card-text class="pt-2">
+              <v-list>
+                <v-list-subheader>Filter by Role</v-list-subheader>
+                <v-list-item v-for="role in availableRoles" :key="role">
                   <v-checkbox
-                    v-for="role in availableRoles"
-                    :key="role"
                     v-model="selectedRoles"
                     :label="role"
                     :value="role"
                     density="compact"
                     hide-details
-                    class="mb-1"
                   ></v-checkbox>
-                </v-card-text>
-                <v-card-actions>
-                  <v-spacer></v-spacer>
+                </v-list-item>
+                <v-divider></v-divider>
+                <v-list-item>
                   <v-btn
+                    block
                     variant="text"
                     size="small"
                     @click="selectedRoles = []"
                   >
-                    Clear
+                    Clear Filters
                   </v-btn>
-                </v-card-actions>
-              </v-card>
+                </v-list-item>
+              </v-list>
             </v-menu>
-          </v-card-title>
+          </v-toolbar>
 
-          <!-- User List -->
+          <!-- User List with virtualization -->
           <v-card-text class="pa-0">
-            <v-list
-              lines="two"
-              class="pt-0"
-            >
-              <v-list-item
-                v-if="filteredUsers.length > 0"
-                v-for="user in filteredUsers"
-                :key="user.username"
-                class="px-4 py-3"
-              >
-                <v-tooltip
-                  v-if="authStore.authenticated"
-                  location="bottom"
-                  text="User Profile"
-                >
-                  <template #activator="{ props }">
-                    <Icon
-                      name="ic:baseline-person-outline"
-                      size="2em"
-                      v-bind="props"
-                      @click="navigateTo(`/user/${user.username}`)"
-                      class="cursor-pointer transition-opacity hover:opacity-80"
+            <div class="user-list-container">
+              <!-- Loading states -->
+              <template v-if="initialLoading">
+                <div class="pa-4">
+                  <div v-for="n in 5" :key="`skeleton-${n}`" class="skeleton-item mb-4">
+                    <v-skeleton-loader
+                      type="list-item-avatar-two-line"
+                      class="mb-2"
+                      :style="{ opacity: 0.7 + (n * 0.05) }"
                     />
-                  </template>
-                </v-tooltip>
-
-                <div class="d-flex align-center">
-                  <v-list-item-title class="font-weight-medium">
-                    {{ user.username }}
-                  </v-list-item-title>
-                  <v-chip
-                    size="small"
-                    class="ml-2 px-2 text-caption"
-                    variant="outlined"
-                    label
-                  >
-                    {{ user.userRole }}
-                  </v-chip>
+                  </div>
                 </div>
-                <v-list-item-subtitle>
-                  <div class="text-caption">{{ user.email }}</div>
-                  <div class="text-caption mt-1">
-                    Created: {{ formatDate(user.createdAt) }} | Last login:
-                    <!-- {{ formatDate(user.lastLogin) }} -->
-                  </div>
-                </v-list-item-subtitle>
+              </template>
+              
+              <v-list v-else class="pt-0 user-list">
+                <v-list-item
+                  v-for="user in displayedUsers"
+                  :key="user.username"
+                  class="px-4 py-3 user-list-item"
+                  :height="88"
+                >
+                  <template #prepend>
+                    <v-avatar size="36" color="primary" class="cursor-pointer" @click="navigateTo(`/user/${user.username}`)">
+                      <v-icon icon="ic:baseline-person-outline" />
+                    </v-avatar>
+                  </template>
 
-                <template #append>
-                  <div class="d-flex ga-2">
-                    <v-btn
-                      variant="tonal"
-                      size="small"
-                      color="primary"
-                      prepend-icon="mdi-account-edit"
-                    >
-                      Edit
-                    </v-btn>
-                    <v-btn
-                      variant="tonal"
-                      size="small"
-                      color="error"
-                      prepend-icon="mdi-delete"
-                    >
-                      Delete
-                    </v-btn>
-                    <v-btn
-                      variant="tonal"
-                      size="small"
-                      prepend-icon="mdi-shield-account"
-                    >
-                      Roles
-                    </v-btn>
-                  </div>
-                </template>
-              </v-list-item>
-            </v-list>
+                  <v-list-item-title>
+                    <div class="d-flex align-center">
+                      <span class="font-weight-medium">{{ user.username }}</span>
+                      <v-chip
+                        size="small"
+                        class="ml-2 px-2"
+                        variant="outlined"
+                        label
+                      >
+                        {{ user.userRole }}
+                      </v-chip>
+                    </div>
+                  </v-list-item-title>
+                  <v-list-item-subtitle>
+                    <div class="text-caption">{{ user.email }}</div>
+                    <div class="text-caption mt-1">
+                      Created: {{ formatDate(user.createdAt) }} | Last login:
+                      <!-- {{ formatDate(user.lastLogin) }} -->
+                    </div>
+                  </v-list-item-subtitle>
+
+                  <template #append>
+                    <div class="user-actions">
+                      <v-btn-group variant="tonal" density="comfortable">
+                        <v-btn 
+                          icon="mdi-account-edit" 
+                          size="small" 
+                          color="primary"
+                          title="Edit"
+                        />
+                        <v-btn 
+                          icon="mdi-delete" 
+                          size="small" 
+                          color="error"
+                          title="Delete"
+                        />
+                        <v-btn 
+                          icon="mdi-shield-account" 
+                          size="small"
+                          title="Manage Roles"
+                        />
+                      </v-btn-group>
+                    </div>
+                  </template>
+                </v-list-item>
+
+                <!-- Empty state placeholder -->
+                <v-list-item v-if="displayedUsers.length === 0 && !isLoading">
+                  <v-sheet class="text-center py-8 w-100">
+                    <v-icon icon="mdi-alert-circle-outline" size="x-large" class="mb-4" />
+                    <h3 class="text-h6">Nie znaleziono użytkowników</h3>
+                    <p class="text-body-2 text-grey">
+                      Spróbuj zmienić kryteria wyszukiwania lub filtrowania
+                    </p>
+                  </v-sheet>
+                </v-list-item>
+              </v-list>
+
+              <!-- Loading more indicator -->
+              <div v-if="isLoading && !initialLoading" class="py-4 text-center">
+                <v-progress-circular indeterminate color="primary" />
+                <div class="mt-2">Loading more users...</div>
+              </div>
+
+              <!-- Intersection observer target for infinite scroll -->
+              <div
+                ref="loadMoreTrigger"
+                class="load-more-trigger"
+              ></div>
+            </div>
           </v-card-text>
         </v-card>
       </v-col>
@@ -169,27 +184,230 @@ const selectedRoles = ref<string[]>([]);
 const config = useRuntimeConfig();
 
 const BACK_HOST = config.public.BACK_HOST;
-
 const endpoint = `http://${BACK_HOST}/users`;
 
 console.log("Fetching users from:", endpoint);
 const users = ref<UserInfo[]>([]);
+const receivedUsers = ref<UserInfo[]>([]); // Tracks streaming users as they arrive
+const isLoading = ref(false);
+const initialLoading = ref(true);
+const showSkeletons = ref(true); // Control skeleton visibility
+const currentPage = ref(1);
+const pageSize = ref(10);
+const hasMoreUsers = ref(true);
+const loadMoreTrigger = ref<HTMLElement | null>(null);
+const streamTimeout = ref<NodeJS.Timeout | null>(null);
 
-try {
-  const response = await $fetch(endpoint, {
-    method: "GET",
-    headers,
-    credentials: "include",
+// Stream processing utility
+const processJsonStream = async (reader: ReadableStreamDefaultReader<Uint8Array>, onChunk: (data: any) => void) => {
+  const decoder = new TextDecoder();
+  let buffer = '';
+  
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      
+      buffer += decoder.decode(value, { stream: true });
+      
+      // Process complete JSON objects in the buffer
+      let startPos = 0;
+      let depth = 0;
+      let inString = false;
+      let escapeNext = false;
+      
+      for (let i = 0; i < buffer.length; i++) {
+        const char = buffer[i];
+        
+        if (escapeNext) {
+          escapeNext = false;
+          continue;
+        }
+        
+        if (char === '\\' && inString) {
+          escapeNext = true;
+          continue;
+        }
+        
+        if (char === '"' && !escapeNext) {
+          inString = !inString;
+          continue;
+        }
+        
+        if (inString) continue;
+        
+        if (char === '{' || char === '[') {
+          depth++;
+        } else if (char === '}' || char === ']') {
+          depth--;
+          
+          if (depth === 0) {
+            // We've found a complete JSON object
+            const jsonStr = buffer.substring(startPos, i + 1);
+            try {
+              const data = JSON.parse(jsonStr);
+              onChunk(data);
+            } catch (e) {
+              console.error('Failed to parse JSON chunk:', e);
+            }
+            
+            startPos = i + 1;
+          }
+        }
+      }
+      
+      // Keep any incomplete data in the buffer
+      if (startPos > 0) {
+        buffer = buffer.substring(startPos);
+      }
+    }
+    
+    // Process any remaining complete objects
+    if (buffer.trim()) {
+      try {
+        const data = JSON.parse(buffer);
+        onChunk(data);
+      } catch (e) {
+        console.error('Failed to parse remaining JSON:', e);
+      }
+    }
+  } catch (error) {
+    console.error('Stream processing error:', error);
+  }
+};
+
+// Stabilizacja aktualizacji danych - bufferowanie zmian
+const updateBuffer = ref<UserInfo[]>([]);
+const updateInterval = ref<NodeJS.Timeout | null>(null);
+const updateDelayMs = 200; // Czas między aktualizacjami UI
+
+// Load users with streaming
+const loadUsers = async (page: number = 1) => {
+  if (!hasMoreUsers.value && page > 1) return;
+  
+  isLoading.value = true;
+  
+  // Reset receivedUsers when starting a new search or first page
+  if (page === 1) {
+    receivedUsers.value = [];
+    showSkeletons.value = true;
+    // Zatrzymaj istniejące interwały aktualizacji
+    if (updateInterval.value) {
+      clearInterval(updateInterval.value);
+      updateInterval.value = null;
+    }
+    updateBuffer.value = [];
+  }
+  
+  try {
+    const response = await fetch(`http://${BACK_HOST}/users`, {
+      method: "GET",
+      headers: {
+        ...headers,
+        'Accept': 'application/json',
+      },
+      credentials: "include",
+    });
+    
+    if (!response.ok || !response.body) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    // Process the stream
+    const reader = response.body.getReader();
+    const tempUsers: UserInfo[] = page === 1 ? [] : [...users.value];
+    let receivedCount = 0;
+    
+    // Rozpocznij interwał aktualizacji UI
+    updateInterval.value = setInterval(() => {
+      if (updateBuffer.value.length > 0) {
+        // Aktualizuj główną listę tylko jeśli bufor ma dane
+        users.value = [...tempUsers];
+        
+        // Wyczyść interwał jeśli nie ma już więcej danych do buforowania
+        if (!isLoading.value && updateInterval.value) {
+          clearInterval(updateInterval.value);
+          updateInterval.value = null;
+        }
+      }
+    }, updateDelayMs);
+    
+    await processJsonStream(reader, (data) => {
+      if (Array.isArray(data)) {
+        // Handle array response - aktualizuj tempUsers, ale nie od razu users.value
+        const newUsers = data.slice((page - 1) * pageSize.value, page * pageSize.value);
+        tempUsers.push(...newUsers);
+        receivedUsers.value = [...tempUsers];
+        receivedCount += newUsers.length;
+        // Dodaj do bufora aktualizacji
+        updateBuffer.value = [...tempUsers];
+      } else if (typeof data === 'object' && data !== null) {
+        // Handle single user object
+        tempUsers.push(data as UserInfo);
+        receivedUsers.value = [...tempUsers];
+        receivedCount++;
+        // Dodaj do bufora aktualizacji
+        updateBuffer.value = [...tempUsers];
+      }
+    });
+    
+    // Ostatnia aktualizacja po zakończeniu strumienia
+    users.value = [...tempUsers];
+    
+    // Check if we've reached the end
+    hasMoreUsers.value = receivedCount >= pageSize.value;
+    
+  } catch (error) {
+    console.error("Failed to fetch users:", error);
+    if (page === 1) {
+      users.value = [];
+      receivedUsers.value = [];
+    }
+  } finally {
+    // Add a small delay before hiding skeletons for smoother transition
+    setTimeout(() => {
+      isLoading.value = false;
+      initialLoading.value = false;
+      
+      // Zatrzymaj interwał aktualizacji jeśli istnieje
+      if (updateInterval.value) {
+        clearInterval(updateInterval.value);
+        updateInterval.value = null;
+      }
+      
+      // Keep skeletons visible a bit longer if no users received yet
+      if (receivedUsers.value.length > 0) {
+        setTimeout(() => {
+          showSkeletons.value = false;
+        }, 300);
+      }
+    }, 500);
+  }
+};
+
+// Initial data load
+await loadUsers();
+
+// Set up intersection observer for infinite scrolling
+onMounted(() => {
+  const observer = new IntersectionObserver(
+    (entries) => {
+      if (entries[0].isIntersecting && !isLoading.value && hasMoreUsers.value) {
+        currentPage.value++;
+        loadUsers(currentPage.value);
+      }
+    },
+    { threshold: 0.5 }
+  );
+  
+  if (loadMoreTrigger.value) {
+    observer.observe(loadMoreTrigger.value);
+  }
+  
+  onBeforeUnmount(() => {
+    observer.disconnect();
   });
-  console.log("Response:", response);
-  // Mapowanie danych z API do oczekiwanego formatu
-  users.value = Array.isArray(response) 
-    ? response
-    : [];
-} catch (error) {
-  console.error("Failed to fetch users:", error);
-  users.value = []; // Pusta tablica w przypadku błędu
-}
+});
 
 // Format date to a readable format
 const formatDate = (dateInput: string | Date) => {
@@ -230,6 +448,26 @@ const filteredUsers = computed(() => {
 
   return filtered;
 });
+
+// When filters change, reset and reload data
+watch([searchQuery, selectedRoles], () => {
+  currentPage.value = 1;
+  hasMoreUsers.value = true;
+  initialLoading.value = true; // Show skeleton loading when filters change
+  showSkeletons.value = true;
+  loadUsers(1);
+}, { deep: true });
+
+// Users to display - all filtered users
+const displayedUsers = computed(() => {
+  return filteredUsers.value;
+});
+
+// Clean up any timeouts on component unmount
+onBeforeUnmount(() => {
+  if (streamTimeout.value) clearTimeout(streamTimeout.value);
+  if (updateInterval.value) clearInterval(updateInterval.value);
+});
 </script>
 
 <style lang="scss" scoped>
@@ -251,5 +489,75 @@ const filteredUsers = computed(() => {
   overflow-y: auto;
   max-height: calc(100vh - 96px);
   scrollbar-width: thin;
+}
+
+.load-more-trigger {
+  height: 20px;
+}
+
+// Add styles for skeleton loaders
+:deep(.v-skeleton-loader__button),
+:deep(.v-skeleton-loader__text),
+:deep(.v-skeleton-loader__chip),
+:deep(.v-skeleton-loader__avatar) {
+  border-radius: 4px;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+// Transition animation for user items
+.fade-list-enter-active, .fade-list-leave-active {
+  transition: all 0.3s ease;
+}
+.fade-list-enter-from, .fade-list-leave-to {
+  opacity: 0;
+  transform: translateY(10px);
+}
+.fade-list-move {
+  transition: transform 0.3s ease;
+}
+
+.skeleton-item {
+  animation: pulse 1.5s infinite ease-in-out;
+  &:nth-child(odd) {
+    animation-delay: 0.15s;
+  }
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0.6;
+  }
+}
+
+// Stabilizacja układu listy
+.user-list-container {
+  position: relative;
+  height: calc(100vh - 130px);
+  overflow-y: auto;
+}
+
+.user-list {
+  height: auto;
+  contain: content;
+}
+
+.user-list-item {
+  contain: layout style;
+  height: 88px !important; 
+}
+
+.user-actions {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.user-list-item:hover .user-actions {
+  opacity: 1;
 }
 </style>
