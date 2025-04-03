@@ -15,14 +15,14 @@
     "@mdi/font": "^7.4.47",
     "@nuxt/icon": "^1.11.0",
     "@nuxt/image": "^1.10.0",
-    "@nuxt/kit": "^3.16.1",
+    "@nuxt/kit": "^3.16.2",
     "@pinia/nuxt": "^0.10.1",
     "@types/crypto-js": "^4.2.2",
     "crypto-js": "^4.2.0",
     "dotenv": "^16.4.7",
     "email-validator": "^2.0.4",
     "http-status-codes": "^2.3.0",
-    "nuxt": "^3.16.1",
+    "nuxt": "^3.16.2",
     "pinia-plugin-persistedstate": "^4.2.0",
     "vue": "latest",
     "vue-router": "latest"
@@ -30,10 +30,10 @@
   "devDependencies": {
     "axios": "^1.8.4",
     "formdata": "^0.10.4",
-    "sass": "^1.86.0",
-    "sass-embedded": "^1.86.0",
-    "vite-plugin-vuetify": "^2.1.0",
-    "vitest": "^3.0.9",
-    "vuetify": "^3.7.19"
+    "sass": "^1.86.2",
+    "sass-embedded": "^1.86.2",
+    "vite-plugin-vuetify": "^2.1.1",
+    "vitest": "^3.1.1",
+    "vuetify": "^3.8.0"
   }
 }

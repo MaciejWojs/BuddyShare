@@ -201,7 +201,7 @@
 
 <script setup lang="ts">
 definePageMeta({
-  middleware: ["user-exists"],
+  middleware: ["user-exists", "is-banned"],
 });
 
 const route = useRoute();

@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import type { User } from "../types/User"; // Wydziel interfejs do osobnego pliku
+import { Role } from "~/types/Roles";
 
 export const useAuthStore = defineStore("auth", () => {
   // state
@@ -13,6 +14,7 @@ export const useAuthStore = defineStore("auth", () => {
   const userEmail = computed(() => user.value?.userInfo.email || null);
   const userRole = computed(() => user.value?.userInfo.userRole || null);
   const isReady = computed(() => isAuthenticated.value);
+  const isAdmin = computed(() => user.value?.userInfo.userRole === Role.ADMIN);
 
   // Lazy imports dla funkcji Nuxt
   const lazyFetch = () => {
@@ -33,6 +35,8 @@ export const useAuthStore = defineStore("auth", () => {
         credentials: "include",
       });
       isAuthenticated.value = !!user.value;
+      console.log("User logged in:", user.value);
+      console.log("User authenticated:", isAuthenticated.value);
     } catch (error) {
       clearUser();
     }
@@ -63,13 +67,13 @@ export const useAuthStore = defineStore("auth", () => {
 
   return {
     user,
-    isAuthenticated,
     currentUser,
     authenticated,
     userName,
     userEmail,
     userRole,
     isReady,
+    isAdmin,
     fetchUser,
     clearUser,
     logout,
