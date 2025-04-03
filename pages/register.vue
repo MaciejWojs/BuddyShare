@@ -1,49 +1,32 @@
 <template>
-  <v-container>
-    <v-row justify="center">
-      <v-col
-        cols="12"
-        md="4"
-      >
-        <v-card>
-          <v-card-title>Rejestracja</v-card-title>
-          <v-card-text>
-            <v-text-field
-              label="Username"
-              v-model="username"
-            ></v-text-field>
-            <v-text-field
-              label="Email"
-              v-model="email"
-            ></v-text-field>
-            <v-text-field
-              label="Hasło"
-              type="password"
-              v-model="password"
-            ></v-text-field>
-            <v-text-field
-              label="Powtórz hasło"
-              type="password"
-              v-model="confirmPassword"
-              @keydown.enter="register"
-            ></v-text-field>
-
-            <!-- Wyświetlanie komunikatu o błędzie -->
-            <v-alert
-              v-if="errorMessage"
-              type="error"
-              dismissible
-            >
-              {{ errorMessage }}
-            </v-alert>
-          </v-card-text>
-          <v-card-actions>
-            <v-btn @click="register">Zarejestruj się</v-btn>
-          </v-card-actions>
-        </v-card>
-      </v-col>
-    </v-row>
-  </v-container>
+  <AuthForm 
+    title="Rejestracja" 
+    submitText="Zarejestruj się" 
+    :errorMessage="errorMessage"
+    @submit="register"
+  >
+    <template #fields>
+      <v-text-field
+        label="Username"
+        v-model="username"
+      ></v-text-field>
+      <v-text-field
+        label="Email"
+        v-model="email"
+      ></v-text-field>
+      <v-text-field
+        label="Hasło"
+        type="password"
+        v-model="password"
+      ></v-text-field>
+      <v-text-field
+        label="Powtórz hasło"
+        type="password"
+        v-model="confirmPassword"
+        @keydown.enter="register"
+      ></v-text-field>
+    </template>
+  </AuthForm>
 </template>
 
 <script setup>
