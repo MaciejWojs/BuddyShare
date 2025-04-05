@@ -1,5 +1,12 @@
-// middleware/user-exists.ts
 export default defineNuxtRouteMiddleware(async (to) => {
+  if (import.meta.server) return;
+
+  const authStore = useAuthStore();
+
+  const isAdmin = authStore.isAdmin;
+
+  if (isAdmin) return;
+
   const username = to.params.displayname;
 
   const config = useRuntimeConfig();
@@ -19,20 +26,22 @@ export default defineNuxtRouteMiddleware(async (to) => {
   const baben = `http://${BACK_HOST}/users/${username}`;
 
   console.log("Checking if user exists:", baben);
-  const { error } = await useFetch(baben);
+  const { error, status, data } = await useFetch(baben);
 
-  if (error.value?.statusCode === 404) {
-    throw createError({
-      statusCode: 404,
-      statusMessage: "User not found",
-      fatal: true,
-    });
-  }
-
-  if (error.value) {
+  // console.log("ERROR: ", error.value);
+  // console.log("STATUS: ", status);
+  // console.log("DATA: ", data.value);
+  if (!data.value) {
     throw createError({
       statusCode: 500,
       statusMessage: "Failed to verify user",
+    });
+  }
+
+  if ((data.value as { isBanned?: boolean })?.isBanned) {
+    throw createError({
+      statusCode: 404,
+      statusMessage: `${username} is banned`,
     });
   }
 });

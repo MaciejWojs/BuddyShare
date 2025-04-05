@@ -1,19 +1,21 @@
 import { defineStore } from "pinia";
 import type { User } from "../types/User"; // Wydziel interfejs do osobnego pliku
+import { Role } from "~/types/Roles";
 
-export const useAuthStore = defineStore('auth', () => {
+export const useAuthStore = defineStore("auth", () => {
   // state
   const user = ref<User | null>(null);
   const isAuthenticated = ref(false);
-  
+
   // getters
   const currentUser = computed(() => user.value);
   const authenticated = computed(() => isAuthenticated.value);
-  const userName = computed(() => user.value?.displayName || null);
-  const userEmail = computed(() => user.value?.email || null);
-  const userRole = computed(() => user.value?.role || null);
+  const userName = computed(() => user.value?.userInfo.username || null);
+  const userEmail = computed(() => user.value?.userInfo.email || null);
+  const userRole = computed(() => user.value?.userInfo.userRole || null);
   const isReady = computed(() => isAuthenticated.value);
-  
+  const isAdmin = computed(() => user.value?.userInfo.userRole === Role.ADMIN);
+
   // Lazy imports dla funkcji Nuxt
   const lazyFetch = () => {
     const config = useRuntimeConfig();
@@ -21,11 +23,11 @@ export const useAuthStore = defineStore('auth', () => {
     const headers = useRequestHeaders(["cookie"]);
     return { config, BACK_HOST, headers };
   };
-  
+
   // actions
   async function fetchUser() {
     const { BACK_HOST, headers } = lazyFetch();
-    
+
     try {
       user.value = await $fetch<User>(`http://${BACK_HOST}/auth/me`, {
         method: "GET",
@@ -33,45 +35,47 @@ export const useAuthStore = defineStore('auth', () => {
         credentials: "include",
       });
       isAuthenticated.value = !!user.value;
+      // console.log("User logged in:", user.value);
+      // console.log("User authenticated:", isAuthenticated.value);
     } catch (error) {
       clearUser();
     }
   }
-  
+
   function clearUser() {
     user.value = null;
     isAuthenticated.value = false;
   }
-  
+
   async function logout() {
     const { BACK_HOST, headers } = lazyFetch();
-    
+
     try {
       await $fetch(`http://${BACK_HOST}/auth/logout`, {
         method: "GET",
         headers,
-        credentials: "include"
+        credentials: "include",
       });
     } catch (error) {
       console.error("Błąd podczas wylogowywania:", error);
     }
-    
+
     const cookie = useCookie("JWT");
     cookie.value = null;
     clearUser();
   }
-  
+
   return {
     user,
-    isAuthenticated,
     currentUser,
     authenticated,
     userName,
     userEmail,
     userRole,
     isReady,
+    isAdmin,
     fetchUser,
     clearUser,
-    logout
+    logout,
   };
 });

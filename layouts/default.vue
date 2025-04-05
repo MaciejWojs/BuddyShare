@@ -255,6 +255,9 @@ const navItems = computed(() => [
           icon: "mdi-account",
         },
         { title: "Settings", to: "/user/settings", icon: "mdi-cog" },
+        ...(authStore.isAdmin
+          ? [{ title: "Admin", to: "/admin", icon: "mdi-shield-account" }]
+          : []),
       ]
     : []),
   { title: "About", to: "/about", icon: "mdi-information" },
@@ -272,6 +275,10 @@ const handleNotificationClick = (notification: any) => {
   notification.read = true;
   // Handle notification click logic
 };
+
+// const handleLogout = async () => {
+//   await authStore.logout();
+// };
 </script>
 
 <style scoped>
