@@ -1,16 +1,19 @@
 <template>
   <AuthForm
     title="Logowanie"
-    submitText="Zaloguj się"
+    submitText="Log in"
     :errorMessage="errorMessage"
     @submit="login"
   >
     <template #fields>
-      <v-text-field label="Username or email" v-model="email"></v-text-field>
-      <v-text-field 
-        label="Hasło" 
-        type="password" 
-        v-model="password" 
+      <v-text-field
+        label="Username or email"
+        v-model="email"
+      ></v-text-field>
+      <v-text-field
+        label="Password"
+        type="password"
+        v-model="password"
         @keydown.enter="login"
       ></v-text-field>
     </template>
@@ -21,7 +24,7 @@
 import { ref } from "vue";
 import { getPasswordHash } from "@/src/utils/crypto/hash";
 import StatusCodes from "http-status-codes";
-import AuthForm from '@/components/auth/AuthForm.vue';
+import AuthForm from "@/components/auth/AuthForm.vue";
 
 const authStore = useAuthStore();
 const email = ref("");
@@ -62,10 +65,12 @@ const login = () => {
       if (response.status === StatusCodes.OK) {
         return respJSON;
       } else {
-        return respJSON.then(data => {
+        return respJSON.then((data) => {
           if (response.status === StatusCodes.UNAUTHORIZED) {
-            errorMessage.value = data.cause === "credentials" ?
-              "Invalid credentials" : "You are banned";
+            errorMessage.value =
+              data.cause === "credentials"
+                ? "Invalid credentials"
+                : "You are banned";
           } else {
             errorMessage.value = "Sorry, something went wrong";
           }

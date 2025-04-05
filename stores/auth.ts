@@ -35,8 +35,8 @@ export const useAuthStore = defineStore("auth", () => {
         credentials: "include",
       });
       isAuthenticated.value = !!user.value;
-      console.log("User logged in:", user.value);
-      console.log("User authenticated:", isAuthenticated.value);
+      // console.log("User logged in:", user.value);
+      // console.log("User authenticated:", isAuthenticated.value);
     } catch (error) {
       clearUser();
     }

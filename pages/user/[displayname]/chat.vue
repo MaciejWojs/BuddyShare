@@ -1,51 +1,17 @@
-<!-- pages/[displayname]/index.vue -->
 <template>
-  <v-container
-    fluid
-    class="stream-layout pa-0 fill-height"
+  <v-col
+    cols="12"
+    lg="3"
+    class="h-100 bg-grey-darken-4"
   >
-    <v-row
-      no-gutters
-      class="fill-height"
-    >
-      <!-- Main Content Column -->
-      <v-col
-        cols="12"
-        lg="9"
-        class="h-100"
-      >
-        <v-responsive
-          :aspect-ratio="16 / 9"
-          class="h-100"
-        >
-          <!-- Używamy komponentu VideoPlayer zamiast powtarzać kod -->
-          <LazyVideoPlayer
-            :display-name="displayName"
-            :is-live="isLive"
-            viewer-count="12.8K"
-            stream-url="https://example.com/stream.m3u8"
-            avatar="/Buddyshare.svg"
-            current-time="22:02"
-          />
-        </v-responsive>
-      </v-col>
-
-      <!-- Chat Column -->
-      <v-col
-        cols="12"
-        lg="3"
-        class="h-100 bg-grey-darken-4"
-      >
-        <LiveChat
-          :messages="chatMessages"
-          :online-count="onlineCount"
-          title="Live Chat"
-          @send-message="handleSendMessage"
-          @message-action="handleMessageAction"
-        />
-      </v-col>
-    </v-row>
-  </v-container>
+    <LiveChat
+      :messages="chatMessages"
+      :online-count="onlineCount"
+      title="Live Chat"
+      @send-message="handleSendMessage"
+      @message-action="handleMessageAction"
+    />
+  </v-col>
 </template>
 
 <script setup lang="ts">
