@@ -7,7 +7,7 @@ export default defineNuxtConfig({
   build: {
     transpile: ["vuetify"],
   },
-  
+
   nitro: {
     preset: "bun",
   },
@@ -32,6 +32,9 @@ export default defineNuxtConfig({
     "@nuxt/image",
     "@pinia/nuxt", // required
     "pinia-plugin-persistedstate/nuxt",
+    // "@nuxtjs/color-mode",
+    // "@nuxtjs/i18n",
+
     //...
   ],
 

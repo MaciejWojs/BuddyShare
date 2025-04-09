@@ -182,7 +182,7 @@ const handleMessageAction = ({ action, message, index }) => {
 };
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 .stream-layout {
   height: 100vh;
   background: #0a0a0a;
