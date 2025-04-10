@@ -2,7 +2,10 @@
 import { ref } from "vue";
 
 definePageMeta({
-  middleware: ["user-exists", "is-banned"],
+  middleware: [
+    // "user-exists",
+    // "is-banned"
+  ],
 });
 
 const config = useRuntimeConfig();
@@ -104,8 +107,8 @@ const userJoinDate = userProfileInfo.value.createdAt
 const profileData = ref({
   username: displayName,
   displayName: displayName,
-  avatar: "/Buddyshare.svg",
-  coverImage: "/Buddyshare.svg",
+  avatar: userAvatar,
+  coverImage: userCoverImage,
   description: userDescription,
   followers: userFollowers,
   following: userFollowing,
@@ -205,7 +208,9 @@ const profileData = ref({
                     {{ profileData.followers.toLocaleString() }}
                   </div>
                   <NuxtLink
-                    to="./profile/followers"
+                    @click="
+                      navigateTo(`/user/${displayName}/profile/followers`)
+                    "
                     class="profile-link"
                   >
                     Obserwujący
@@ -221,7 +226,7 @@ const profileData = ref({
                   </div>
                   <NuxtLink
                     @click="
-                      navigateTo('/user/${displayName}/profile/following')
+                      navigateTo(`/user/${displayName}/profile/following`)
                     "
                     class="profile-link"
                   >

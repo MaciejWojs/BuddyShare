@@ -244,23 +244,45 @@ const unreadCount = computed(
   () => notifications.value.filter((n) => !n.read).length
 );
 const navItems = computed(() => [
-  { title: "Home", to: "/", icon: "mdi-home" },
-  { title: "Discover", to: "/discover", icon: "mdi-compass" },
+  { title: "Home", icon: "mdi-home", to: "/" },
+  {
+    title: "Discover",
+    icon: "mdi-compass",
+    to: "/discover",
+  },
   ...(authStore.authenticated
     ? [
-        { title: "Following", to: "/following", icon: "mdi-heart" },
+        {
+          title: "Following",
+          icon: "mdi-heart",
+          to: `/user/${authStore.userName}/profile/following`,
+        },
         {
           title: "Profile",
-          to: `/user/${authStore.userName}`,
           icon: "mdi-account",
+          to: `/user/${authStore.userName}`,
         },
-        { title: "Settings", to: "/user/settings", icon: "mdi-cog" },
+        {
+          title: "Settings",
+          icon: "mdi-cog",
+          to: "/user/settings",
+        },
         ...(authStore.isAdmin
-          ? [{ title: "Admin", to: "/admin", icon: "mdi-shield-account" }]
+          ? [
+              {
+                title: "Admin",
+                icon: "mdi-shield-account",
+                to: "/admin",
+              },
+            ]
           : []),
       ]
     : []),
-  { title: "About", to: "/about", icon: "mdi-information" },
+  {
+    title: "About",
+    icon: "mdi-information",
+    to: "/about",
+  },
 ]);
 
 const formatTime = (date: Date) => {
