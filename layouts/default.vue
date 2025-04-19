@@ -82,6 +82,15 @@
                 icon="mdi-check-all"
                 @click="markAllAsRead"
                 :disabled="unreadCount === 0"
+                title="Mark all as read"
+              />
+              <v-btn
+                variant="text"
+                icon="mdi-delete-sweep"
+                @click="deleteAllNotifications"
+                :disabled="notifications.length === 0"
+                title="Delete all notifications"
+                class="ml-2"
               />
             </v-toolbar>
 
@@ -93,28 +102,39 @@
                 <v-list-item
                   v-for="notification in notifications"
                   :key="notification.id"
-                  :class="{ 'bg-grey-darken-3': !notification.read }"
-                  @click="handleNotificationClick(notification)"
+                  :class="{ 'bg-grey-darken-3': !notification.isRead }"
                 >
                   <template #prepend>
                     <v-icon
-                      :icon="notification.icon"
-                      :color="notification.type === 'alert' ? 'red' : 'primary'"
+                      icon="mdi-bell-outline"
+                      color="primary"
                       class="mr-3"
                     />
                   </template>
 
-                  <v-list-item-title class="text-body-2">
-                    {{ notification.title }}
-                  </v-list-item-title>
-                  <v-list-item-subtitle class="text-caption">
+                  <v-list-item-subtitle 
+                    class="text-caption"
+                    @click="handleNotificationClick(notification)"
+                    style="cursor: pointer"
+                  >
                     {{ notification.message }}
                   </v-list-item-subtitle>
                   <v-list-item-subtitle
                     class="text-caption text-medium-emphasis text-right"
                   >
-                    {{ formatTime(notification.time) }}
+                    {{ formatTime(notification.created_at) }}
                   </v-list-item-subtitle>
+                  
+                  <template #append>
+                    <v-btn
+                      icon="mdi-delete-outline"
+                      variant="text"
+                      size="small"
+                      color="error"
+                      @click.stop="handleDeleteNotification(notification.id)"
+                      title="Delete notification"
+                    />
+                  </template>
                 </v-list-item>
               </template>
 
@@ -208,41 +228,52 @@
       with ❤️ by BuddyShare Team
     </v-footer>
   </v-app>
+
+  <!-- Dialog potwierdzenia usunięcia wszystkich powiadomień -->
+  <v-dialog v-model="showDeleteConfirmDialog" max-width="400">
+    <v-card>
+      <v-card-title class="text-h6">
+        Delete all notifications?
+      </v-card-title>
+      <v-card-text>
+        This action is <strong>irreversible</strong>. All notifications will be permanently deleted.
+        Are you sure you want to continue?
+      </v-card-text>
+      <v-card-actions>
+        <v-spacer></v-spacer>
+        <v-btn color="grey" variant="text" @click="showDeleteConfirmDialog = false">
+          Cancel
+        </v-btn>
+        <v-btn color="error" variant="text" @click="confirmDeleteAllNotifications">
+          Delete all
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import { useNotificationsStore } from "~/stores/notifications";
 // import { useAuthStore } from "~/stores/auth";
 
 const drawer = ref(false);
 const showNotifications = ref(false);
 const authStore = useAuthStore();
+const showDeleteConfirmDialog = ref(false);
 
-// Notifications
-const notifications = ref([
-  {
-    id: 1,
-    title: "New Follower",
-    message: "JohnDoe started following you",
-    type: "info",
-    icon: "mdi-account-plus",
-    time: new Date(Date.now() - 3600000),
-    read: false,
-  },
-  {
-    id: 2,
-    title: "Stream Alert",
-    message: "Your favorite streamer is live!",
-    type: "alert",
-    icon: "mdi-alert",
-    time: new Date(Date.now() - 1800000),
-    read: true,
-  },
-]);
+const notificationsStore = useNotificationsStore();
+const notifications = computed(() => {
+  // Filtrujemy out pole 'count' z tablicy powiadomień
+  return notificationsStore.notifications.filter(item => typeof item !== 'object' || !('count' in item));
+});
+
+console.log("Notifications: ", notifications.value);
 
 const unreadCount = computed(
-  () => notifications.value.filter((n) => !n.read).length
+  () => notifications.value.filter((n: { isRead: boolean }) => !n.isRead).length
 );
+
 const navItems = computed(() => [
   { title: "Home", icon: "mdi-home", to: "/" },
   {
@@ -285,22 +316,38 @@ const navItems = computed(() => [
   },
 ]);
 
-const formatTime = (date: Date) => {
-  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+const formatTime = (date: string | Date) => {
+  const dateObj = date instanceof Date ? date : new Date(date);
+  return dateObj.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 };
 
-const markAllAsRead = () => {
-  notifications.value = notifications.value.map((n) => ({ ...n, read: true }));
+const markAllAsRead = async () => {
+  await notificationsStore.markAllAsRead();
 };
 
-const handleNotificationClick = (notification: any) => {
-  notification.read = true;
-  // Handle notification click logic
+const handleNotificationClick = async (notification: any) => {
+  await notificationsStore.markAsRead(notification.id);
+  // Przekierowanie na stronę streamu jeśli istnieje stream_id
+  if (notification.stream_id) {
+    const streamer = notification.message.split(" ")[0];
+    navigateTo(`/user/${streamer}`);
+  }
+  showNotifications.value = false;
 };
 
-// const handleLogout = async () => {
-//   await authStore.logout();
-// };
+const handleDeleteNotification = async (id: number) => {
+  await notificationsStore.deleteNotification(id);
+};
+
+const deleteAllNotifications = async () => {
+  showDeleteConfirmDialog.value = true;
+};
+
+const confirmDeleteAllNotifications = async () => {
+  showDeleteConfirmDialog.value = false;
+  await notificationsStore.deleteAllNotifications();
+  showNotifications.value = false; // Zamykamy menu powiadomień po usunięciu wszystkich
+};
 </script>
 
 <style scoped>

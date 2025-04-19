@@ -26,6 +26,7 @@
     "@nuxtjs/i18n": "9.5.3",
     "@pinia/nuxt": "^0.11.0",
     "@types/crypto-js": "^4.2.2",
+    "@vueuse/core": "^13.1.0",
     "crypto-js": "^4.2.0",
     "dashjs": "^5.0.1",
     "dotenv": "^16.5.0",
