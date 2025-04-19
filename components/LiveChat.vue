@@ -178,8 +178,6 @@
 <script setup lang="ts">
 import {
   ref,
-  defineProps,
-  defineEmits,
   computed,
   watch,
   nextTick,
