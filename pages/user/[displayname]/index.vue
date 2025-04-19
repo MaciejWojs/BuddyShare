@@ -18,12 +18,14 @@
           :aspect-ratio="16 / 9"
           class="h-100"
         >
-          <!-- Używamy komponentu VideoPlayer zamiast powtarzać kod -->
+          <!-- Poprawione przekazywanie jakości do VideoPlayer -->
           <LazyVideoPlayer
             :display-name="displayName"
             :is-live="isLive"
             viewer-count="12.8K"
-            stream-url="https://example.com/stream.m3u8"
+            :stream-url="streamUrl"
+            :qualities="streamerData?.stream?.urls?.[0]?.qualities || []"
+            :initial-quality="selectedQuality"
             avatar="/Buddyshare.svg"
             current-time="22:02"
           />
@@ -49,7 +51,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, watch } from "vue";
 
 definePageMeta({
   middleware: ["user-exists", "is-banned", "test-middleware", "is-moderator"],
@@ -57,8 +59,76 @@ definePageMeta({
 
 const route = useRoute();
 const displayName = route.params.displayname;
-const isLive = ref(true);
+const isLive = ref(false);
 const onlineCount = ref("128");
+
+const headers = useRequestHeaders(["cookie"]);
+const config = useRuntimeConfig();
+const BACK_HOST = config.public.BACK_HOST;
+const endpoint = `http://${BACK_HOST}/streamers/${displayName}`;
+
+const streamerData = ref(null);
+const availableQualities = ref<string[]>([]);
+const selectedQuality = ref('source');
+const streamUrl = ref("");
+
+try {
+  const response = await fetch(endpoint, {
+    method: "GET",
+    headers: {
+      ...headers,
+      Accept: "application/json",
+    },
+    credentials: "include",
+  });
+  streamerData.value = await response.json();
+  
+  // Sprawdzanie czy otrzymaliśmy prawidłowe dane
+  if (streamerData.value && streamerData.value.stream && streamerData.value.stream.urls) {
+    console.log("Streamer data fetched successfully:", streamerData.value);
+    
+    // Ustawiamy status transmisji na żywo
+    if (streamerData.value.stream.isLive !== undefined) {
+      isLive.value = streamerData.value.stream.isLive;
+    }
+    
+    // Pobieramy dostępne jakości i URL transmisji DASH
+    const streamUrls = streamerData.value.stream.urls;
+    if (streamUrls.length > 0 && streamUrls[0].qualities) {
+      availableQualities.value = streamUrls[0].qualities.map(q => q.name);
+
+      console.log("Available qualities:", availableQualities.value);
+      
+      // Ustaw domyślną jakość na 'source' jeśli dostępna
+      if (availableQualities.value.includes('source')) {
+        selectedQuality.value = 'source';
+      } else if (availableQualities.value.length > 0) {
+        selectedQuality.value = availableQualities.value[0];
+      }
+      
+      // Ustaw początkowy URL
+      const initialQuality = streamUrls[0].qualities.find(q => q.name === selectedQuality.value);
+      if (initialQuality) {
+        streamUrl.value = initialQuality.dash;
+      }
+    }
+  }
+} catch (error) {
+  console.error('Failed to fetch streamer data:', error);
+}
+
+// Obserwuj zmiany jakości
+watch(selectedQuality, (newQuality) => {
+  if (streamerData.value?.stream?.urls?.[0]?.qualities) {
+    const qualities = streamerData.value.stream.urls[0].qualities;
+    const selected = qualities.find(q => q.name === newQuality);
+    if (selected) {
+      streamUrl.value = selected.dash;
+    }
+  }
+});
+
+console.log("Streamer data:", streamerData.value); 
 
 // Chat functionality
 const chatMessages = ref([
