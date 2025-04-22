@@ -1,12 +1,18 @@
 <!-- layouts/default.vue -->
 <template>
-  <v-app>
+  <v-app class="d-flex flex-column min-h-100vh">
     <v-app-bar
       app
       flat
       dark
-      color="transparent"
+      :color="undefined"
       class="px-8"
+      :class="{
+        'v-app-bar-hidden': isScrollingDown && lastScrollY > 50,
+        'streaming-bg-header-transparent': isScrollingDown && lastScrollY > 50,
+        'streaming-bg-header': !isScrollingDown || lastScrollY <= 50,
+      }"
+      :elevation="0"
     >
       <v-tooltip
         location="bottom"
@@ -112,7 +118,7 @@
                     />
                   </template>
 
-                  <v-list-item-subtitle 
+                  <v-list-item-subtitle
                     class="text-caption"
                     @click="handleNotificationClick(notification)"
                     style="cursor: pointer"
@@ -124,7 +130,7 @@
                   >
                     {{ formatTime(notification.created_at) }}
                   </v-list-item-subtitle>
-                  
+
                   <template #append>
                     <v-btn
                       icon="mdi-delete-outline"
@@ -184,7 +190,7 @@
               name="ic:baseline-person-outline"
               size="2em"
               v-bind="props"
-              @click="navigateTo(`/user/${authStore.userName}`)"
+              @click="navigateTo(`/user/${authStore.userName}/profile`)"
               class="cursor-pointer transition-opacity hover:opacity-80"
             />
           </template>
@@ -200,21 +206,58 @@
       class="pa-4"
     >
       <v-list density="compact">
-        <v-list-item
+        <template
           v-for="(item, i) in navItems"
           :key="i"
-          :to="item.to"
-          active-class="active-nav-item"
         >
-          <template #prepend>
-            <v-icon :icon="item.icon" />
-          </template>
-          <v-list-item-title>{{ item.title }}</v-list-item-title>
-        </v-list-item>
+          <!-- Element z dziećmi - używamy v-list-group -->
+          <v-list-group
+            v-if="item.children"
+            v-model="openGroups[i]"
+            class="minimal-indent"
+          >
+            <template v-slot:activator="{ props }">
+              <v-list-item v-bind="props">
+                <template #prepend>
+                  <v-icon :icon="item.icon" />
+                </template>
+                <v-list-item-title>{{ item.title }}</v-list-item-title>
+              </v-list-item>
+            </template>
+
+            <v-list-item
+              v-for="(child, j) in item.children"
+              :key="j"
+              :to="child.to"
+              active-class="active-nav-item"
+              class="child-item"
+            >
+              <template #prepend>
+                <v-icon
+                  :icon="child.icon"
+                  class="child-icon"
+                />
+              </template>
+              <v-list-item-title>{{ child.title }}</v-list-item-title>
+            </v-list-item>
+          </v-list-group>
+
+          <!-- Standardowy element bez dzieci -->
+          <v-list-item
+            v-else
+            :to="item.to"
+            active-class="active-nav-item"
+          >
+            <template #prepend>
+              <v-icon :icon="item.icon" />
+            </template>
+            <v-list-item-title>{{ item.title }}</v-list-item-title>
+          </v-list-item>
+        </template>
       </v-list>
     </v-navigation-drawer>
 
-    <v-main class="streaming-bg">
+    <v-main class="streaming-bg flex-grow-1">
       <v-container
         fluid
         class="fill-height pa-0"
@@ -223,28 +266,40 @@
       </v-container>
     </v-main>
 
-    <v-footer class="justify-center py-4">
-      © {{ new Date().getFullYear() }} BuddyShare. All rights reserved. Made
-      with ❤️ by BuddyShare Team
+    <v-footer
+      app
+      class="justify-center py-4"
+      :absolute="!$vuetify.display.mobile"
+    >
+      © {{ new Date().getFullYear() }} BuddyShare. All rights reserved.
     </v-footer>
   </v-app>
 
   <!-- Dialog potwierdzenia usunięcia wszystkich powiadomień -->
-  <v-dialog v-model="showDeleteConfirmDialog" max-width="400">
+  <v-dialog
+    v-model="showDeleteConfirmDialog"
+    max-width="400"
+  >
     <v-card>
-      <v-card-title class="text-h6">
-        Delete all notifications?
-      </v-card-title>
+      <v-card-title class="text-h6"> Delete all notifications? </v-card-title>
       <v-card-text>
-        This action is <strong>irreversible</strong>. All notifications will be permanently deleted.
-        Are you sure you want to continue?
+        This action is <strong>irreversible</strong>. All notifications will be
+        permanently deleted. Are you sure you want to continue?
       </v-card-text>
       <v-card-actions>
         <v-spacer></v-spacer>
-        <v-btn color="grey" variant="text" @click="showDeleteConfirmDialog = false">
+        <v-btn
+          color="grey"
+          variant="text"
+          @click="showDeleteConfirmDialog = false"
+        >
           Cancel
         </v-btn>
-        <v-btn color="error" variant="text" @click="confirmDeleteAllNotifications">
+        <v-btn
+          color="error"
+          variant="text"
+          @click="confirmDeleteAllNotifications"
+        >
           Delete all
         </v-btn>
       </v-card-actions>
@@ -253,7 +308,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { useNotificationsStore } from "~/stores/notifications";
 // import { useAuthStore } from "~/stores/auth";
 
@@ -261,11 +316,18 @@ const drawer = ref(false);
 const showNotifications = ref(false);
 const authStore = useAuthStore();
 const showDeleteConfirmDialog = ref(false);
+const openGroups = ref<boolean[]>([]); // Dodajemy reaktywny stan dla grup
+
+// Dodajemy zmienne do śledzenia przewijania
+const lastScrollY = ref(0);
+const isScrollingDown = ref(false);
 
 const notificationsStore = useNotificationsStore();
 const notifications = computed(() => {
   // Filtrujemy out pole 'count' z tablicy powiadomień
-  return notificationsStore.notifications.filter(item => typeof item !== 'object' || !('count' in item));
+  return notificationsStore.notifications.filter(
+    (item) => typeof item !== "object" || !("count" in item)
+  );
 });
 
 console.log("Notifications: ", notifications.value);
@@ -284,19 +346,46 @@ const navItems = computed(() => [
   ...(authStore.authenticated
     ? [
         {
-          title: "Following",
-          icon: "mdi-heart",
-          to: `/user/${authStore.userName}/profile/following`,
+          title: "Community",
+          icon: "mdi-account-group",
+          children: [
+            {
+              title: "Following",
+              icon: "mdi-heart",
+              to: `/user/${authStore.userName}/profile/following`,
+            },
+            {
+              title: "Followed By",
+              icon: "mdi-account-multiple",
+              to: `/user/${authStore.userName}/profile/followers`,
+            },
+          ],
         },
         {
-          title: "Profile",
-          icon: "mdi-account",
-          to: `/user/${authStore.userName}`,
-        },
-        {
-          title: "Settings",
-          icon: "mdi-cog",
-          to: "/user/settings",
+          title: "Management",
+          icon: "mdi-cog-outline",
+          children: [
+            {
+              title: "Dashboard",
+              icon: "mdi-view-dashboard",
+              to: `/user/${authStore.userName}/dashboard`,
+            },
+            {
+              title: "Your Stream",
+              icon: "mdi-video-account",
+              to: `/user/${authStore.userName}`,
+            },
+            {
+              title: "Profile",
+              icon: "mdi-account",
+              to: `/user/${authStore.userName}/profile`,
+            },
+            {
+              title: "Settings",
+              icon: "mdi-cog",
+              to: `/user/settings`,
+            },
+          ],
         },
         ...(authStore.isAdmin
           ? [
@@ -348,11 +437,39 @@ const confirmDeleteAllNotifications = async () => {
   await notificationsStore.deleteAllNotifications();
   showNotifications.value = false; // Zamykamy menu powiadomień po usunięciu wszystkich
 };
+
+const handleScroll = () => {
+  const currentScrollY = window.scrollY;
+  isScrollingDown.value = currentScrollY > lastScrollY.value;
+  lastScrollY.value = currentScrollY;
+};
+
+onMounted(() => {
+  window.addEventListener("scroll", handleScroll, { passive: true });
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("scroll", handleScroll);
+});
 </script>
 
 <style scoped>
+.min-h-100vh {
+  min-height: 100vh;
+}
+
 .streaming-bg {
   background: radial-gradient(circle at center, #1a1a1a 0%, #000 100%);
+}
+
+.streaming-bg-header {
+  background: radial-gradient(circle at center, #1a1a1a 0%, #000 100%);
+  transition: background 0.3s ease, transform 0.3s ease;
+}
+
+.streaming-bg-header-transparent {
+  background: transparent;
+  transition: background 0.3s ease, transform 0.3s ease;
 }
 
 .active-nav-item {
@@ -371,5 +488,32 @@ const confirmDeleteAllNotifications = async () => {
 
 .v-list-item:hover {
   background-color: rgba(255, 255, 255, 0.05);
+}
+
+.minimal-indent {
+  padding-left: 0px !important;
+}
+
+.child-item {
+  padding-left: -10px !important;
+}
+
+.child-icon {
+  margin-left: -1.5em !important;
+}
+
+.footer-position {
+  position: relative;
+  z-index: 1;
+  margin-top: auto;
+}
+
+/* Dodajemy style do animacji znikania nagłówka */
+.v-app-bar-hidden {
+  transform: translateY(-100%);
+}
+
+.v-app-bar {
+  transition: transform 0.3s ease, background 0.3s ease;
 }
 </style>

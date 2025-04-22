@@ -24,7 +24,7 @@
         </p>
       </div>
 
-      <!-- Główny element sterujący -->
+      <!-- Main control element -->
       <div class="setting-control">
         <v-switch
           v-if="type === 'switch'"
@@ -58,10 +58,46 @@
           class="setting-input"
         />
 
+        <div
+          v-else-if="type === 'streamKey'"
+          class="d-flex align-center"
+        >
+          <v-text-field
+            :model-value="maskedValue"
+            readonly
+            hide-details
+            density="compact"
+            variant="outlined"
+            bg-color="grey-darken-3"
+            class="setting-input stream-key-input mr-2"
+            :type="showValue ? 'text' : 'password'"
+            :append-icon="showValue ? 'mdi-eye-off' : 'mdi-eye'"
+            @click:append="toggleShowValue"
+          />
+          <v-btn
+            icon="mdi-content-copy"
+            variant="text"
+            density="comfortable"
+            class="mr-2"
+            @click="copyValue"
+            :title="copySuccess ? 'Skopiowano!' : 'Kopiuj do schowka'"
+            :color="copySuccess ? 'success' : ''"
+          />
+          <v-btn
+            icon="mdi-refresh"
+            variant="tonal"
+            color="error"
+            density="comfortable"
+            @click="$emit('reset')"
+            :loading="loading || isSaving"
+            :title="'Resetuj klucz'"
+          />
+        </div>
+
         <v-btn
           v-else-if="type === 'button'"
           @click="$emit('click')"
-          :loading="isSaving"
+          :loading="loading || isSaving"
           :disabled="isDisabled"
           :color="buttonColor"
           :variant="buttonVariant"
@@ -70,7 +106,7 @@
       </div>
     </v-card-text>
 
-    <!-- Wskaźnik zapisywania/stanu -->
+    <!-- Saving/status indicator -->
     <div
       v-if="showStatus"
       class="status-indicator px-4 py-1"
@@ -117,7 +153,7 @@ const props = defineProps({
     type: String,
     default: "switch",
     validator: (value: string) =>
-      ["switch", "select", "text", "button"].includes(value),
+      ["switch", "select", "text", "button", "streamKey"].includes(value),
   },
   modelValue: {
     type: [Boolean, String, Number, Array],
@@ -161,11 +197,15 @@ const props = defineProps({
   },
   saveDelay: {
     type: Number,
-    default: 500, // ms opóźnienia przed zapisem
+    default: 500, // delay in ms before saving
   },
   apiEndpoint: {
     type: String,
     default: "/api/settings",
+  },
+  loading: {
+    type: Boolean,
+    default: false,
   },
 });
 
@@ -174,22 +214,25 @@ const emit = defineEmits([
   "save:success",
   "save:error",
   "click",
+  "reset",
 ]);
 
-// Lokalna kopia wartości
+// Local copy of value
 const localValue = ref(props.modelValue);
 
-// Stan komponentu
+// Component state
 const isSaving = ref(false);
 const isSaved = ref(false);
 const hasError = ref(false);
 const errorMessage = ref("");
 const saveTimeout = ref<NodeJS.Timeout | null>(null);
+const showValue = ref(false);
+const copySuccess = ref(false);
 
-// Uzyskaj dostęp do danych Nuxt dla optymistycznych aktualizacji
+// Get access to Nuxt data for optimistic updates
 const { data: userSettings } = useNuxtData("userSettings");
 
-// Monitorowanie zmian modelu
+// Monitor model changes
 watch(
   () => props.modelValue,
   (newValue) => {
@@ -197,7 +240,7 @@ watch(
   }
 );
 
-// Computed properties dla statusu
+// Computed properties for status
 const showStatus = computed(
   () => isSaving.value || isSaved.value || hasError.value
 );
@@ -207,18 +250,22 @@ const statusClass = computed(() => ({
   "status-error": hasError.value,
 }));
 const statusMessage = computed(() => {
-  if (isSaving.value) return "Zapisywanie...";
-  if (hasError.value) return errorMessage.value || "Wystąpił błąd";
-  if (isSaved.value) return "Zapisano";
+  if (isSaving.value) return "Saving...";
+  if (hasError.value) return errorMessage.value || "An error occurred";
+  if (isSaved.value) return "Saved";
   return "";
 });
 
-// Reaguj na zmiany lokalnej wartości
+const maskedValue = computed(() =>
+  showValue.value ? localValue.value : "********"
+);
+
+// React to local value changes
 watch(localValue, async (newValue) => {
-  // Emituj zmianę dla komunikacji z rodzicami
+  // Emit change for parent communication
   emit("update:modelValue", newValue);
 
-  // Optymistyczna aktualizacja
+  // Optimistic update
   if (userSettings.value) {
     userSettings.value = {
       ...userSettings.value,
@@ -226,46 +273,44 @@ watch(localValue, async (newValue) => {
     };
   }
 
-  // Resetuj statusy
+  // Reset statuses
   isSaved.value = false;
   hasError.value = false;
 
-  // Anuluj poprzedni timeout jeśli istnieje
+  // Cancel previous timeout if exists
   if (saveTimeout.value) {
     clearTimeout(saveTimeout.value);
   }
 
-  // Ustaw nowy timeout do zapisania zmian
+  // Set new timeout to save changes
   saveTimeout.value = setTimeout(async () => {
     await saveSetting(newValue);
   }, props.saveDelay);
 });
 
-// Funkcja do zapisywania ustawień
+// Function to save settings
 const saveSetting = async (value: any) => {
   isSaving.value = true;
 
   try {
-    // Tworzenie obiektu danych do wysłania
+    // Create data object to send
     const data = {
       settingId: props.settingId,
       value: value,
     };
 
-    // API call - używamy useFetch z nuxt
+    // API call - using useFetch from nuxt
     const { data: response, error } = await useFetch(props.apiEndpoint, {
       method: "POST",
       body: data,
-      // Nie używamy awaita ponieważ używamy optymistycznej aktualizacji
+      // Not using await because we're using optimistic update
     });
 
     if (error.value) {
-      throw new Error(
-        error.value.message || "Nie udało się zapisać ustawienia"
-      );
+      throw new Error(error.value.message || "Failed to save setting");
     }
 
-    // Sukces - ustaw flagę zapisano
+    // Success - set saved flag
     isSaving.value = false;
     isSaved.value = true;
     emit("save:success", {
@@ -274,21 +319,39 @@ const saveSetting = async (value: any) => {
       response: response.value,
     });
 
-    // Po 3 sekundach ukryj komunikat o sukcesie
+    // After 3 seconds hide success message
     setTimeout(() => {
       isSaved.value = false;
     }, 3000);
   } catch (err: any) {
-    // Błąd - ustaw flagę błędu
+    // Error - set error flag
     isSaving.value = false;
     hasError.value = true;
-    errorMessage.value = err.message || "Nie udało się zapisać ustawienia";
+    errorMessage.value = err.message || "Failed to save setting";
     emit("save:error", { settingId: props.settingId, value, error: err });
 
-    // Po 5 sekundach ukryj komunikat o błędzie
+    // After 5 seconds hide error message
     setTimeout(() => {
       hasError.value = false;
     }, 5000);
+  }
+};
+
+// Function to toggle visibility of stream key
+const toggleShowValue = () => {
+  showValue.value = !showValue.value;
+};
+
+// Function to copy stream key to clipboard
+const copyValue = async () => {
+  try {
+    await navigator.clipboard.writeText(localValue.value);
+    copySuccess.value = true;
+    setTimeout(() => {
+      copySuccess.value = false;
+    }, 2000);
+  } catch (err) {
+    console.error("Failed to copy value:", err);
   }
 };
 </script>
@@ -307,6 +370,10 @@ const saveSetting = async (value: any) => {
     .setting-select,
     .setting-input {
       max-width: 200px;
+    }
+
+    .stream-key-input {
+      max-width: 300px;
     }
   }
 

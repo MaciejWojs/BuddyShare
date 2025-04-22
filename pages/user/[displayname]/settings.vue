@@ -1,12 +1,12 @@
 <script lang="ts" setup>
 import { ref, onMounted, computed } from "vue";
 
-// Definiujemy middleware - wymaga zalogowanego użytkownika
+// Define middleware - requires logged in user
 definePageMeta({
   middleware: ["is-logged-in", "is-banned"],
 });
 
-// Stan i dane użytkownika
+// User state and data
 const userSettings = ref({
   notifications: {
     emailNotifications: true,
@@ -32,105 +32,192 @@ const userSettings = ref({
     highContrast: false,
     fontSize: "medium",
   },
-  streamKey: "live_123456789abcdef_XYZ987654321", // Dodajemy przykładowy klucz transmisji
+  streamKey: "", // Przechowywanie klucza streamu
 });
 
-// Kategorie ustawień
+// Dodaj store dla autentykacji
+const authStore = useAuthStore();
+const username = authStore.userName;
+
+// Stream token state
+const isFetchingToken = ref(false);
+const tokenError = ref(null);
+
+// Stan dla resetowania klucza
+const isResetting = ref(false);
+const resetError = ref(false);
+
+// Dodaj nowe refy
+const confirmResetDialog = ref(false);
+const showStreamKey = ref(false);
+
+const config = useRuntimeConfig();
+
+const headers = useRequestHeaders(["cookie"]);
+
+const BACK_HOST = config.public.BACK_HOST;
+
+const endpoint = `http://${BACK_HOST}`;
+
+// Route and user info
+const route = useRoute();
+
+// Settings categories
 const settingsCategories = ref([
   {
     id: "notifications",
-    title: "Powiadomienia",
+    title: "Notifications",
     icon: "mdi-bell-outline",
-    description: "Zarządzaj ustawieniami powiadomień",
+    description: "Manage notification settings",
   },
   {
     id: "privacy",
-    title: "Prywatność i bezpieczeństwo",
+    title: "Privacy and Safety",
     icon: "mdi-shield-outline",
-    description: "Kontroluj swoją prywatność i bezpieczeństwo",
+    description: "Control your privacy and safety",
   },
   {
     id: "stream",
-    title: "Ustawienia transmisji",
+    title: "Stream Settings",
     icon: "mdi-video-outline",
-    description: "Dostosuj swoją konfigurację streamingową",
+    description: "Customize your streaming configuration",
   },
   {
     id: "appearance",
-    title: "Wygląd",
+    title: "Appearance",
     icon: "mdi-palette-outline",
-    description: "Dostosuj wygląd aplikacji",
+    description: "Customize the app appearance",
   },
 ]);
 
-// Aktywna kategoria
+// Active category
 const activeCategory = ref("notifications");
 
-// Fake API call do pobrania ustawień
+// Fake API call to fetch settings
 const {
   data: fetchedSettings,
   pending,
   error,
 } = useAsyncData("userSettings", async () => {
-  // Symulacja opóźnienia API
+  // Simulating API delay
   await new Promise((resolve) => setTimeout(resolve, 800));
   return userSettings.value;
 });
 
-// Opcje dla selectów
+// Options for selects
 const visibilityOptions = [
-  { title: "Publiczny", value: "public" },
-  { title: "Tylko dla obserwujących", value: "followers" },
-  { title: "Prywatny", value: "private" },
+  { title: "Public", value: "public" },
+  { title: "Followers only", value: "followers" },
+  { title: "Private", value: "private" },
 ];
 
 const messagePermissionOptions = [
-  { title: "Wszyscy", value: "all" },
-  { title: "Tylko obserwowani", value: "following" },
-  { title: "Tylko obserwujący", value: "followers" },
-  { title: "Nikt", value: "none" },
+  { title: "Everyone", value: "all" },
+  { title: "Following only", value: "following" },
+  { title: "Followers only", value: "followers" },
+  { title: "No one", value: "none" },
 ];
 
 const moderationOptions = [
-  { title: "Wyłączona", value: "disabled" },
-  { title: "Podstawowa", value: "basic" },
-  { title: "Umiarkowana", value: "moderate" },
-  { title: "Ścisła", value: "strict" },
+  { title: "Disabled", value: "disabled" },
+  { title: "Basic", value: "basic" },
+  { title: "Moderate", value: "moderate" },
+  { title: "Strict", value: "strict" },
 ];
 
 const fontSizeOptions = [
-  { title: "Mały", value: "small" },
-  { title: "Średni", value: "medium" },
-  { title: "Duży", value: "large" },
+  { title: "Small", value: "small" },
+  { title: "Medium", value: "medium" },
+  { title: "Large", value: "large" },
 ];
 
-// Obsługa zapisu - funkcja demonstracyjna
+// Save handling - demonstration function
 const handleSuccess = (data: any) => {
-  console.log("Zapisano ustawienie:", data);
+  console.log("Setting saved:", data);
 };
 
 const handleError = (data: any) => {
-  console.error("Błąd zapisu ustawienia:", data);
+  console.error("Error saving setting:", data);
 };
 
-// Funkcja do zmiany kategorii
+// Function to change category
 const setActiveCategory = (categoryId: string) => {
   activeCategory.value = categoryId;
 };
 
-// Stan dialogu z kluczem transmisji
+// Stream key dialog state
 const streamKeyDialog = ref(false);
-const showStreamKey = ref(false);
 const copySuccess = ref(false);
 
-// Funkcja resetowania klucza transmisji
-const resetStreamKey = () => {
-  // Tu powinno być wywołanie API do generowania nowego klucza
-  // Narazie tylko otwieramy dialog z przykładowym kluczem
-  streamKeyDialog.value = true;
+// Pobierz początkowy klucz przy mountowaniu komponentu
+onMounted(async () => {
+  try {
+    const { data } = await useFetch(`${endpoint}/streamers/${username}/token`, {
+      method: "GET",
+      headers: {
+        ...headers,
+        Accept: "application/json",
+      },
+      credentials: "include",
+    });
+    if (data.value?.token) {
+      userSettings.value.streamKey = data.value.token;
+    }
+  } catch (err) {
+    console.error("Error fetching stream key:", err);
+  }
+});
+
+// Dodaj funkcję do potwierdzenia resetu
+const promptReset = () => {
+  confirmResetDialog.value = true;
 };
 
-// Funkcja kopiowania klucza do schowka
+// Funkcja do resetowania klucza
+const resetStreamKey = async () => {
+  confirmResetDialog.value = false;
+  isResetting.value = true;
+  resetError.value = false;
+  try {
+    const { data, error } = await useFetch(
+      `${endpoint}/streamers/${username}/token`,
+      {
+        method: "PATCH",
+        headers: {
+          ...headers,
+          Accept: "application/json",
+        },
+        credentials: "include",
+      }
+    );
+
+    if (error.value) throw error.value;
+    if (data.value?.token) {
+      userSettings.value.streamKey = data.value.token;
+      streamKeyDialog.value = true;
+    }
+  } catch (err) {
+    console.error("Error resetting stream key:", err);
+    resetError.value = true;
+  } finally {
+    isResetting.value = false;
+  }
+};
+
+// Dodaj funkcję toggle visibility
+const toggleKeyVisibility = () => {
+  showStreamKey.value = !showStreamKey.value;
+};
+
+// Dodaj computed property dla maskowania klucza
+const maskedStreamKey = computed(() => {
+  if (!userSettings.value.streamKey) return "";
+  return showStreamKey.value
+    ? userSettings.value.streamKey
+    : userSettings.value.streamKey.replace(/./g, "•");
+});
+
+// Function to copy key to clipboard
 const copyStreamKey = () => {
   navigator.clipboard
     .writeText(userSettings.value.streamKey)
@@ -141,22 +228,9 @@ const copyStreamKey = () => {
       }, 3000);
     })
     .catch((err) => {
-      console.error("Nie udało się skopiować klucza: ", err);
+      console.error("Failed to copy the key: ", err);
     });
 };
-
-// Funkcja wyświetlania/ukrywania klucza
-const toggleStreamKeyVisibility = () => {
-  showStreamKey.value = !showStreamKey.value;
-};
-
-// Maskowanie klucza transmisji
-const maskedStreamKey = computed(() => {
-  if (!userSettings.value.streamKey) return "";
-  return showStreamKey.value
-    ? userSettings.value.streamKey
-    : userSettings.value.streamKey.replace(/./g, "•");
-});
 </script>
 
 <template>
@@ -165,7 +239,7 @@ const maskedStreamKey = computed(() => {
     class="settings-layout pa-0"
   >
     <v-row no-gutters>
-      <!-- Sidebar z kategoriami -->
+      <!-- Sidebar with categories -->
       <v-col
         cols="12"
         md="3"
@@ -179,7 +253,7 @@ const maskedStreamKey = computed(() => {
         >
           <v-list bg-color="transparent">
             <v-list-item>
-              <v-list-item-title class="text-h6">Ustawienia</v-list-item-title>
+              <v-list-item-title class="text-h6">Settings</v-list-item-title>
             </v-list-item>
 
             <v-divider class="my-2"></v-divider>
@@ -201,7 +275,7 @@ const maskedStreamKey = computed(() => {
         </v-card>
       </v-col>
 
-      <!-- Główna zawartość ustawień -->
+      <!-- Main settings content -->
       <v-col
         cols="12"
         md="9"
@@ -215,29 +289,29 @@ const maskedStreamKey = computed(() => {
               lg="8"
               xl="7"
             >
-              <!-- Loader podczas pobierania danych -->
+              <!-- Loader while fetching data -->
               <v-skeleton-loader
                 v-if="pending"
                 type="card, card, card, card"
                 class="mt-2"
               ></v-skeleton-loader>
 
-              <!-- Błąd pobierania ustawień -->
+              <!-- Settings fetch error -->
               <v-alert
                 v-else-if="error"
                 type="error"
                 class="mt-2"
-                title="Wystąpił błąd"
-                text="Nie udało się pobrać ustawień. Spróbuj odświeżyć stronę."
+                title="An error occurred"
+                text="Failed to load settings. Try refreshing the page."
               ></v-alert>
 
-              <!-- Zawartość kategorii: Powiadomienia -->
+              <!-- Category content: Notifications -->
               <template v-else-if="activeCategory === 'notifications'">
-                <h2 class="text-h5 mb-4">Powiadomienia</h2>
+                <h2 class="text-h5 mb-4">Notifications</h2>
 
                 <SettingItem
-                  title="Powiadomienia e-mail"
-                  description="Otrzymuj powiadomienia na swój adres e-mail"
+                  title="Email notifications"
+                  description="Receive notifications to your email address"
                   icon="mdi-email-outline"
                   v-model="userSettings.notifications.emailNotifications"
                   setting-id="notifications.emailNotifications"
@@ -246,8 +320,8 @@ const maskedStreamKey = computed(() => {
                 />
 
                 <SettingItem
-                  title="Powiadomienia push"
-                  description="Otrzymuj powiadomienia push w przeglądarce"
+                  title="Push notifications"
+                  description="Receive push notifications in your browser"
                   icon="mdi-bell-ring-outline"
                   v-model="userSettings.notifications.pushNotifications"
                   setting-id="notifications.pushNotifications"
@@ -256,8 +330,8 @@ const maskedStreamKey = computed(() => {
                 />
 
                 <SettingItem
-                  title="Alerty o wzmiankach"
-                  description="Otrzymuj powiadomienia gdy ktoś wspomni o Tobie"
+                  title="Mention alerts"
+                  description="Receive notifications when someone mentions you"
                   icon="mdi-at"
                   v-model="userSettings.notifications.mentionAlerts"
                   setting-id="notifications.mentionAlerts"
@@ -266,8 +340,8 @@ const maskedStreamKey = computed(() => {
                 />
 
                 <SettingItem
-                  title="Nowi obserwujący"
-                  description="Powiadomienia o nowych obserwujących"
+                  title="New followers"
+                  description="Notifications about new followers"
                   icon="mdi-account-plus-outline"
                   v-model="userSettings.notifications.newFollowerAlerts"
                   setting-id="notifications.newFollowerAlerts"
@@ -276,8 +350,8 @@ const maskedStreamKey = computed(() => {
                 />
 
                 <SettingItem
-                  title="Rozpoczęcie transmisji"
-                  description="Powiadomienia gdy obserwowany streamer rozpocznie transmisję"
+                  title="Stream start"
+                  description="Notifications when followed streamers go live"
                   icon="mdi-video-outline"
                   v-model="userSettings.notifications.streamStartAlerts"
                   setting-id="notifications.streamStartAlerts"
@@ -286,13 +360,13 @@ const maskedStreamKey = computed(() => {
                 />
               </template>
 
-              <!-- Zawartość kategorii: Prywatność -->
+              <!-- Category content: Privacy -->
               <template v-else-if="activeCategory === 'privacy'">
-                <h2 class="text-h5 mb-4">Prywatność i bezpieczeństwo</h2>
+                <h2 class="text-h5 mb-4">Privacy and Safety</h2>
 
                 <SettingItem
-                  title="Widoczność profilu"
-                  description="Kontroluj kto może zobaczyć Twój profil"
+                  title="Profile visibility"
+                  description="Control who can see your profile"
                   icon="mdi-eye-outline"
                   type="select"
                   v-model="userSettings.privacy.profileVisibility"
@@ -303,8 +377,8 @@ const maskedStreamKey = computed(() => {
                 />
 
                 <SettingItem
-                  title="Status online"
-                  description="Pokazuj kiedy jesteś online"
+                  title="Online status"
+                  description="Show when you are online"
                   icon="mdi-access-point"
                   v-model="userSettings.privacy.showOnlineStatus"
                   setting-id="privacy.showOnlineStatus"
@@ -313,8 +387,8 @@ const maskedStreamKey = computed(() => {
                 />
 
                 <SettingItem
-                  title="Wiadomości bezpośrednie"
-                  description="Kto może wysyłać Ci wiadomości prywatne"
+                  title="Direct messages"
+                  description="Who can send you private messages"
                   icon="mdi-message-outline"
                   type="select"
                   v-model="userSettings.privacy.allowDirectMessages"
@@ -325,8 +399,8 @@ const maskedStreamKey = computed(() => {
                 />
 
                 <SettingItem
-                  title="Komentarze"
-                  description="Zezwalaj na komentarze na Twoim profilu"
+                  title="Comments"
+                  description="Allow comments on your profile"
                   icon="mdi-comment-outline"
                   v-model="userSettings.privacy.allowComments"
                   setting-id="privacy.allowComments"
@@ -335,13 +409,52 @@ const maskedStreamKey = computed(() => {
                 />
               </template>
 
-              <!-- Zawartość kategorii: Stream -->
+              <!-- Category content: Stream -->
               <template v-else-if="activeCategory === 'stream'">
-                <h2 class="text-h5 mb-4">Ustawienia transmisji</h2>
+                <h2 class="text-h5 mb-4">Stream Settings</h2>
+
+                <!-- Dialog potwierdzenia resetowania klucza -->
+                <v-dialog
+                  v-model="confirmResetDialog"
+                  max-width="400"
+                >
+                  <v-card>
+                    <v-card-title class="text-h5">Confirm Reset</v-card-title>
+                    <v-card-text>
+                      Are you sure you want to generate a new stream key? The
+                      old key will become invalid immediately.
+                    </v-card-text>
+                    <v-card-actions>
+                      <v-spacer></v-spacer>
+                      <v-btn
+                        color="secondary"
+                        @click="confirmResetDialog = false"
+                      >
+                        Cancel
+                      </v-btn>
+                      <v-btn
+                        color="error"
+                        @click="resetStreamKey"
+                        :loading="isResetting"
+                      >
+                        Confirm
+                      </v-btn>
+                    </v-card-actions>
+                  </v-card>
+                </v-dialog>
+
+                <!-- Dodaj alert dla błędów -->
+                <v-alert
+                  v-if="resetError"
+                  type="error"
+                  class="mb-4"
+                  title="Błąd resetowania"
+                  text="Nie udało się wygenerować nowego klucza"
+                />
 
                 <SettingItem
-                  title="Automatyczne nagrywanie"
-                  description="Automatycznie nagrywaj transmisje"
+                  title="Auto-record"
+                  description="Automatically record your streams"
                   icon="mdi-record-circle-outline"
                   v-model="userSettings.stream.autoRecord"
                   setting-id="stream.autoRecord"
@@ -350,8 +463,8 @@ const maskedStreamKey = computed(() => {
                 />
 
                 <SettingItem
-                  title="Tryb niskiego opóźnienia"
-                  description="Zmniejsz opóźnienie transmisji kosztem jakości"
+                  title="Low latency mode"
+                  description="Reduce stream delay at the cost of quality"
                   icon="mdi-clock-fast"
                   v-model="userSettings.stream.lowLatencyMode"
                   setting-id="stream.lowLatencyMode"
@@ -360,8 +473,8 @@ const maskedStreamKey = computed(() => {
                 />
 
                 <SettingItem
-                  title="Moderacja czatu"
-                  description="Poziom automatycznej moderacji czatu"
+                  title="Chat moderation"
+                  description="Level of automatic chat moderation"
                   icon="mdi-message-alert-outline"
                   type="select"
                   v-model="userSettings.stream.chatModeration"
@@ -372,8 +485,8 @@ const maskedStreamKey = computed(() => {
                 />
 
                 <SettingItem
-                  title="Klipy"
-                  description="Pozwól widzom tworzyć klipy z Twojej transmisji"
+                  title="Clips"
+                  description="Allow viewers to create clips from your stream"
                   icon="mdi-content-cut"
                   v-model="userSettings.stream.allowClips"
                   setting-id="stream.allowClips"
@@ -381,19 +494,21 @@ const maskedStreamKey = computed(() => {
                   @save:error="handleError"
                 />
 
+                <!-- Zaktualizowany SettingItem z obsługą ładowania -->
                 <SettingItem
-                  title="Reset klucza transmisji"
-                  description="Wygeneruj nowy klucz transmisji"
+                  title="Reset stream key"
+                  description="Generate a new stream key"
                   icon="mdi-key-variant"
                   type="button"
-                  buttonText="Wygeneruj nowy klucz"
+                  buttonText="Generate new key"
                   buttonColor="error"
                   buttonVariant="outlined"
                   setting-id="stream.resetStreamKey"
-                  @click="resetStreamKey"
+                  :loading="isResetting"
+                  @click="promptReset"
                 />
 
-                <!-- Dialog z kluczem transmisji -->
+                <!-- Stream key dialog -->
                 <v-dialog
                   v-model="streamKeyDialog"
                   max-width="500"
@@ -402,7 +517,7 @@ const maskedStreamKey = computed(() => {
                     <v-card-title
                       class="d-flex justify-space-between align-center"
                     >
-                      <span class="text-h5">Twój klucz transmisji</span>
+                      <span class="text-h5">Your stream key</span>
                       <v-btn
                         icon="mdi-close"
                         variant="text"
@@ -413,8 +528,8 @@ const maskedStreamKey = computed(() => {
 
                     <v-card-text>
                       <p class="text-body-2 mb-4">
-                        Ten klucz jest prywatny i pozwala na rozpoczęcie
-                        transmisji. Nie udostępniaj go nikomu.
+                        This key is private and allows you to start streaming.
+                        Do not share it with anyone.
                       </p>
 
                       <v-card
@@ -431,11 +546,9 @@ const maskedStreamKey = computed(() => {
                             :icon="showStreamKey ? 'mdi-eye-off' : 'mdi-eye'"
                             variant="text"
                             density="comfortable"
-                            @click="toggleStreamKeyVisibility"
+                            @click="toggleKeyVisibility"
                             class="ml-2"
-                            :title="
-                              showStreamKey ? 'Ukryj klucz' : 'Pokaż klucz'
-                            "
+                            :title="showStreamKey ? 'Hide key' : 'Show key'"
                           ></v-btn>
 
                           <v-btn
@@ -448,7 +561,7 @@ const maskedStreamKey = computed(() => {
                             @click="copyStreamKey"
                             class="ml-2"
                             :title="
-                              copySuccess ? 'Skopiowano!' : 'Kopiuj do schowka'
+                              copySuccess ? 'Copied!' : 'Copy to clipboard'
                             "
                           ></v-btn>
                         </div>
@@ -463,7 +576,7 @@ const maskedStreamKey = computed(() => {
                           icon="mdi-check-circle"
                           closable
                         >
-                          Klucz został skopiowany do schowka!
+                          Key has been copied to clipboard!
                         </v-alert>
                       </v-slide-y-transition>
 
@@ -473,9 +586,9 @@ const maskedStreamKey = computed(() => {
                         density="compact"
                         icon="mdi-information"
                       >
-                        <strong>Jak używać:</strong> Wklej ten klucz w
-                        ustawieniach swojej aplikacji do streamingu (np. OBS
-                        Studio, Streamlabs).
+                        <strong>How to use:</strong> Paste this key in your
+                        streaming application settings (e.g. OBS Studio,
+                        Streamlabs).
                       </v-alert>
                     </v-card-text>
 
@@ -487,29 +600,30 @@ const maskedStreamKey = computed(() => {
                         color="error"
                         variant="tonal"
                         prepend-icon="mdi-refresh"
-                        @click="resetStreamKey"
+                        @click="promptReset"
+                        :loading="isResetting"
                       >
-                        Zresetuj klucz
+                        Reset key
                       </v-btn>
                       <v-btn
                         color="primary"
                         variant="flat"
                         @click="streamKeyDialog = false"
                       >
-                        Zamknij
+                        Close
                       </v-btn>
                     </v-card-actions>
                   </v-card>
                 </v-dialog>
               </template>
 
-              <!-- Zawartość kategorii: Wygląd -->
+              <!-- Category content: Appearance -->
               <template v-else-if="activeCategory === 'appearance'">
-                <h2 class="text-h5 mb-4">Wygląd</h2>
+                <h2 class="text-h5 mb-4">Appearance</h2>
 
                 <SettingItem
-                  title="Tryb ciemny"
-                  description="Używaj ciemnego motywu interfejsu"
+                  title="Dark mode"
+                  description="Use dark theme interface"
                   icon="mdi-theme-light-dark"
                   v-model="userSettings.appearance.darkMode"
                   setting-id="appearance.darkMode"
@@ -518,8 +632,8 @@ const maskedStreamKey = computed(() => {
                 />
 
                 <SettingItem
-                  title="Wysoki kontrast"
-                  description="Zwiększ kontrast elementów interfejsu"
+                  title="High contrast"
+                  description="Increase contrast of interface elements"
                   icon="mdi-contrast-box"
                   v-model="userSettings.appearance.highContrast"
                   setting-id="appearance.highContrast"
@@ -528,8 +642,8 @@ const maskedStreamKey = computed(() => {
                 />
 
                 <SettingItem
-                  title="Rozmiar czcionki"
-                  description="Wybierz preferowany rozmiar tekstu"
+                  title="Font size"
+                  description="Choose preferred text size"
                   icon="mdi-format-size"
                   type="select"
                   v-model="userSettings.appearance.fontSize"

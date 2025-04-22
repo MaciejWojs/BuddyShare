@@ -1,10 +1,18 @@
 <!-- components/stream/VideoPlayer.vue -->
 <template>
-  <v-card class="d-flex flex-column h-100" color="grey-darken-4">
+  <v-card
+    class="d-flex flex-column h-100"
+    color="grey-darken-4"
+  >
     <!-- Stream Header -->
-    <v-card-title class="stream-header d-flex align-center justify-space-between py-2 px-4">
+    <v-card-title
+      class="stream-header d-flex align-center justify-space-between py-2 px-4"
+    >
       <div class="d-flex align-center">
-        <v-avatar size="40" class="mr-2">
+        <v-avatar
+          size="40"
+          class="mr-2"
+        >
           <v-img :src="avatar || '/Buddyshare.svg'" />
         </v-avatar>
         <h2 class="text-h6 font-weight-bold">{{ displayName }}</h2>
@@ -19,8 +27,15 @@
         >
           {{ isLive ? "LIVE" : "OFFLINE" }}
         </v-chip>
-        <v-chip variant="outlined" size="small">
-          <v-icon start size="small">mdi-account</v-icon>
+        <v-chip
+          variant="outlined"
+          size="small"
+        >
+          <v-icon
+            start
+            size="small"
+            >mdi-account</v-icon
+          >
           {{ viewerCount }}
         </v-chip>
       </div>
@@ -28,15 +43,30 @@
 
     <!-- Video Player -->
     <div class="video-wrapper flex-grow-1">
-      <video ref="videoElement" controls autoplay muted class="video-player" v-if="isLive || props.streamUrl"></video>
-      
+      <video
+        ref="videoElement"
+        controls
+        autoplay
+        muted
+        class="video-player"
+        v-if="isLive || props.streamUrl"
+      ></video>
+
       <!-- Offline State -->
-      <div v-else class="offline-state d-flex flex-column align-center justify-center">
-        <v-icon size="64" color="grey-lighten-1" class="mb-4">mdi-television-off</v-icon>
-        <h3 class="text-h5 text-grey-lighten-1 mb-2">Transmisja offline</h3>
+      <div
+        v-else
+        class="offline-state d-flex flex-column align-center justify-center"
+      >
+        <v-icon
+          size="64"
+          color="grey-lighten-1"
+          class="mb-4"
+          >mdi-television-off</v-icon
+        >
+        <h3 class="text-h5 text-grey-lighten-1 mb-2">Stream offline</h3>
         <p class="text-body-2 text-grey-lighten-1 text-center">
-          Ten stream jest obecnie niedostępny. <br>
-          Spróbuj ponownie później lub sprawdź inne transmisje.
+          This stream is currently unavailable. <br />
+          Try again later or check other streams.
         </p>
       </div>
     </div>
@@ -66,7 +96,10 @@
             {{ selectedQuality }}
           </v-btn>
         </template>
-        <v-list density="compact" bg-color="grey-darken-3">
+        <v-list
+          density="compact"
+          bg-color="grey-darken-3"
+        >
           <v-list-item
             v-for="quality in qualities"
             :key="quality.name"
@@ -78,21 +111,47 @@
         </v-list>
       </v-menu>
 
+      <!-- Przeniesiony snackbar - wyświetla się nad przyciskami -->
+      <v-snackbar
+        v-model="showCopyNotification"
+        timeout="1000"
+        color="success"
+        location="bottom"
+      >
+        Copied to clipboard
+      </v-snackbar>
+
       <div class="d-flex ga-1">
-        <v-btn variant="text" color="white" icon="mdi-share-variant" size="small" />
-        <v-btn variant="text" color="white" icon="mdi-heart-outline" size="small" />
-        <v-btn variant="text" color="white" icon="mdi-dots-vertical" size="small" />
+        <v-btn
+          variant="text"
+          color="white"
+          icon="mdi-share-variant"
+          size="small"
+          @click="copyToClipboard"
+        />
+        <v-btn
+          variant="text"
+          color="white"
+          icon="mdi-heart-outline"
+          size="small"
+        />
+        <v-btn
+          variant="text"
+          color="white"
+          icon="mdi-dots-vertical"
+          size="small"
+        />
       </div>
     </v-card-actions>
   </v-card>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, onBeforeUnmount } from 'vue';
-import * as dashjs from 'dashjs';
+import { ref, onMounted, watch, onBeforeUnmount } from "vue";
+import * as dashjs from "dashjs";
 
 // Definiuję nazwę komponentu dla lepszego debugowania
-const name = 'VideoPlayer';
+const name = "VideoPlayer";
 
 interface Quality {
   name: string;
@@ -104,36 +163,63 @@ interface Props {
   isLive?: boolean;
   viewerCount?: string | number;
   streamUrl?: string;
-  qualities?: Quality[];              // nowy prop
-  initialQuality?: string;           // nowy prop
+  qualities?: Quality[]; // nowy prop
+  initialQuality?: string; // nowy prop
   avatar?: string;
   currentTime?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   isLive: false,
-  viewerCount: '0',
-  streamUrl: '',
+  viewerCount: "0",
+  streamUrl: "",
   qualities: () => [],
-  initialQuality: '',
-  avatar: '/Buddyshare.svg',
-  currentTime: '00:00'
+  initialQuality: "",
+  avatar: "/Buddyshare.svg",
+  currentTime: "00:00",
 });
 
 const videoElement = ref<HTMLVideoElement | null>(null);
 let dashPlayer: any = null;
 
+// Dodajemy zmienną dla powiadomienia o skopiowaniu do schowka
+const showCopyNotification = ref(false);
+
+// Funkcja kopiująca link do schowka
+const copyToClipboard = () => {
+  // Pobieramy aktualny URL strony
+  const currentUrl = window.location.href;
+
+  // Kopiujemy do schowka
+  navigator.clipboard
+    .writeText(currentUrl)
+    .then(() => {
+      // Po pomyślnym skopiowaniu pokazujemy powiadomienie
+      showCopyNotification.value = true;
+    })
+    .catch((err) => {
+      console.error("Błąd podczas kopiowania do schowka:", err);
+    });
+};
+
 // Stan wybranej jakości
-const selectedQuality = ref(props.initialQuality || (props.qualities.length ? props.qualities[0].name : ''));
+const selectedQuality = ref(
+  props.initialQuality ||
+    (props.qualities.length ? props.qualities[0].name : "")
+);
 
 const getDashUrl = (qualityName: string) => {
-  const q = props.qualities.find(q => q.name === qualityName);
+  const q = props.qualities.find((q) => q.name === qualityName);
   return q ? q.dash : props.streamUrl;
 };
 
 const errorHandler = (e: any) => {
-  if (e.error && e.error.code === dashjs.MediaPlayer.errors.MANIFEST_LOADER_LOADING_FAILURE_ERROR_CODE) {
-    console.error('Błąd ładowania manifestu:', e);
+  if (
+    e.error &&
+    e.error.code ===
+      dashjs.MediaPlayer.errors.MANIFEST_LOADER_LOADING_FAILURE_ERROR_CODE
+  ) {
+    console.error("Błąd ładowania manifestu:", e);
     // Tutaj można dodać logikę ponownych prób
   }
 };
@@ -142,7 +228,7 @@ const initDashPlayer = () => {
   if (!videoElement.value) return;
 
   const url = getDashUrl(selectedQuality.value) || props.streamUrl;
-  
+
   if (!dashPlayer) {
     dashPlayer = dashjs.MediaPlayer().create();
     dashPlayer.initialize(videoElement.value, url, true);
@@ -160,19 +246,19 @@ const initDashPlayer = () => {
       // Zwiększamy początkowy bufor
       initialBufferLevel: props.isLive ? 3 : 10,
       // Większy bufor dla wysokiej jakości
-      stableBufferTime: props.isLive ? 6 : 20
+      stableBufferTime: props.isLive ? 6 : 20,
     },
     // Ustawienia adaptacyjnej zmiany jakości
     abr: {
       // Startujemy od niższej jakości dla szybszego rozpoczęcia
       initialBitrate: {
-        video: 800 // kbps
+        video: 800, // kbps
       },
       // Używamy tylko 85% wykrytej przepustowości dla zapasu
-      bandwidthSafetyFactor: 0.75
+      bandwidthSafetyFactor: 0.75,
     },
     // Automatyczne przeskakiwanie luk w strumieniu
-    jumpGaps: true
+    jumpGaps: true,
   };
 
   // Dodatkowe ustawienia dla transmisji na żywo
@@ -184,8 +270,8 @@ const initDashPlayer = () => {
   dashPlayer.updateSettings({
     streaming: streamingSettings,
     debug: {
-      logLevel: dashjs.Debug.LOG_LEVEL_NONE
-    }
+      logLevel: dashjs.Debug.LOG_LEVEL_NONE,
+    },
   });
 
   // if (props.isLive) {
@@ -195,27 +281,27 @@ const initDashPlayer = () => {
 
 // Funkcja obsługująca kliknięcie na opcję jakości
 const handleQualityChange = (newQuality: string) => {
-  console.log('Changing quality to:', newQuality);
+  console.log("Changing quality to:", newQuality);
   selectedQuality.value = newQuality;
   changeQuality(newQuality);
 };
 
 const changeQuality = (newQuality: string) => {
   if (!dashPlayer) {
-    console.warn('Player not initialized yet');
+    console.warn("Player not initialized yet");
     return;
   }
-  
+
   const url = getDashUrl(newQuality);
   if (url) {
-    console.log('Changing quality URL to:', url);
-    
+    console.log("Changing quality URL to:", url);
+
     // Zapisujemy aktualny czas odtwarzania
     const currentTime = videoElement.value?.currentTime || 0;
-    
+
     // Zmieniamy źródło
     dashPlayer.attachSource(url);
-    
+
     // Po zmianie źródła ustawiamy ponownie czas odtwarzania
     // (z małym opóźnieniem, aby dać czas na załadowanie)
     setTimeout(() => {
@@ -224,7 +310,7 @@ const changeQuality = (newQuality: string) => {
       }
     }, 500);
   } else {
-    console.error('No URL found for quality:', newQuality);
+    console.error("No URL found for quality:", newQuality);
   }
 };
 
@@ -255,8 +341,8 @@ watch(
       dashPlayer.updateSettings({
         streaming: {
           lowLatencyEnabled: props.isLive,
-          scheduleWhilePaused: props.isLive
-        }
+          scheduleWhilePaused: props.isLive,
+        },
       });
       if (props.isLive) dashPlayer.setLiveDelay(2);
     }
@@ -270,8 +356,8 @@ onBeforeUnmount(() => {
 
 <script lang="ts">
 export default {
-  name: 'VideoPlayer'
-}
+  name: "VideoPlayer",
+};
 </script>
 
 <style lang="scss" scoped>
@@ -285,7 +371,7 @@ export default {
     height: 100%;
     object-fit: contain;
   }
-  
+
   .offline-state {
     width: 100%;
     height: 100%;
@@ -293,8 +379,9 @@ export default {
     color: #fff;
     padding: 1rem;
     text-align: center;
-    
-    h3, p {
+
+    h3,
+    p {
       max-width: 90%;
     }
   }
