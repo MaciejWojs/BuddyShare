@@ -20,12 +20,12 @@
 
       <div class="d-flex align-center ga-2">
         <v-chip
-          :color="isLive ? 'red' : 'grey'"
+          :color="isLiveRef ? 'red' : 'grey'"
           variant="tonal"
           size="small"
           prepend-icon="mdi-circle"
         >
-          {{ isLive ? "LIVE" : "OFFLINE" }}
+          {{ isLiveRef ? "LIVE" : "OFFLINE" }}
         </v-chip>
         <v-chip
           variant="outlined"
@@ -49,7 +49,7 @@
         autoplay
         muted
         class="video-player"
-        v-if="isLive || props.streamUrl"
+        v-if="isLiveRef || streamUrlRef"
       ></video>
 
       <!-- Offline State -->
@@ -74,11 +74,11 @@
     <!-- Stream Controls -->
     <v-card-actions class="stream-controls pa-2 px-4 bg-grey-darken-3">
       <span class="text-caption text-medium-emphasis">
-        {{ isLive ? currentTime : "Offline" }}
+        {{ isLiveRef ? currentTime : "Offline" }}
       </span>
       <v-spacer />
 
-      <!-- Poprawiony dropdown do wyboru jakości z działającym kliknięciem -->
+      <!-- Dropdown do wyboru jakości -->
       <v-menu
         v-if="qualities.length > 0"
         location="top"
@@ -105,13 +105,13 @@
             :key="quality.name"
             :value="quality.name"
             :title="quality.name"
-            @click="handleQualityChange(quality.name)"
+            @click="changeQuality(quality.name)"
             :active="selectedQuality === quality.name"
           />
         </v-list>
       </v-menu>
 
-      <!-- Przeniesiony snackbar - wyświetla się nad przyciskami -->
+      <!-- Snackbar dla powiadomień -->
       <v-snackbar
         v-model="showCopyNotification"
         timeout="1000"
@@ -147,24 +147,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, onBeforeUnmount } from "vue";
-import * as dashjs from "dashjs";
-
-// Definiuję nazwę komponentu dla lepszego debugowania
-const name = "VideoPlayer";
-
-interface Quality {
-  name: string;
-  dash: string;
-}
+import { ref, onMounted, watch, computed } from "vue";
+import { useDashPlayer, type Quality } from '@/composables/useDashPlayer';
 
 interface Props {
   displayName: string;
   isLive?: boolean;
   viewerCount?: string | number;
   streamUrl?: string;
-  qualities?: Quality[]; // nowy prop
-  initialQuality?: string; // nowy prop
+  qualities?: Quality[]; // prop dla jakości
+  initialQuality?: string; // prop dla początkowej jakości
   avatar?: string;
   currentTime?: string;
 }
@@ -179,178 +171,48 @@ const props = withDefaults(defineProps<Props>(), {
   currentTime: "00:00",
 });
 
+// Referencje dla composable
 const videoElement = ref<HTMLVideoElement | null>(null);
-let dashPlayer: any = null;
+const streamUrlRef = ref(props.streamUrl);
+const isLiveRef = ref(props.isLive);
+const qualitiesRef = ref<Quality[]>(props.qualities);
+const initialQualityRef = ref(props.initialQuality);
 
-// Dodajemy zmienną dla powiadomienia o skopiowaniu do schowka
-const showCopyNotification = ref(false);
-
-// Funkcja kopiująca link do schowka
-const copyToClipboard = () => {
-  // Pobieramy aktualny URL strony
-  const currentUrl = window.location.href;
-
-  // Kopiujemy do schowka
-  navigator.clipboard
-    .writeText(currentUrl)
-    .then(() => {
-      // Po pomyślnym skopiowaniu pokazujemy powiadomienie
-      showCopyNotification.value = true;
-    })
-    .catch((err) => {
-      console.error("Błąd podczas kopiowania do schowka:", err);
-    });
-};
-
-// Stan wybranej jakości
-const selectedQuality = ref(
-  props.initialQuality ||
-    (props.qualities.length ? props.qualities[0].name : "")
+// Używamy composable zamiast bezpośredniej implementacji
+const {
+  qualities,
+  selectedQuality,
+  changeQuality,
+  showCopyNotification,
+  copyToClipboard,
+  initPlayer
+} = useDashPlayer(
+  videoElement,
+  streamUrlRef,
+  isLiveRef,
+  qualitiesRef,
+  initialQualityRef
 );
 
-const getDashUrl = (qualityName: string) => {
-  const q = props.qualities.find((q) => q.name === qualityName);
-  return q ? q.dash : props.streamUrl;
-};
-
-const errorHandler = (e: any) => {
-  if (
-    e.error &&
-    e.error.code ===
-      dashjs.MediaPlayer.errors.MANIFEST_LOADER_LOADING_FAILURE_ERROR_CODE
-  ) {
-    console.error("Błąd ładowania manifestu:", e);
-    // Tutaj można dodać logikę ponownych prób
-  }
-};
-
-const initDashPlayer = () => {
-  if (!videoElement.value) return;
-
-  const url = getDashUrl(selectedQuality.value) || props.streamUrl;
-
-  if (!dashPlayer) {
-    dashPlayer = dashjs.MediaPlayer().create();
-    dashPlayer.initialize(videoElement.value, url, true);
-    dashPlayer.on(dashjs.MediaPlayer.events.ERROR, errorHandler);
-  } else {
-    dashPlayer.attachSource(url);
-  }
-
-  // Uproszczone, kluczowe ustawienia dla redukcji buforowania
-  const streamingSettings = {
-    // Wyłączamy tryb niskiego opóźnienia dla bardziej stabilnego odtwarzania
-    lowLatencyEnabled: false,
-    // Większe bufory dla stabilności
-    buffer: {
-      // Zwiększamy początkowy bufor
-      initialBufferLevel: props.isLive ? 3 : 10,
-      // Większy bufor dla wysokiej jakości
-      stableBufferTime: props.isLive ? 6 : 20,
-    },
-    // Ustawienia adaptacyjnej zmiany jakości
-    abr: {
-      // Startujemy od niższej jakości dla szybszego rozpoczęcia
-      initialBitrate: {
-        video: 800, // kbps
-      },
-      // Używamy tylko 85% wykrytej przepustowości dla zapasu
-      bandwidthSafetyFactor: 0.75,
-    },
-    // Automatyczne przeskakiwanie luk w strumieniu
-    jumpGaps: true,
-  };
-
-  // Dodatkowe ustawienia dla transmisji na żywo
-  if (props.isLive) {
-    // Większe opóźnienie dla transmisji na żywo zapewnia stabilniejsze odtwarzanie
-    streamingSettings.delay = { liveDelay: 8 };
-  }
-
-  dashPlayer.updateSettings({
-    streaming: streamingSettings,
-    debug: {
-      logLevel: dashjs.Debug.LOG_LEVEL_NONE,
-    },
-  });
-
-  // if (props.isLive) {
-  //   dashPlayer.setLiveDelay(8); // Zgodne z ustawieniem wyżej
-  // }
-};
-
-// Funkcja obsługująca kliknięcie na opcję jakości
-const handleQualityChange = (newQuality: string) => {
-  console.log("Changing quality to:", newQuality);
-  selectedQuality.value = newQuality;
-  changeQuality(newQuality);
-};
-
-const changeQuality = (newQuality: string) => {
-  if (!dashPlayer) {
-    console.warn("Player not initialized yet");
-    return;
-  }
-
-  const url = getDashUrl(newQuality);
-  if (url) {
-    console.log("Changing quality URL to:", url);
-
-    // Zapisujemy aktualny czas odtwarzania
-    const currentTime = videoElement.value?.currentTime || 0;
-
-    // Zmieniamy źródło
-    dashPlayer.attachSource(url);
-
-    // Po zmianie źródła ustawiamy ponownie czas odtwarzania
-    // (z małym opóźnieniem, aby dać czas na załadowanie)
-    setTimeout(() => {
-      if (videoElement.value) {
-        videoElement.value.currentTime = currentTime;
-      }
-    }, 500);
-  } else {
-    console.error("No URL found for quality:", newQuality);
-  }
-};
-
-const destroyPlayer = () => {
-  if (dashPlayer) {
-    dashPlayer.off(dashjs.MediaPlayer.events.ERROR, errorHandler);
-    dashPlayer.destroy();
-    dashPlayer = null;
-  }
-};
-
-// Hooks
-onMounted(() => {
-  initDashPlayer();
+// Aktualizacja referencji przy zmianie propsów
+watch(() => props.streamUrl, (newUrl) => {
+  streamUrlRef.value = newUrl;
 });
 
-watch(
-  () => props.streamUrl,
-  (newUrl, oldUrl) => {
-    if (newUrl !== oldUrl) initDashPlayer();
-  }
-);
+watch(() => props.isLive, (newValue) => {
+  isLiveRef.value = newValue;
+});
 
-watch(
-  () => props.isLive,
-  () => {
-    if (dashPlayer) {
-      dashPlayer.updateSettings({
-        streaming: {
-          lowLatencyEnabled: props.isLive,
-          scheduleWhilePaused: props.isLive,
-        },
-      });
-      if (props.isLive) dashPlayer.setLiveDelay(2);
-    }
-  }
-);
+watch(() => props.qualities, (newQualities) => {
+  qualitiesRef.value = newQualities;
+});
 
-onBeforeUnmount(() => {
-  destroyPlayer();
+watch(() => props.initialQuality, (newQuality) => {
+  initialQualityRef.value = newQuality;
+});
+
+onMounted(() => {
+  initPlayer();
 });
 </script>
 
