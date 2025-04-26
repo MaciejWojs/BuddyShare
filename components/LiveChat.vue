@@ -1,20 +1,11 @@
 <!--components/LiveChat.vue-->
 <template>
-  <v-card
-    class="d-flex flex-column h-100"
-    :color="background"
-    flat
-  >
+  <v-card class="d-flex flex-column h-100" :color="background" flat>
     <!-- Nagłówek czatu -->
     <v-card-title class="chat-header py-2 px-4">
       <div class="d-flex align-center justify-space-between w-100">
         <span class="text-subtitle-1">{{ title }}</span>
-        <v-chip
-          v-if="showOnlineCount"
-          variant="tonal"
-          color="primary"
-          size="small"
-        >
+        <v-chip v-if="showOnlineCount" variant="tonal" color="primary" size="small">
           {{ onlineCount }} Online
         </v-chip>
         <slot name="header-actions"></slot>
@@ -22,48 +13,28 @@
     </v-card-title>
 
     <!-- Wiadomości czatu -->
-    <v-card-text
-      class="chat-messages pa-2 flex-grow-1"
-      ref="chatContainer"
-    >
-      <v-list
-        lines="two"
-        density="compact"
-        class="bg-transparent messages-list"
-      >
-        <template
-          v-for="(msg, index) in messages"
-          :key="index"
-        >
+    <v-card-text class="chat-messages pa-2 flex-grow-1" ref="chatContainer">
+      <v-list lines="two" density="compact" class="bg-transparent messages-list">
+        <template v-for="(msg, index) in messages" :key="index">
           <!-- Wiadomości użytkownika -->
-          <v-list-item
-            v-if="msg.type !== 'system'"
-            :class="{ 'message-highlight': msg.highlight }"
-            @click="onMessageClick(msg, index)"
-            @mouseover="onMessageHover(msg, index, true)"
-            @mouseleave="onMessageHover(msg, index, false)"
-          >
+          <v-list-item v-if="msg.type !== 'system'" :class="{ 'message-highlight': msg.highlight }"
+            @click="onMessageClick(msg, index)" @mouseover="onMessageHover(msg, index, true)"
+            @mouseleave="onMessageHover(msg, index, false)">
             <!-- Avatar użytkownika -->
             <template #prepend>
-              <v-avatar
-                size="32"
-                class="mr-2"
-              >
+              <v-avatar size="32" class="mr-2">
                 <v-img :src="msg.avatar || defaultAvatar" />
               </v-avatar>
             </template>
 
             <!-- Nagłówek wiadomości z nazwą użytkownika i czasem -->
             <v-list-item-subtitle class="d-flex justify-space-between">
-              <span
-                class="font-weight-medium"
-                :class="getRoleClass(msg.role)"
-              >
+              <span class="font-weight-medium" :class="getRoleClass(msg.role)">
                 {{ msg.user }}
               </span>
-              <span class="text-caption text-medium-emphasis">
-                {{ formatTime(msg.time) }}
-              </span>
+              <!-- <span class="text-caption text-medium-emphasis">
+                {{ formatTime(msg.timestamp) }}
+              </span> -->
             </v-list-item-subtitle>
 
             <!-- Treść wiadomości -->
@@ -72,59 +43,26 @@
             </v-list-item-title>
 
             <!-- Akcje do wiadomości widoczne w trybie moderacji -->
-            <template
-              v-if="isUserModerator && isHovered === index"
-              #append
-            >
+            <template v-if="isUserModerator && isHovered === index" #append>
               <div class="d-flex">
-                <v-tooltip
-                  location="top"
-                  text="Usuń wiadomość"
-                >
+                <v-tooltip location="top" text="Usuń wiadomość">
                   <template v-slot:activator="{ props }">
-                    <v-btn
-                      v-bind="props"
-                      icon="mdi-delete"
-                      density="compact"
-                      variant="text"
-                      color="error"
-                      size="small"
-                      @click.stop="onMessageAction('delete', msg, index)"
-                    />
+                    <v-btn v-bind="props" icon="mdi-delete" density="compact" variant="text" color="error" size="small"
+                      @click.stop="onMessageAction('delete', msg, index)" />
                   </template>
                 </v-tooltip>
 
-                <v-tooltip
-                  location="top"
-                  text="Timeout użytkownika"
-                >
+                <v-tooltip location="top" text="Timeout użytkownika">
                   <template v-slot:activator="{ props }">
-                    <v-btn
-                      v-bind="props"
-                      icon="mdi-timer-off"
-                      density="compact"
-                      variant="text"
-                      color="warning"
-                      size="small"
-                      @click.stop="onMessageAction('timeout', msg, index)"
-                    />
+                    <v-btn v-bind="props" icon="mdi-timer-off" density="compact" variant="text" color="warning"
+                      size="small" @click.stop="onMessageAction('timeout', msg, index)" />
                   </template>
                 </v-tooltip>
 
-                <v-tooltip
-                  location="top"
-                  text="Zbanuj użytkownika"
-                >
+                <v-tooltip location="top" text="Zbanuj użytkownika">
                   <template v-slot:activator="{ props }">
-                    <v-btn
-                      v-bind="props"
-                      icon="mdi-account-cancel"
-                      density="compact"
-                      variant="text"
-                      color="error"
-                      size="small"
-                      @click.stop="onMessageAction('ban', msg, index)"
-                    />
+                    <v-btn v-bind="props" icon="mdi-account-cancel" density="compact" variant="text" color="error"
+                      size="small" @click.stop="onMessageAction('ban', msg, index)" />
                   </template>
                 </v-tooltip>
               </div>
@@ -132,10 +70,7 @@
           </v-list-item>
 
           <!-- Wiadomości systemowe -->
-          <v-list-item
-            v-else
-            class="justify-center text-center"
-          >
+          <v-list-item v-else class="justify-center text-center">
             <span class="text-caption text-medium-emphasis">
               {{ msg.text }}
             </span>
@@ -145,29 +80,11 @@
     </v-card-text>
 
     <!-- Pole wprowadzania wiadomości -->
-    <v-card-actions
-      v-if="!readOnly"
-      class="chat-input pa-2 px-4"
-    >
-      <v-text-field
-        v-model="newMessage"
-        :placeholder="inputPlaceholder"
-        variant="outlined"
-        density="compact"
-        hide-details
-        rounded
-        bg-color="grey-darken-3"
-        class="mt-2"
-        @keyup.enter="sendMessage"
-      >
+    <v-card-actions v-if="!readOnly" class="chat-input pa-2 px-4">
+      <v-text-field v-model="newMessage" :placeholder="inputPlaceholder" variant="outlined" density="compact"
+        hide-details rounded bg-color="grey-darken-3" class="mt-2" @keyup.enter="sendMessage">
         <template #append-inner>
-          <v-btn
-            :icon="sendIcon"
-            variant="text"
-            color="primary"
-            size="small"
-            @click="sendMessage"
-          />
+          <v-btn :icon="sendIcon" variant="text" color="primary" size="small" @click="sendMessage" />
         </template>
         <slot name="input-actions"></slot>
       </v-text-field>
@@ -187,6 +104,10 @@ import {
 import { useState } from "#app"; // Import useState z Nuxt
 
 import type { Moderator } from "@/types/moderator"; // Import typu Moderator
+
+const publicWS = usePublicWebSocket();
+const streamStore = useStreamsStore();
+const authWS = useAuthWebSocket();
 
 interface ChatMessage {
   user: string;
@@ -219,6 +140,10 @@ const isUserModerator = !!(
 );
 
 const props = defineProps({
+  streamId: {
+    type: String,
+    required: true,
+  },
   messages: {
     type: Array as () => ChatMessage[],
     default: () => [],
@@ -276,16 +201,33 @@ const newMessage = ref("");
 const isHovered = ref<number | null>(null);
 const chatContainer = ref<HTMLElement | null>(null);
 
-const formatTime = (date: Date) => {
-  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+const formatTime = (date: Date | string) => {
+  try {
+    if (typeof date === "string") {
+      date = new Date(date);
+    }
+    // if (!date || isNaN(date.getTime())) {
+    //   console.warn("Invalid date provided for formatting:", date);
+    //   return "";
+    // }
+    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  } catch (error) {
+    console.warn("Error formatting date:", error);
+    return "";
+  }
 };
 
 const sendMessage = () => {
   if (newMessage.value.trim()) {
+    // Wywołuję funkcję WebSocket do wysyłania wiadomości
+    authWS.sendChatMessage(props.streamId, newMessage.value.trim());
+
+    // Emitujemy również zdarzenie do komponentu rodzica
     emit("send-message", {
       text: newMessage.value.trim(),
       time: new Date(),
     });
+
     newMessage.value = "";
   }
 };
@@ -299,6 +241,15 @@ const scrollToBottom = async () => {
 };
 
 onMounted(() => {
+  publicWS.joinChatRoom(props.streamId);
+  publicWS.onChatMessage((data) => {
+    // Dodaj wiadomość do czatu
+    console.log("Received chat message:", data);
+    props.messages.push(data);
+    // Automatyczne przewijanie do dołu
+    scrollToBottom();
+  });
+
   scrollToBottom();
 });
 
@@ -356,8 +307,10 @@ const getRoleClass = (role?: string) => {
 .chat-messages {
   overflow-y: auto;
   scrollbar-width: thin;
-  height: 700px; /* Fixed height to prevent extending */
-  max-height: 700px; /* Maximum height */
+  height: 700px;
+  /* Fixed height to prevent extending */
+  max-height: 700px;
+  /* Maximum height */
 
   &::-webkit-scrollbar {
     width: 6px;

@@ -5,6 +5,8 @@ export default defineNuxtRouteMiddleware(async (to) => {
   const config = useRuntimeConfig();
 
   const BACK_HOST = config.public.BACK_HOST;
+  const BACK_PORT = config.public.BACK_PORT;
+  const BACK_URL = `${BACK_HOST}${BACK_PORT ? `:${BACK_PORT}` : ""}`;
 
   console.log("Checking if user exists:", to.params);
 
@@ -16,7 +18,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
       statusMessage: "Username is required",
     });
   }
-  const baben = `http://${BACK_HOST}/users/${username}`;
+  const baben = `http://${BACK_URL}/users/${username}`;
 
   console.log("Checking if user exists:", baben);
   const { error } = await useFetch(baben);

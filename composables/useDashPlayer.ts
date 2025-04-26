@@ -4,7 +4,7 @@ import * as dashjs from 'dashjs';
 
 export interface Quality {
   name: string;
-  dash: string;
+  url: string; // Zmiana z 'dash' na 'url'
 }
 
 export function useDashPlayer(
@@ -38,7 +38,7 @@ export function useDashPlayer(
 
   const getDashUrl = (qualityName: string) => {
     const q = qualities.value.find((q) => q.name === qualityName);
-    return q ? q.dash : streamUrl.value;
+    return q ? q.url : streamUrl.value; // Zmiana dostępu do właściwości
   };
 
   const copyToClipboard = () => {
@@ -90,22 +90,15 @@ export function useDashPlayer(
 
       // Konfiguracja dla dash.js
       const streamingSettings = {
-        lowLatencyEnabled: false,
-        buffer: {
-          initialBufferLevel: isLive.value ? 3 : 10,
-          stableBufferTime: isLive.value ? 6 : 20,
-        },
         abr: {
           initialBitrate: {
             video: 800,
           },
-          bandwidthSafetyFactor: 0.75,
         },
-        jumpGaps: true,
       };
 
       if (isLive.value) {
-        streamingSettings.delay = { liveDelay: 8 };
+        streamingSettings.delay = { liveDelay: 12 };
       }
 
       player.value.updateSettings({
@@ -154,6 +147,48 @@ export function useDashPlayer(
     }
   };
 
+  // Załadowanie aktualnie wybranej jakości
+  const loadCurrentQuality = (seekTime?: number) => {
+    // Sprawdź najpierw czy stream jest aktywny - jeśli nie, przerwij ładowanie
+    if (!isLive.value) {
+      console.log('Stream is offline, not loading quality');
+      if (player.value) {
+        player.value.reset();
+      }
+      return;
+    }
+
+    if (!player.value || !videoElement.value) return;
+
+    try {
+      // Znajdź wybraną jakość
+      const quality = qualities.value.find(q => q.name === selectedQuality.value);
+      const url = quality?.url || streamUrl.value;
+
+      if (!url) {
+        console.warn('No valid stream URL available');
+        return;
+      }
+
+      console.log(`Loading quality: ${selectedQuality.value}, URL: ${url}`);
+
+      // Zatrzymaj poprzedni strumień
+      player.value.reset();
+
+      // Inicjalizuj nowy strumień
+      player.value.initialize(videoElement.value, url, false);
+      player.value.setAutoPlay(true);
+      player.value.attachView(videoElement.value);
+      
+      // Ustaw czas odtwarzania, jeśli podano
+      if (seekTime) {
+        player.value.seek(seekTime);
+      }
+    } catch (error) {
+      console.error('Error loading stream:', error);
+    }
+  };
+
   // Reaktywne przeładowanie przy zmianie parametrów
   watch([streamUrl, isLive], () => {
     retryCount = 0;
@@ -170,6 +205,22 @@ export function useDashPlayer(
       }
     }
   }, { immediate: true });
+
+  // Obserwuj zmiany statusu LIVE
+  watch(isLive, (isLiveNow) => {
+    console.log('Live status changed:', isLiveNow);
+    if (isLiveNow) {
+      // Krótkie opóźnienie, aby dać czas na załadowanie innych danych
+      setTimeout(() => {
+        loadCurrentQuality();
+      }, 500);
+    } else if (player.value) {
+      // Jeśli stream przestał być aktywny, zatrzymaj odtwarzacz
+      console.log('Stream is now offline, resetting player');
+      player.value.reset();
+      player.value.attachView(null); // Odłącz widok, by zatrzymać próby ładowania
+    }
+  });
 
   onBeforeUnmount(() => {
     if (player.value) {
