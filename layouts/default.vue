@@ -1,12 +1,18 @@
 <!-- layouts/default.vue -->
 <template>
-  <v-app>
+  <v-app class="d-flex flex-column min-h-100vh">
     <v-app-bar
       app
       flat
       dark
-      color="transparent"
+      :color="undefined"
       class="px-8"
+      :class="{
+        'v-app-bar-hidden': isScrollingDown && lastScrollY > 50,
+        'streaming-bg-header-transparent': isScrollingDown && lastScrollY > 50,
+        'streaming-bg-header': !isScrollingDown || lastScrollY <= 50,
+      }"
+      :elevation="0"
     >
       <v-tooltip
         location="bottom"
@@ -82,6 +88,15 @@
                 icon="mdi-check-all"
                 @click="markAllAsRead"
                 :disabled="unreadCount === 0"
+                title="Mark all as read"
+              />
+              <v-btn
+                variant="text"
+                icon="mdi-delete-sweep"
+                @click="deleteAllNotifications"
+                :disabled="notifications.length === 0"
+                title="Delete all notifications"
+                class="ml-2"
               />
             </v-toolbar>
 
@@ -93,28 +108,39 @@
                 <v-list-item
                   v-for="notification in notifications"
                   :key="notification.id"
-                  :class="{ 'bg-grey-darken-3': !notification.read }"
-                  @click="handleNotificationClick(notification)"
+                  :class="{ 'bg-grey-darken-3': !notification.isRead }"
                 >
                   <template #prepend>
                     <v-icon
-                      :icon="notification.icon"
-                      :color="notification.type === 'alert' ? 'red' : 'primary'"
+                      icon="mdi-bell-outline"
+                      color="primary"
                       class="mr-3"
                     />
                   </template>
 
-                  <v-list-item-title class="text-body-2">
-                    {{ notification.title }}
-                  </v-list-item-title>
-                  <v-list-item-subtitle class="text-caption">
+                  <v-list-item-subtitle
+                    class="text-caption"
+                    @click="handleNotificationClick(notification)"
+                    style="cursor: pointer"
+                  >
                     {{ notification.message }}
                   </v-list-item-subtitle>
                   <v-list-item-subtitle
                     class="text-caption text-medium-emphasis text-right"
                   >
-                    {{ formatTime(notification.time) }}
+                    {{ formatTime(notification.created_at) }}
                   </v-list-item-subtitle>
+
+                  <template #append>
+                    <v-btn
+                      icon="mdi-delete-outline"
+                      variant="text"
+                      size="small"
+                      color="error"
+                      @click.stop="handleDeleteNotification(notification.id)"
+                      title="Delete notification"
+                    />
+                  </template>
                 </v-list-item>
               </template>
 
@@ -164,7 +190,7 @@
               name="ic:baseline-person-outline"
               size="2em"
               v-bind="props"
-              @click="navigateTo(`/user/${authStore.userName}`)"
+              @click="navigateTo(`/user/${authStore.userName}/profile`)"
               class="cursor-pointer transition-opacity hover:opacity-80"
             />
           </template>
@@ -180,21 +206,58 @@
       class="pa-4"
     >
       <v-list density="compact">
-        <v-list-item
+        <template
           v-for="(item, i) in navItems"
           :key="i"
-          :to="item.to"
-          active-class="active-nav-item"
         >
-          <template #prepend>
-            <v-icon :icon="item.icon" />
-          </template>
-          <v-list-item-title>{{ item.title }}</v-list-item-title>
-        </v-list-item>
+          <!-- Element z dziećmi - używamy v-list-group -->
+          <v-list-group
+            v-if="item.children"
+            v-model="openGroups[i]"
+            class="minimal-indent"
+          >
+            <template v-slot:activator="{ props }">
+              <v-list-item v-bind="props">
+                <template #prepend>
+                  <v-icon :icon="item.icon" />
+                </template>
+                <v-list-item-title>{{ item.title }}</v-list-item-title>
+              </v-list-item>
+            </template>
+
+            <v-list-item
+              v-for="(child, j) in item.children"
+              :key="j"
+              :to="child.to"
+              active-class="active-nav-item"
+              class="child-item"
+            >
+              <template #prepend>
+                <v-icon
+                  :icon="child.icon"
+                  class="child-icon"
+                />
+              </template>
+              <v-list-item-title>{{ child.title }}</v-list-item-title>
+            </v-list-item>
+          </v-list-group>
+
+          <!-- Standardowy element bez dzieci -->
+          <v-list-item
+            v-else
+            :to="item.to"
+            active-class="active-nav-item"
+          >
+            <template #prepend>
+              <v-icon :icon="item.icon" />
+            </template>
+            <v-list-item-title>{{ item.title }}</v-list-item-title>
+          </v-list-item>
+        </template>
       </v-list>
     </v-navigation-drawer>
 
-    <v-main class="streaming-bg">
+    <v-main class="streaming-bg flex-grow-1">
       <v-container
         fluid
         class="fill-height pa-0"
@@ -203,87 +266,210 @@
       </v-container>
     </v-main>
 
-    <v-footer class="justify-center py-4">
-      © {{ new Date().getFullYear() }} BuddyShare. All rights reserved. Made
-      with ❤️ by BuddyShare Team
+    <v-footer
+      app
+      class="justify-center py-4"
+      :absolute="!$vuetify.display.mobile"
+    >
+      © {{ new Date().getFullYear() }} BuddyShare. All rights reserved.
     </v-footer>
   </v-app>
+
+  <!-- Dialog potwierdzenia usunięcia wszystkich powiadomień -->
+  <v-dialog
+    v-model="showDeleteConfirmDialog"
+    max-width="400"
+  >
+    <v-card>
+      <v-card-title class="text-h6"> Delete all notifications? </v-card-title>
+      <v-card-text>
+        This action is <strong>irreversible</strong>. All notifications will be
+        permanently deleted. Are you sure you want to continue?
+      </v-card-text>
+      <v-card-actions>
+        <v-spacer></v-spacer>
+        <v-btn
+          color="grey"
+          variant="text"
+          @click="showDeleteConfirmDialog = false"
+        >
+          Cancel
+        </v-btn>
+        <v-btn
+          color="error"
+          variant="text"
+          @click="confirmDeleteAllNotifications"
+        >
+          Delete all
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount } from "vue";
+import { useNotificationsStore } from "~/stores/notifications";
 // import { useAuthStore } from "~/stores/auth";
 
 const drawer = ref(false);
 const showNotifications = ref(false);
 const authStore = useAuthStore();
+const showDeleteConfirmDialog = ref(false);
+const openGroups = ref<boolean[]>([]); // Dodajemy reaktywny stan dla grup
 
-// Notifications
-const notifications = ref([
-  {
-    id: 1,
-    title: "New Follower",
-    message: "JohnDoe started following you",
-    type: "info",
-    icon: "mdi-account-plus",
-    time: new Date(Date.now() - 3600000),
-    read: false,
-  },
-  {
-    id: 2,
-    title: "Stream Alert",
-    message: "Your favorite streamer is live!",
-    type: "alert",
-    icon: "mdi-alert",
-    time: new Date(Date.now() - 1800000),
-    read: true,
-  },
-]);
+// Dodajemy zmienne do śledzenia przewijania
+const lastScrollY = ref(0);
+const isScrollingDown = ref(false);
+
+const notificationsStore = useNotificationsStore();
+const notifications = computed(() => {
+  // Filtrujemy out pole 'count' z tablicy powiadomień
+  return notificationsStore.notifications.filter(
+    (item) => typeof item !== "object" || !("count" in item)
+  );
+});
+
+console.log("Notifications: ", notifications.value);
 
 const unreadCount = computed(
-  () => notifications.value.filter((n) => !n.read).length
+  () => notifications.value.filter((n: { isRead: boolean }) => !n.isRead).length
 );
+
 const navItems = computed(() => [
-  { title: "Home", to: "/", icon: "mdi-home" },
-  { title: "Discover", to: "/discover", icon: "mdi-compass" },
+  { title: "Home", icon: "mdi-home", to: "/" },
+  {
+    title: "Discover",
+    icon: "mdi-compass",
+    to: "/discover",
+  },
   ...(authStore.authenticated
     ? [
-        { title: "Following", to: "/following", icon: "mdi-heart" },
         {
-          title: "Profile",
-          to: `/user/${authStore.userName}`,
-          icon: "mdi-account",
+          title: "Community",
+          icon: "mdi-account-group",
+          children: [
+            {
+              title: "Following",
+              icon: "mdi-heart",
+              to: `/user/${authStore.userName}/profile/following`,
+            },
+            {
+              title: "Followed By",
+              icon: "mdi-account-multiple",
+              to: `/user/${authStore.userName}/profile/followers`,
+            },
+          ],
         },
-        { title: "Settings", to: "/user/settings", icon: "mdi-cog" },
+        {
+          title: "Management",
+          icon: "mdi-cog-outline",
+          children: [
+            {
+              title: "Dashboard",
+              icon: "mdi-view-dashboard",
+              to: `/user/${authStore.userName}/dashboard`,
+            },
+            {
+              title: "Your Stream",
+              icon: "mdi-video-account",
+              to: `/user/${authStore.userName}`,
+            },
+            {
+              title: "Profile",
+              icon: "mdi-account",
+              to: `/user/${authStore.userName}/profile`,
+            },
+            {
+              title: "Settings",
+              icon: "mdi-cog",
+              to: `/user/settings`,
+            },
+          ],
+        },
         ...(authStore.isAdmin
-          ? [{ title: "Admin", to: "/admin", icon: "mdi-shield-account" }]
+          ? [
+              {
+                title: "Admin",
+                icon: "mdi-shield-account",
+                to: "/admin",
+              },
+            ]
           : []),
       ]
     : []),
-  { title: "About", to: "/about", icon: "mdi-information" },
+  {
+    title: "About",
+    icon: "mdi-information",
+    to: "/about",
+  },
 ]);
 
-const formatTime = (date: Date) => {
-  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+const formatTime = (date: string | Date) => {
+  const dateObj = date instanceof Date ? date : new Date(date);
+  return dateObj.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 };
 
-const markAllAsRead = () => {
-  notifications.value = notifications.value.map((n) => ({ ...n, read: true }));
+const markAllAsRead = async () => {
+  await notificationsStore.markAllAsRead();
 };
 
-const handleNotificationClick = (notification: any) => {
-  notification.read = true;
-  // Handle notification click logic
+const handleNotificationClick = async (notification: any) => {
+  await notificationsStore.markAsRead(notification.id);
+  // Przekierowanie na stronę streamu jeśli istnieje stream_id
+  if (notification.stream_id) {
+    const streamer = notification.message.split(" ")[0];
+    navigateTo(`/user/${streamer}`);
+  }
+  showNotifications.value = false;
 };
 
-// const handleLogout = async () => {
-//   await authStore.logout();
-// };
+const handleDeleteNotification = async (id: number) => {
+  await notificationsStore.deleteNotification(id);
+};
+
+const deleteAllNotifications = async () => {
+  showDeleteConfirmDialog.value = true;
+};
+
+const confirmDeleteAllNotifications = async () => {
+  showDeleteConfirmDialog.value = false;
+  await notificationsStore.deleteAllNotifications();
+  showNotifications.value = false; // Zamykamy menu powiadomień po usunięciu wszystkich
+};
+
+const handleScroll = () => {
+  const currentScrollY = window.scrollY;
+  isScrollingDown.value = currentScrollY > lastScrollY.value;
+  lastScrollY.value = currentScrollY;
+};
+
+onMounted(() => {
+  window.addEventListener("scroll", handleScroll, { passive: true });
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("scroll", handleScroll);
+});
 </script>
 
 <style scoped>
+.min-h-100vh {
+  min-height: 100vh;
+}
+
 .streaming-bg {
   background: radial-gradient(circle at center, #1a1a1a 0%, #000 100%);
+}
+
+.streaming-bg-header {
+  background: radial-gradient(circle at center, #1a1a1a 0%, #000 100%);
+  transition: background 0.3s ease, transform 0.3s ease;
+}
+
+.streaming-bg-header-transparent {
+  background: transparent;
+  transition: background 0.3s ease, transform 0.3s ease;
 }
 
 .active-nav-item {
@@ -302,5 +488,32 @@ const handleNotificationClick = (notification: any) => {
 
 .v-list-item:hover {
   background-color: rgba(255, 255, 255, 0.05);
+}
+
+.minimal-indent {
+  padding-left: 0px !important;
+}
+
+.child-item {
+  padding-left: -10px !important;
+}
+
+.child-icon {
+  margin-left: -1.5em !important;
+}
+
+.footer-position {
+  position: relative;
+  z-index: 1;
+  margin-top: auto;
+}
+
+/* Dodajemy style do animacji znikania nagłówka */
+.v-app-bar-hidden {
+  transform: translateY(-100%);
+}
+
+.v-app-bar {
+  transition: transform 0.3s ease, background 0.3s ease;
 }
 </style>

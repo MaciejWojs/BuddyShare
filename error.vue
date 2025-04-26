@@ -1,19 +1,22 @@
 <script setup lang="ts">
 import type { NuxtError } from "#app";
 
-definePageMeta({
-  layout: "default",
-});
+// definePageMeta nie działa w error.vue, więc usuwamy to wywołanie
+// i używamy bezpośrednio definicji layoutu
 
-const { error } = defineProps({
+// Właściwości komponentu
+const props = defineProps({
   error: Object as () => NuxtError,
 });
 
+// Ustawiamy layout bezpośrednio dla tego komponentu
+const layout = 'default';
+
 // Create computed property to get appropriate error message
 const errorMessage = computed(() => {
-  if (!error) return "An unknown error occurred";
+  if (!props.error) return "An unknown error occurred";
 
-  switch (error.statusCode) {
+  switch (props.error.statusCode) {
     case 403:
       return "You don't have permission to access this resource";
     case 404:
@@ -24,18 +27,17 @@ const errorMessage = computed(() => {
     case 503:
       return "Service temporarily unavailable";
     default:
-      return error.message || "An error occurred";
+      return props.error.message || "An error occurred";
   }
 });
 </script>
 
 <template>
-  <NuxtRouteAnnouncer />
-  <NuxtLayout>
+  <NuxtLayout :name="layout">
     <v-container class="py-10">
       <v-empty-state
         :headline="`Whoops :(`"
-        :title="`${error?.message || 'Something went wrong'}`"
+        :title="`${props.error?.message || 'Something went wrong'}`"
         :text="errorMessage"
         image="/Buddyshare.svg"
         variant="elevated"
