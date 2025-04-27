@@ -2,10 +2,7 @@
 import { ref } from "vue";
 
 definePageMeta({
-  middleware: [
-    // "user-exists",
-    // "is-banned"
-  ],
+  middleware: ["user-exists", "is-banned"],
 });
 
 const config = useRuntimeConfig();
@@ -113,11 +110,11 @@ const profileData = ref({
   followers: userFollowers,
   following: userFollowing,
   joinDate: userJoinDate,
-  socialLinks: [
-    { icon: "mdi-twitter", url: "#" },
-    { icon: "mdi-instagram", url: "#" },
-    { icon: "mdi-youtube", url: "#" },
-  ],
+  // socialLinks: [
+  //   { icon: "mdi-twitter", url: "#" },
+  //   { icon: "mdi-instagram", url: "#" },
+  //   { icon: "mdi-youtube", url: "#" },
+  // ],
 });
 </script>
 

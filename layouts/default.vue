@@ -383,7 +383,7 @@ const navItems = computed(() => [
             {
               title: "Settings",
               icon: "mdi-cog",
-              to: `/user/settings`,
+              to: `/user/${authStore.userName}/settings`,
             },
           ],
         },

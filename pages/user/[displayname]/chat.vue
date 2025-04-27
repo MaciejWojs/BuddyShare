@@ -1,7 +1,16 @@
 <template>
-  <v-col cols="12" lg="3" class="h-100 bg-grey-darken-4">
-    <LiveChat :messages="chatMessages" :online-count="onlineCount" title="Live Chat" @send-message="handleSendMessage"
-      @message-action="handleMessageAction" />
+  <v-col
+    cols="12"
+    lg="3"
+    class="h-100 bg-grey-darken-4"
+  >
+    <LiveChat
+      :messages="chatMessages"
+      :online-count="onlineCount"
+      title="Live Chat"
+      @send-message="handleSendMessage"
+      @message-action="handleMessageAction"
+    />
   </v-col>
 </template>
 

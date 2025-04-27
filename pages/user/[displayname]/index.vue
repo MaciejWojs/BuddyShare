@@ -1,10 +1,23 @@
 <!-- pages/[displayname]/index.vue -->
 <template>
-  <v-container fluid class="stream-layout pa-0 fill-height">
-    <v-row no-gutters class="fill-height">
+  <v-container
+    fluid
+    class="stream-layout pa-0 fill-height"
+  >
+    <v-row
+      no-gutters
+      class="fill-height"
+    >
       <!-- Main Content Column -->
-      <v-col cols="12" lg="9" class="h-100">
-        <v-responsive :aspect-ratio="16 / 9" class="h-100">
+      <v-col
+        cols="12"
+        lg="9"
+        class="h-100"
+      >
+        <v-responsive
+          :aspect-ratio="16 / 9"
+          class="h-100"
+        >
           <!-- Poprawione przekazywanie jakości do VideoPlayer -->
           <LazyVideoPlayer :display-name="displayName" />
         </v-responsive>
@@ -37,9 +50,18 @@
       </v-col>
 
       <!-- Chat Column -->
-      <v-col v-if="streamId" cols="12" lg="3" class="h-100 bg-grey-darken-4">
-        <LiveChat :stream-id="streamId" :messages="chatMessages" title="Live Chat"
-           @message-action="handleMessageAction" />
+      <v-col
+        v-if="streamId"
+        cols="12"
+        lg="3"
+        class="h-100 bg-grey-darken-4"
+      >
+        <LiveChat
+          :stream-id="streamId"
+          :messages="chatMessages"
+          title="Live Chat"
+          @message-action="handleMessageAction"
+        />
       </v-col>
     </v-row>
   </v-container>
@@ -48,15 +70,17 @@
 <script setup lang="ts">
 import { useStreamsStore } from "#imports";
 import { ref, watch, onMounted, computed } from "vue";
+import isStreamerAndStreaming from "~/middleware/is-streamer-and-streaming";
 
-const streamsStore = useStreamsStore()
+const streamsStore = useStreamsStore();
 
 const route = useRoute();
 const displayName = route.params.displayname as string;
 
-const streamId = computed(() => 
-  streamsStore.streams.find((stream) => stream.username === displayName)?.id
-)
+const streamId = computed(
+  () =>
+    streamsStore.streams.find((stream) => stream.username === displayName)?.id
+);
 
 const streamTitle = ref("");
 const streamDescription = ref("");
@@ -65,18 +89,31 @@ const streamerDescription = ref("");
 watch(streamId, updateStreamInfo);
 
 function updateStreamInfo() {
-  const stream = streamsStore.streams.find((stream) => stream.username === displayName);
+  const stream = streamsStore.streams.find(
+    (stream) => stream.username === displayName
+  );
   if (stream) {
     streamTitle.value = stream.title || "Untitled Stream";
     streamDescription.value = stream.description || "No description available.";
-    streamerDescription.value = stream.user?.description || "No description available.";
+    streamerDescription.value =
+      stream.user?.description || "No description available.";
   }
 }
 
-
 definePageMeta({
-  middleware: ["user-exists", "is-banned", "test-middleware", "is-moderator"],
+  middleware: [
+    "user-exists",
+    "is-banned",
+    "test-middleware",
+    "is-moderator",
+    "is-streamer-and-streaming",
+  ],
 });
+
+const streamerAndStreamingStatus = useState<Boolean>(
+  "streamerAndStreamingStatus",
+  () => false
+);
 
 // const publicWS = usePublicWebSocket();
 // const streamStore = useStreamsStore();
@@ -159,7 +196,6 @@ const chatMessages = ref([
   },
 ]);
 
-
 // Obsługa akcji moderacyjnych
 const handleMessageAction = ({ action, message, index }) => {
   switch (action) {
@@ -194,6 +230,11 @@ const handleMessageAction = ({ action, message, index }) => {
 
   // Tu powinno być wywołanie odpowiedniego API
 };
+onBeforeUnmount(() => {
+  console.log("Checking before - >", streamerAndStreamingStatus.value);
+  streamerAndStreamingStatus.value = false;
+  console.log("Checking after - >", streamerAndStreamingStatus.value);
+});
 </script>
 
 <style lang="scss">
@@ -221,4 +262,5 @@ const handleMessageAction = ({ action, message, index }) => {
 //   .h-100 {
 //     height: auto !important;
 //   }
-// }</style>
+// }
+</style>
