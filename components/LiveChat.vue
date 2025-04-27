@@ -5,9 +5,9 @@
     <v-card-title class="chat-header py-2 px-4">
       <div class="d-flex align-center justify-space-between w-100">
         <span class="text-subtitle-1">{{ title }}</span>
-        <v-chip v-if="showOnlineCount" variant="tonal" color="primary" size="small">
+        <!-- <v-chip v-if="showOnlineCount" variant="tonal" color="primary" size="small">
           {{ onlineCount }} Online
-        </v-chip>
+        </v-chip> -->
         <slot name="header-actions"></slot>
       </div>
     </v-card-title>
@@ -30,7 +30,7 @@
             <!-- Nagłówek wiadomości z nazwą użytkownika i czasem -->
             <v-list-item-subtitle class="d-flex justify-space-between">
               <span class="font-weight-medium" :class="getRoleClass(msg.role)">
-                {{ msg.user }}
+                {{ msg.username }}
               </span>
               <!-- <span class="text-caption text-medium-emphasis">
                 {{ formatTime(msg.timestamp) }}
@@ -107,10 +107,11 @@ import type { Moderator } from "@/types/moderator"; // Import typu Moderator
 
 const publicWS = usePublicWebSocket();
 const streamStore = useStreamsStore();
+const authStore = useAuthStore();
 const authWS = useAuthWebSocket();
 
 interface ChatMessage {
-  user: string;
+  username: string;
   text: string;
   time: Date;
   type?: "user" | "system" | "notification";
@@ -139,6 +140,10 @@ const isUserModerator = !!(
   streamerStatus.value
 );
 
+const readOnly = computed(() => {
+  return !authStore.authenticated;
+});
+
 const props = defineProps({
   streamId: {
     type: String,
@@ -148,22 +153,18 @@ const props = defineProps({
     type: Array as () => ChatMessage[],
     default: () => [],
   },
-  onlineCount: {
-    type: [String, Number],
-    default: "0",
-  },
+  // onlineCount: {
+  //   type: [String, Number],
+  //   default: "0",
+  // },
   title: {
     type: String,
     default: "Live Chat",
   },
-  showOnlineCount: {
-    type: Boolean,
-    default: true,
-  },
-  readOnly: {
-    type: Boolean,
-    default: false,
-  },
+  // showOnlineCount: {
+  //   type: Boolean,
+  //   default: true,
+  // },
   // showModActions: {
   //   type: Boolean,
   //   default: false,

@@ -17,6 +17,10 @@ export const usePublicWebSocket = () => {
     const socketUrl = `ws://${BACK_URL}/public`;
 
     const connect = () => {
+        if (!import.meta.client) {
+            console.error("WebSocket connection is only available on the client side.");
+            return;
+        }
         if (socket.value?.connected) return;
 
         const newSocket = io(socketUrl, {

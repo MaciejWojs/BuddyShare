@@ -168,9 +168,9 @@ const isLiveRef = computed(() => !!streamData.value?.isLive);
 const streamUrlRef = computed(() => {
   if (streamData.value?.stream_urls && Array.isArray(streamData.value.stream_urls) && streamData.value.stream_urls.length > 0) {
     // Zwracamy pole dash z pierwszego elementu tablicy stream_urls
-    return streamData.value.stream_urls[0].dash || null;
+    return streamData.value.stream_urls[0].dash || '';
   }
-  return null;
+  return '';
 });
 const qualitiesRef = computed(() => {
   if (streamData.value?.stream_urls && Array.isArray(streamData.value.stream_urls)) {
