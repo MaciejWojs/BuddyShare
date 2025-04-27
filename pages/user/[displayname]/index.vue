@@ -1,34 +1,12 @@
 <!-- pages/[displayname]/index.vue -->
 <template>
-  <v-container
-    fluid
-    class="stream-layout pa-0 fill-height"
-  >
-    <v-row
-      no-gutters
-      class="fill-height"
-    >
+  <v-container fluid class="stream-layout pa-0 fill-height">
+    <v-row no-gutters class="fill-height">
       <!-- Main Content Column -->
-      <v-col
-        cols="12"
-        lg="9"
-        class="h-100"
-      >
-        <v-responsive
-          :aspect-ratio="16 / 9"
-          class="h-100"
-        >
+      <v-col cols="12" lg="9" class="h-100">
+        <v-responsive :aspect-ratio="16 / 9" class="h-100">
           <!-- Poprawione przekazywanie jakości do VideoPlayer -->
-          <LazyVideoPlayer
-            :display-name="displayName"
-            :is-live="isLive"
-            viewer-count="12.8K"
-            :stream-url="streamUrl"
-            :qualities="streamerData?.stream?.urls?.[0]?.qualities || []"
-            :initial-quality="selectedQuality"
-            avatar="/Buddyshare.svg"
-            current-time="22:02"
-          />
+          <LazyVideoPlayer :display-name="displayName" />
         </v-responsive>
 
         <!-- Vertical spacer -->
@@ -59,130 +37,53 @@
       </v-col>
 
       <!-- Chat Column -->
-      <v-col
-        cols="12"
-        lg="3"
-        class="h-100 bg-grey-darken-4"
-      >
-        <LiveChat
-          :messages="chatMessages"
-          :online-count="onlineCount"
-          title="Live Chat"
-          @send-message="handleSendMessage"
-          @message-action="handleMessageAction"
-        />
+      <v-col cols="12" lg="3" class="h-100 bg-grey-darken-4">
+        <LiveChat :stream-id="streamId" :messages="chatMessages" :online-count="onlineCount" title="Live Chat"
+          @send-message="handleSendMessage" @message-action="handleMessageAction" />
       </v-col>
     </v-row>
   </v-container>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { useStreamsStore } from "#imports";
+import { ref, watch, onMounted, computed } from "vue";
+
+const streamsStore = useStreamsStore()
+
+const streamId = computed(() => 
+  streamsStore.streams.find((stream) => stream.username === displayName)?.id
+)
+
+const streamTitle = ref("");
+const streamDescription = ref("");
+const streamerDescription = ref("");
+
+watch(streamId, (newStreamId) => {
+  if (newStreamId) {
+    const stream = streamsStore.streams.find((stream) => stream.id === newStreamId);
+    if (stream) {
+      streamTitle.value = stream.title || "Untitled Stream";
+      streamDescription.value = stream.description || "No description available.";
+      streamerDescription.value = stream.user?.description || "No description available.";
+    }
+  }
+});
+
 
 definePageMeta({
   middleware: ["user-exists", "is-banned", "test-middleware", "is-moderator"],
 });
 
 const route = useRoute();
-const displayName = route.params.displayname;
-const isLive = ref(false);
-const onlineCount = ref("128");
+const displayName = route.params.displayname as string;
+// const publicWS = usePublicWebSocket();
+// const streamStore = useStreamsStore();
 
-// Dodajemy nowe reaktywne zmienne dla tytułu i opisu
-const streamTitle = ref(`${displayName} has no stream title`);
-const streamDescription = ref(`${displayName} has no stream description`);
-const streamerDescription = ref("");
-
-const headers = useRequestHeaders(["cookie"]);
-const config = useRuntimeConfig();
-const BACK_HOST = config.public.BACK_HOST;
-const endpoint = `http://${BACK_HOST}/streamers/${displayName}`;
-
-const streamerData = ref(null);
-const availableQualities = ref<string[]>([]);
-const selectedQuality = ref("source");
-const streamUrl = ref("");
-
-try {
-  const response = await fetch(endpoint, {
-    method: "GET",
-    headers: {
-      ...headers,
-      Accept: "application/json",
-    },
-    credentials: "include",
-  });
-  streamerData.value = await response.json();
-
-  // Sprawdzanie czy otrzymaliśmy prawidłowe dane
-  if (
-    streamerData.value &&
-    streamerData.value.stream &&
-    streamerData.value.stream.urls
-  ) {
-    console.log("Streamer data fetched successfully:", streamerData.value);
-
-    // Ustawiamy status transmisji na żywo
-    if (streamerData.value.stream.isLive !== undefined) {
-      isLive.value = streamerData.value.stream.isLive;
-    }
-
-    // Ustawiamy tytuł i opis streama
-    if (streamerData.value.stream.title) {
-      streamTitle.value = streamerData.value.stream.title;
-    }
-
-    if (streamerData.value.stream.description) {
-      streamDescription.value = streamerData.value.stream.description;
-    }
-
-    // Ustawiamy opis streamera
-    if (
-      streamerData.value.userInfo &&
-      streamerData.value.userInfo.description
-    ) {
-      streamerDescription.value = streamerData.value.userInfo.description;
-    }
-
-    // Pobieramy dostępne jakości i URL transmisji DASH
-    const streamUrls = streamerData.value.stream.urls;
-    if (streamUrls.length > 0 && streamUrls[0].qualities) {
-      availableQualities.value = streamUrls[0].qualities.map((q) => q.name);
-
-      console.log("Available qualities:", availableQualities.value);
-
-      // Ustaw domyślną jakość na 'source' jeśli dostępna
-      if (availableQualities.value.includes("source")) {
-        selectedQuality.value = "source";
-      } else if (availableQualities.value.length > 0) {
-        selectedQuality.value = availableQualities.value[0];
-      }
-
-      // Ustaw początkowy URL
-      const initialQuality = streamUrls[0].qualities.find(
-        (q) => q.name === selectedQuality.value
-      );
-      if (initialQuality) {
-        streamUrl.value = initialQuality.dash;
-      }
-    }
-  }
-} catch (error) {
-  console.error("Failed to fetch streamer data:", error);
+if (!streamId.value) {
+  // Handle case where streamId is not found
+  console.error("Stream ID not found for display name:", displayName);
 }
-
-// Obserwuj zmiany jakości
-watch(selectedQuality, (newQuality) => {
-  if (streamerData.value?.stream?.urls?.[0]?.qualities) {
-    const qualities = streamerData.value.stream.urls[0].qualities;
-    const selected = qualities.find((q) => q.name === newQuality);
-    if (selected) {
-      streamUrl.value = selected.dash;
-    }
-  }
-});
-
-console.log("Streamer data:", streamerData.value);
 
 // Chat functionality
 const chatMessages = ref([
@@ -257,18 +158,6 @@ const chatMessages = ref([
   },
 ]);
 
-// Obsługa wysyłania wiadomości
-const handleSendMessage = ({ text, time }) => {
-  chatMessages.value.push({
-    user: "CurrentUser", // To powinno być zastąpione rzeczywistą nazwą użytkownika
-    text: text,
-    time: time,
-    type: "user",
-    role: "user",
-  });
-
-  // Tu powinno być wysłanie wiadomości do serwera WebSocket
-};
 
 // Obsługa akcji moderacyjnych
 const handleMessageAction = ({ action, message, index }) => {
@@ -316,6 +205,7 @@ const handleMessageAction = ({ action, message, index }) => {
     height: calc(100vh - 64px); // Account for app bar height
   }
 }
+
 .stream-info {
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
@@ -330,5 +220,4 @@ const handleMessageAction = ({ action, message, index }) => {
 //   .h-100 {
 //     height: auto !important;
 //   }
-// }
-</style>
+// }</style>

@@ -3,19 +3,20 @@ import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 import { useIntervalFn } from '@vueuse/core'
 import { useAuthStore } from './auth'
+import { useAuthWebSocket } from '~/composables/useAuthWebSocket'
 
 interface Notification {
-  id: number;
-  user_id: number;
-  stream_id?: number;
-  message: string;
-  created_at: string;
-  isRead: boolean;
+    id: number;
+    user_id: number;
+    stream_id?: number;
+    message: string;
+    created_at: string;
+    isRead: boolean;
 }
 
 export const useNotificationsStore = defineStore('notifications', () => {
     const notifications = ref<Notification[]>([])
-    const isPolling = ref(false)
+    const wsConnected = ref(false)
 
     // dostęp do authStore
     const authStore = useAuthStore()
@@ -36,42 +37,63 @@ export const useNotificationsStore = defineStore('notifications', () => {
         }
     }
 
-    // ustawiamy polling co 60 000 ms (1 minuta)
-    const { pause, resume } = useIntervalFn(fetchNotifications, 60_000, {
-        immediate: false,  // nie uruchamiamy od razu
-    })
-
-    // kontrola start/stop pollingu
-    function startPolling() {
-        if (!isPolling.value) {
-            fetchNotifications()  // od razu jedno wywołanie
-            resume()
-            isPolling.value = true
+    // Setup websocket dla powiadomień
+    function setupWebSocketForNotifications() {
+        if (!import.meta.client) return
+        
+        const authWs = useAuthWebSocket()
+        
+        // Łączymy z websocketem jeśli jeszcze nie jest połączony
+        if (!authWs.isConnected.value) {
+            authWs.connect()
         }
+        
+        // Nasłuchiwanie na nowe powiadomienia
+        authWs.onStreamNotification((data) => {
+            console.log('Otrzymano nowe powiadomienie przez WebSocket:', data)
+            
+            // Dodajemy nowe powiadomienie do lokalnego stanu (na początku listy)
+            if (data && typeof data === 'object' && 'id' in data) {
+                const exists = notifications.value.some(n => n.id === data.id)
+                if (!exists) {
+                    notifications.value.unshift(data)
+                }
+            }
+        })
+        
+        // Nasłuchiwanie na status połączenia websocket
+        watch(() => authWs.isConnected.value, (connected) => {
+            wsConnected.value = connected
+            
+            // Jeśli połączenie zostało nawiązane, pobieramy początkowe powiadomienia
+            if (connected) {
+                fetchNotifications()
+            }
+        }, { immediate: true })
+        
+        // Jeśli websocket się rozłączy, możemy wrócić do polling jako fallback
+        const { pause, resume } = useIntervalFn(fetchNotifications, 60_000, {
+            immediate: false,
+        })
+        
+        // Gdy WebSocket jest niedostępny, włączamy polling
+        watch(() => wsConnected.value, (connected) => {
+            if (!connected && authStore.authenticated) {
+                console.log('WebSocket rozłączony, włączam polling powiadomień')
+                resume()
+            } else {
+                console.log('WebSocket połączony, wyłączam polling powiadomień')
+                pause()
+            }
+        }, { immediate: true })
     }
-    function stopPolling() {
-        if (isPolling.value) {
-            pause()
-            isPolling.value = false
-        }
-    }
-
-    // obserwujemy stan zalogowania
-    watch(
-        () => authStore.authenticated,
-        (loggedIn) => {
-            if (loggedIn) startPolling()
-            else stopPolling()
-        },
-        { immediate: true }
-    )
 
     // Funkcja aktualizująca status powiadomienia na serwerze
     async function updateNotificationStatus(id: number, isRead: boolean) {
         try {
             const config = useRuntimeConfig()
             const headers = useRequestHeaders(['cookie'])
-            
+
             await $fetch(
                 `http://${config.public.BACK_HOST}/users/${authStore.userName}/notifications/${id}`,
                 {
@@ -94,7 +116,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
         try {
             const config = useRuntimeConfig()
             const headers = useRequestHeaders(['cookie'])
-            
+
             await $fetch(
                 `http://${config.public.BACK_HOST}/users/${authStore.userName}/notifications`,
                 {
@@ -120,7 +142,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
         if (notification) {
             // Optymistyczna aktualizacja - najpierw zmieniamy lokalnie
             notification.isRead = true;
-            
+
             // Następnie wysyłamy zmianę na serwer
             await updateNotificationStatus(id, true);
         }
@@ -141,7 +163,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
                 notification.isRead = true;
             }
         });
-        
+
         // Wysyłamy jedną zbiorczą aktualizację zamiast wielu pojedynczych
         await updateMultipleNotifications(unreadNotifications);
     }
@@ -151,7 +173,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
         try {
             const config = useRuntimeConfig()
             const headers = useRequestHeaders(['cookie'])
-            
+
             await $fetch(
                 `http://${config.public.BACK_HOST}/users/${authStore.userName}/notifications/${id}`,
                 {
@@ -160,7 +182,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
                     headers
                 }
             )
-            
+
             // Optymistyczna aktualizacja - usuwamy powiadomienie z lokalnego stanu
             notifications.value = notifications.value.filter(n => n.id !== id)
             console.log(`Usunięto powiadomienie ${id}`)
@@ -176,7 +198,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
         try {
             const config = useRuntimeConfig()
             const headers = useRequestHeaders(['cookie'])
-            
+
             await $fetch(
                 `http://${config.public.BACK_HOST}/users/${authStore.userName}/notifications`,
                 {
@@ -186,7 +208,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
                     headers
                 }
             )
-            
+
             // Optymistyczna aktualizacja - usuwamy powiadomienia z lokalnego stanu
             notifications.value = notifications.value.filter(n => !notificationIds.includes(n.id))
             console.log(`Usunięto ${notificationIds.length} powiadomień`)
@@ -202,13 +224,13 @@ export const useNotificationsStore = defineStore('notifications', () => {
         try {
             // Pobieramy wszystkie identyfikatory powiadomień
             const allNotificationIds = notifications.value.map(n => n.id)
-            
+
             if (allNotificationIds.length === 0) return;
-            
+
             // Optymistyczna aktualizacja - czyścimy lokalny stan
             const previousNotifications = [...notifications.value]
             notifications.value = []
-            
+
             try {
                 // Wysyłamy żądanie usunięcia wielu powiadomień
                 await deleteNotificationsInBulk(allNotificationIds)
@@ -224,11 +246,33 @@ export const useNotificationsStore = defineStore('notifications', () => {
         }
     }
 
+    onMounted(() => {
+        // Sprawdzamy, czy użytkownik jest zalogowany
+        if (authStore.authenticated) {
+            fetchNotifications()
+            if (import.meta.client) {
+                setupWebSocketForNotifications()
+            }
+        }
+    })
+
+    // Obserwujemy stan zalogowania
+    watch(
+        () => authStore.authenticated,
+        (loggedIn) => {
+            if (loggedIn) {
+                fetchNotifications()
+                if (import.meta.client) {
+                    setupWebSocketForNotifications()
+                }
+            }
+        },
+        { immediate: true }
+    )
+
     return {
         notifications,
-        isPolling,
-        startPolling,
-        stopPolling,
+        wsConnected,
         fetchNotifications,
         markAsRead,
         markAllAsRead,
