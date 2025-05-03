@@ -21,7 +21,7 @@
     "@mdi/font": "^7.4.47",
     "@nuxt/icon": "^1.12.0",
     "@nuxt/image": "^1.10.0",
-    "@nuxt/kit": "^3.16.2",
+    "@nuxt/kit": "^3.17.1",
     "@nuxtjs/color-mode": "3.5.2",
     "@nuxtjs/i18n": "9.5.3",
     "@pinia/nuxt": "^0.11.0",
@@ -32,16 +32,18 @@
     "dotenv": "^16.5.0",
     "email-validator": "^2.0.4",
     "http-status-codes": "^2.3.0",
-    "nuxt": "^3.16.2",
+    "lodash-es": "^4.17.21",
+    "nuxt": "^3.17.1",
     "pinia-plugin-persistedstate": "^4.2.0",
     "socket.io-client": "^4.8.1",
     "vue": "latest",
     "vue-router": "latest"
   },
   "devDependencies": {
+    "@types/lodash-es": "^4.17.12",
     "axios": "^1.9.0",
     "vite-plugin-vuetify": "^2.1.1",
     "vitest": "^3.1.2",
-    "vuetify": "^3.8.2"
+    "vuetify": "^3.8.3"
   }
 }

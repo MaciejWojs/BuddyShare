@@ -222,7 +222,7 @@ const readOnly = computed(() => {
 
 const props = defineProps({
   streamId: {
-    type: String,
+    type: Number,
     required: true,
   },
   messages: {

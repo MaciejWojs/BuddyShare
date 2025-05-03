@@ -26,8 +26,8 @@
         <div class="my-6"></div>
         <!-- Stream info section -->
         <div class="stream-info pa-4 bg-grey-darken-3 rounded">
-          <h1 class="text-h4 mb-2">{{ streamTitle }}</h1>
-          <p class="text-body-1 mb-4">{{ streamDescription }}</p>
+          <h1 class="text-h4 mb-2">{{ stream.title || "" }}</h1>
+          <p class="text-body-1 mb-4">{{ stream.stream_description }}</p>
 
           <v-divider class="mb-3"></v-divider>
 
@@ -43,7 +43,7 @@
             </v-avatar>
             <div>
               <span class="text-h6">{{ displayName }}</span>
-              <div class="text-caption">{{ streamerDescription }}</div>
+              <div class="text-caption">{{ stream.description }}</div>
             </div>
           </div>
         </div>
@@ -70,35 +70,26 @@
 <script setup lang="ts">
 import { useStreamsStore } from "#imports";
 import { ref, watch, onMounted, computed } from "vue";
-import isStreamerAndStreaming from "~/middleware/is-streamer-and-streaming";
 
 const streamsStore = useStreamsStore();
 
 const route = useRoute();
 const displayName = route.params.displayname as string;
 
-const streamId = computed(
-  () =>
-    streamsStore.streams.find((stream) => stream.username === displayName)?.id
-);
+onMounted(async () => {
+  await streamsStore.fetchStreams();
+});
 
-const streamTitle = ref("");
-const streamDescription = ref("");
-const streamerDescription = ref("");
+const stream = computed(() => {
+  return streamsStore.getStreamByStreamerName(displayName) || {
+    title: '',
+    stream_description: '',
+    description: '',
+    id: null
+  };
+});
 
-watch(streamId, updateStreamInfo);
-
-function updateStreamInfo() {
-  const stream = streamsStore.streams.find(
-    (stream) => stream.username === displayName
-  );
-  if (stream) {
-    streamTitle.value = stream.title || "Untitled Stream";
-    streamDescription.value = stream.description || "No description available.";
-    streamerDescription.value =
-      stream.user?.description || "No description available.";
-  }
-}
+const streamId = computed(() => stream.value?.id);
 
 definePageMeta({
   middleware: [
@@ -114,9 +105,6 @@ const streamerAndStreamingStatus = useState<Boolean>(
   "streamerAndStreamingStatus",
   () => false
 );
-
-// const publicWS = usePublicWebSocket();
-// const streamStore = useStreamsStore();
 
 if (!streamId.value) {
   // Handle case where streamId is not found

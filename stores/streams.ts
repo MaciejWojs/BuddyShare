@@ -11,21 +11,26 @@ export const useStreamsStore = defineStore('Streams', () => {
   const ws = usePublicWebSocket()
   const streams = ref<Stream[]>([])
 
-  onMounted(async () => {
-if (!import.meta.client) return;
-    
-    try {
-      const data = await $fetch<Stream[]>(endpoint, {
-        method: 'GET',
-        headers: {
-          "Content-Type": "application/json",
-          ...headers,
-        },
-        credentials: "include",
-      });
+  const fetchStreams = async () => {
+    console.log('Fetching streams...');
+    const data = await $fetch<Stream[]>(endpoint, {
+      method: 'GET',
+      headers: {
+        "Content-Type": "application/json",
+        ...headers,
+      },
+      credentials: "include",
+    });
 
-      streams.value = data;
-      console.log('Fetched streams:', streams.value);
+    streams.value = data;
+    console.log('Fetched streams:', streams.value);
+  }
+
+  onMounted(async () => {
+    if (!import.meta.client) return;
+
+    try {
+      await fetchStreams();
 
       // Nasłuchiwanie zdarzeń WebSocket dla aktualizacji streamów
       // ws.subscribe('streams', (payload) => {
@@ -45,6 +50,21 @@ if (!import.meta.client) return;
         console.log('Stream started:', data);
         addStream(data);
       })
+
+      ws.onPatchStream((data: Stream) => {
+        const patchList = Array.isArray(data) ? data : [data];
+
+        patchList.forEach((stream) => {
+          const existing = streams.value.find(s => s.id === stream.id);
+          if (existing) {
+            updateStream(stream);
+          } else {
+            console.log('🆕 Stream not found, adding instead');
+            addStream(stream);
+          }
+        });
+      });
+
 
       ws.onStreamEnded((data) => {
         console.log('Stream ended id:', data.streamerId);
@@ -74,16 +94,38 @@ if (!import.meta.client) return;
   function updateStream(updatedStream: Stream) {
     const index = streams.value.findIndex(s => s.id === updatedStream.id);
     if (index !== -1) {
-      streams.value[index] = { ...streams.value[index], ...updatedStream };
+      // Splice jest reakcją, która Vue "widzi"
+      streams.value.splice(index, 1, {
+        ...streams.value[index],
+        ...updatedStream
+      });
     }
   }
 
+
   function removeStream(streamerId: number) {
-    streams.value = streams.value.filter(s => s.streamer_id !== streamerId);
+    const index = streams.value.findIndex(s => s.streamer_id === streamerId);
+    if (index !== -1) {
+      streams.value.splice(index, 1);
+    }
   }
 
   function getStreamByStreamerName(streamerName: string) {
-    return streams.value.find(stream => stream.username === streamerName);
+    const stream = streams.value.find(stream => stream.username === streamerName);
+    if (!stream) return undefined;
+
+    if (stream.isPublic) {
+      console.log('getStreamByStreamerName - public stream found');
+      return stream;
+    } else {
+      const authStore = useAuthStore();
+      if (stream.username === authStore.userName) {
+        console.log('getStreamByStreamerName - private stream found but user is streamer');
+        return stream;
+      }
+      console.log('getStreamByStreamerName - private stream found but user is not streamer');
+      return undefined;
+    }
   }
 
   // Funkcja do pobierania pojedynczego streamu
@@ -111,6 +153,7 @@ if (!import.meta.client) return;
     addStream,
     getStreamByStreamerName,
     updateStream,
-    removeStream
+    removeStream,
+    fetchStreams
   }
 })

@@ -1,92 +1,36 @@
-import { io, Socket } from "socket.io-client";
+import type { Socket } from "socket.io-client";
 import type { Stream } from "~/types/Streams";
 
 type EventHandler = (data: any) => void;
 
-// Używamy obiektu zamiast state dla przechowywania handlerów
-// aby uniknąć serializacji funkcji przez Nuxt
-const eventHandlers: Record<string, EventHandler[]> = {};
-
 export const usePublicWebSocket = () => {
-    const socket = useState<Socket | null>("publicSocket", () => null);
-    const isConnected = useState<boolean>("public-ws-connected", () => false);
-    const config = useRuntimeConfig();
-    const BACK_HOST = config.public.BACK_HOST;
-    const BACK_PORT = config.public.BACK_PORT;
-    const BACK_URL = `${BACK_HOST}${BACK_PORT ? `:${BACK_PORT}` : ""}`;
-    const socketUrl = `ws://${BACK_URL}/public`;
+    const nuxtApp = useNuxtApp();
+    // Pobierz instancję socketu bezpośrednio z wtyczki
+    const socket = nuxtApp.$publicSocket as Socket;
 
-    const connect = () => {
-        if (!import.meta.client) {
-            console.error("WebSocket connection is only available on the client side.");
-            return;
-        }
-        if (socket.value?.connected) return;
-
-        const newSocket = io(socketUrl, {
-            withCredentials: true,
-            autoConnect: true,
-            reconnection: true,
-        });
-
-        newSocket.on("connect", () => {
-            console.log("Connected to Public WebSocket");
-            isConnected.value = true;
-            setupEventListeners(newSocket);
-        });
-
-        newSocket.on("disconnect", () => {
-            console.log("Disconnected from Public WebSocket");
-            isConnected.value = false;
-        });
-
-        newSocket.on("exception", (error) => {
-            console.error("Public WebSocket error:", error);
-        });
-
-        socket.value = newSocket;
-    };
-
-    const setupEventListeners = (s: Socket) => {
-        for (const [event, handlers] of Object.entries(eventHandlers)) {
-            handlers.forEach(handler => s.on(event, handler));
-        }
-    };
+    const isConnected = computed(() => socket?.connected ?? false);
 
     const on = (event: string, handler: EventHandler) => {
-        if (!eventHandlers[event]) {
-            eventHandlers[event] = [];
+        if (socket) {
+            socket.on(event, handler);
+        } else {
+            console.warn("Public WebSocket not available during 'on'");
         }
-        eventHandlers[event].push(handler);
-        socket.value?.on(event, handler);
     };
 
     const off = (event: string, handler?: EventHandler) => {
-        if (handler) {
-            const index = eventHandlers[event]?.indexOf(handler) ?? -1;
-            if (index > -1) {
-                eventHandlers[event].splice(index, 1);
-                socket.value?.off(event, handler);
-            }
+        if (socket) {
+            socket.off(event, handler);
         } else {
-            delete eventHandlers[event];
-            socket.value?.off(event);
+            console.warn("Public WebSocket not available during 'off'");
         }
     };
 
     const emit = (event: string, data?: any) => {
-        if (socket.value?.connected) {
-            socket.value.emit(event, data);
+        if (socket?.connected) {
+            socket.emit(event, data);
         } else {
-            console.error("Public WebSocket not connected");
-        }
-    };
-
-    const disconnect = () => {
-        if (socket.value) {
-            socket.value.disconnect();
-            socket.value = null;
-            isConnected.value = false;
+            console.error("Public WebSocket not connected during 'emit'");
         }
     };
 
@@ -95,9 +39,6 @@ export const usePublicWebSocket = () => {
         emit("joinStream", streamId)
     };
     const leaveStream = (streamId: string) => emit("leaveStream", streamId);
-
-    // Metody do nasłuchiwania zdarzeń publicznych
-
 
     // Dołączanie do chatu publicznego
     const joinChatRoom = (streamId: string) => {
@@ -110,36 +51,27 @@ export const usePublicWebSocket = () => {
         emit("leaveChatRoom", streamId);
     };
 
-    // // Dodaję metodę do wysyłania wiadomości na czacie publicznym
-    // const sendChatMessage = (streamId: string, message: string) => {
-    //     emit('sendChatMessage', { streamId: streamId, message: message });
-    // };
-
     // Stream event handlers
     const onViewerUpdate = (handler: (viewerCount: number) => void) => {
-        // Upewniamy się, że callback przyjmuje liczbową wartość viewerCount
         const wrappedHandler = (data: any) => {
-            // Jeśli otrzymamy liczbę bezpośrednio, przekazujemy ją dalej
             if (typeof data === 'number') {
                 handler(data);
-            }
-            // Jeśli otrzymamy obiekt zawierający viewerCount, wyciągamy wartość
-            else if (data && typeof data.viewerCount === 'number') {
+            } else if (data && typeof data.viewerCount === 'number') {
                 handler(data.viewerCount);
-            }
-            // W innych przypadkach logujemy błąd, ale nie rzucamy wyjątku
-            else {
+            } else {
                 console.error('Invalid viewerUpdate data format:', data);
-                // Możemy przekazać 0 lub inną wartość domyślną
                 handler(0);
             }
         };
-
         on('viewerUpdate', wrappedHandler);
     };
 
     const onStreamStarted = (handler: (data: Stream) => void) => {
         on('streamStarted', handler);
+    };
+
+    const onPatchStream = (handler: (data: Stream) => void) => {
+        on('patchStream', handler);
     };
 
     const onStreamEnded = (handler: (data: {
@@ -165,8 +97,8 @@ export const usePublicWebSocket = () => {
         timestamp: string
     }) => void) => {
         console.log('onChatMessageBeta', streamId);
-
-        socket.value?.on(`chat:${streamId}`, (data) => {
+        // Nasłuchuj na dynamiczny event specyficzny dla pokoju
+        on(`chat:${streamId}`, (data) => {
             console.log('chat message', data);
             handler(data);
         });
@@ -175,25 +107,20 @@ export const usePublicWebSocket = () => {
     const onChatMessage = (handler: (data: {
         userId: string;
         username: string;
-        text: string;
+        text: string; // Zmieniono z 'message' na 'text' zgodnie z poprzednim kodem
         timestamp: string;
       }) => void) => {
+        // Nasłuchuj na ogólny event 'chatMessage'
         on("chatMessage", handler);
       };
-    
 
-    // Automatyczne połączenie przy montowaniu komponentu
-    onMounted(() => {
-        connect();
-    });
 
     return {
-        connect,
-        disconnect,
+        // Nie zwracamy już connect/disconnect
         on,
         off,
         emit,
-        socket,
+        socket, // Zwracamy instancję socketu, jeśli jest potrzebna bezpośrednio
         isConnected,
         // Stream management
         joinStream,
@@ -201,8 +128,6 @@ export const usePublicWebSocket = () => {
         // Public room management
         joinChatRoom,
         leaveChatRoom,
-        // Dodaję funkcję wysyłania wiadomości
-        // sendChatMessage,
         // Stream event handlers
         onViewerUpdate,
         onStreamStarted,
@@ -210,5 +135,6 @@ export const usePublicWebSocket = () => {
         onFollowerCountUpdate,
         onChatMessage,
         onChatMessageBeta,
+        onPatchStream,
     };
 };

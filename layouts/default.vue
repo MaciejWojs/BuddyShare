@@ -114,7 +114,6 @@
                     <v-icon
                       icon="mdi-bell-outline"
                       color="primary"
-                      class="mr-3"
                     />
                   </template>
 
@@ -418,7 +417,7 @@ const handleNotificationClick = async (notification: any) => {
   await notificationsStore.markAsRead(notification.id);
   // Przekierowanie na stronę streamu jeśli istnieje stream_id
   if (notification.stream_id) {
-    const streamer = notification.message.split(" ")[0];
+    const streamer = notification.streamerName ||  notification.message.split(" ")[0];
     navigateTo(`/user/${streamer}`);
   }
   showNotifications.value = false;

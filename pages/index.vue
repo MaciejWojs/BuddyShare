@@ -2,6 +2,12 @@
 const streamStore = useStreamsStore();
 const router = useRouter();
 const searchQuery = ref("");
+const streams = computed(() =>
+  streamStore.streams.filter(stream => stream.isPublic)
+);
+
+const hoverTimeout = ref<ReturnType<typeof setTimeout> | null>(null);
+const dashPlayerInstance = ref<{ destroy: () => void } | null>(null);
 
 // Funkcja przetwarzająca wyszukiwanie (dummy)
 const handleSearch = () => {
@@ -26,6 +32,188 @@ const streamerAndStreamingStatus = useState<Boolean>(
   "streamerAndStreamingStatus",
   () => false
 );
+
+// Zmienne do obsługi preview streamu po najechaniu
+const videoElements = ref<Map<string, HTMLVideoElement>>(new Map());
+const previewStreamUrl = ref('');
+const isPreviewLive = ref(false);
+const currentHoveredStream = ref<string | null>(null);
+const previewQualities = ref<{ name: string, url: string }[]>([]);
+const playerInitialized = ref(false);
+// Ref, który przechowuje mapę: streamId → czy pokazujemy wideo?
+const showPreviewMap = ref<Record<string, boolean>>({});
+
+// Funkcja do obliczania dostępnych jakości dla streamu
+const getStreamQualities = (stream) => {
+  if (stream?.stream_urls && Array.isArray(stream.stream_urls)) {
+    return stream.stream_urls.map(q => ({ 
+      name: q.name || 'default',
+      url: q.dash || '' // Używamy pola dash dla adresu URL
+    }));
+  }
+  return [];
+};
+
+// Funkcja do uzyskania elementu wideo dla konkretnego streamu
+const getVideoElement = (streamId: string): HTMLVideoElement | null => {
+  return videoElements.value.get(streamId) || null;
+};
+
+// Używamy kompozycji useDashPlayer do obsługi odtwarzania
+const dashPlayerRef = ref(null);
+
+const shouldShowPreview = (streamId: string) => {
+  return Boolean(showPreviewMap.value[streamId]);
+};
+
+// Inicjalizacja odtwarzacza dla wybranego streamu
+const initializePlayerForStream = (streamId: string) => {
+  const videoElement = getVideoElement(streamId);
+  
+  if (!videoElement) {
+    console.error('Video element not found for stream:', streamId);
+    return;
+  }
+  
+  console.log('Initializing player with element:', videoElement);
+  
+  // Zniszcz istniejącą instancję przed tworzeniem nowej
+  if (dashPlayerInstance.value) {
+    try {
+      dashPlayerInstance.value.destroy();
+      dashPlayerInstance.value = null;
+    } catch (error) {
+      console.error('Error destroying previous player:', error);
+    }
+  }
+  
+  try {
+    // Zresetuj źródło wideo przed inicjalizacją
+    if (videoElement) {
+      videoElement.src = '';
+      videoElement.load();
+    }
+    
+    // Utworzenie nowej instancji useDashPlayer dla tego elementu wideo
+    const { initPlayer, destroyPlayer } = useDashPlayer(
+      ref(videoElement),
+      previewStreamUrl,
+      isPreviewLive,
+      previewQualities
+    );
+    
+    initPlayer();
+    
+    // Używamy bezpieczniejszego wrappera dla funkcji destroy
+    dashPlayerInstance.value = { 
+      destroy: () => {
+        try {
+          destroyPlayer();
+        } catch (error) {
+          console.error('Error in wrapped destroyPlayer:', error);
+        }
+      } 
+    };
+    
+    playerInitialized.value = true;
+  } catch (error) {
+    console.error('Failed to initialize player:', error);
+    playerInitialized.value = false;
+  }
+};
+
+// Zapisz referencję do elementu wideo po jego zamontowaniu i od razu wczytaj strumień
+const onVideoMounted = (el, streamId) => {
+  if (el instanceof HTMLVideoElement) {
+    console.log('Video element mounted for stream:', streamId, el);
+    videoElements.value.set(streamId, el);
+    
+    // Wstępne wczytanie strumienia w tle
+    const stream = streams.value.find(s => s.id === streamId);
+    if (stream?.streamUrl) {
+      el.src = stream.streamUrl;
+      el.load();  // preload="auto" + load → zaczyna pobierać
+    }
+  }
+};
+
+// Funkcja wywoływana po najechaniu na kartę streamu
+const onStreamHover = (stream) => {
+  if (!stream.isLive) return;
+
+  // Najpierw wyczyść poprzedni timeout
+  if (hoverTimeout.value) {
+    clearTimeout(hoverTimeout.value);
+    hoverTimeout.value = null;
+  }
+
+  // ustawiamy timeout, po którym pokazujemy wideo
+  hoverTimeout.value = setTimeout(() => {
+    showPreviewMap.value = { ...showPreviewMap.value, [stream.id]: true };
+    currentHoveredStream.value = stream.id;
+    previewStreamUrl.value = stream.streamUrl || '';
+    isPreviewLive.value = stream.isLive;
+    previewQualities.value = getStreamQualities(stream);
+
+    // Użyj requestAnimationFrame dla lepszej synchronizacji
+    requestAnimationFrame(() => {
+      const videoElement = getVideoElement(stream.id);
+      if (videoElement) {
+        initializePlayerForStream(stream.id);
+      }
+    });
+  }, 1500); // Skrócony timeout dla szybszej reakcji
+};
+
+// Funkcja wywoływana po zjechaniu myszką z karty streamu
+const onStreamLeave = () => {
+  console.log('Stream leave, was hovering:', currentHoveredStream.value);
+
+  // czyścimy timeout i ukrywamy podgląd
+  if (hoverTimeout.value) {
+    clearTimeout(hoverTimeout.value);
+    hoverTimeout.value = null;
+  }
+  
+  if (currentHoveredStream.value) {
+    showPreviewMap.value = { ...showPreviewMap.value, [currentHoveredStream.value]: false };
+  }
+
+  // Dodatkowe sprawdzenie instancji player-a
+  if (dashPlayerInstance.value) {
+    try {
+      dashPlayerInstance.value.destroy();
+    } catch (error) {
+      console.error('Error destroying player:', error);
+    } finally {
+      dashPlayerInstance.value = null;
+    }
+  }
+
+  // Zresetuj wszystkie stany związane z podglądem
+  currentHoveredStream.value = null;
+  isPreviewLive.value = false;
+  previewStreamUrl.value = '';
+  previewQualities.value = [];
+  playerInitialized.value = false;
+};
+
+// Brakuje czyszczenia timeoutów przy opuszczaniu komponentu
+onBeforeUnmount(() => {
+  console.log("Opuszczanie komponentu, czyszczenie zasobów");
+  streamerAndStreamingStatus.value = false;
+  
+  // Czyszczenie timeoutów
+  if (hoverTimeout.value) {
+    clearTimeout(hoverTimeout.value);
+    hoverTimeout.value = null;
+  }
+  
+  // Niszczenie odtwarzacza, jeśli istnieje
+  if (dashPlayerInstance.value) {
+    dashPlayerInstance.value.destroyPlayer();
+  }
+});
 
 console.log(streamerAndStreamingStatus.value);
 </script>
@@ -59,7 +247,7 @@ console.log(streamerAndStreamingStatus.value);
 
     <!-- Brak streamów -->
     <v-sheet
-      v-if="!streamStore.streams || streamStore.streams.length === 0"
+      v-if="!streams || streams.length === 0"
       class="py-12 rounded d-flex flex-column align-center justify-center"
       color="grey-darken-4"
     >
@@ -76,9 +264,12 @@ console.log(streamerAndStreamingStatus.value);
       </p>
     </v-sheet>
 
+    <!-- Ukryty element video do podglądu przy hoverze -->
+    <video ref="hoverVideo" class="hover-video" muted></video>
+
     <v-row>
       <v-col
-        v-for="stream in streamStore.streams"
+        v-for="stream in streams"
         :key="stream.id"
         cols="12"
         sm="6"
@@ -87,18 +278,36 @@ console.log(streamerAndStreamingStatus.value);
       >
         <v-card
           @click="goToStream(stream.username)"
+          @mouseenter="onStreamHover(stream)"
+          @mouseleave="onStreamLeave"
           class="stream-card"
-          :class="{ 'live-border': stream.isLive }"
+          :class="{ 'live-border': stream.isLive, 'is-preview': shouldShowPreview(stream.id) }"
           hover
         >
           <!-- Thumbnail z indykatorem live -->
           <div class="thumbnail-container">
             <v-img
+              v-if="!shouldShowPreview(stream.id) || !stream.isLive"
               :src="stream.thumbnailUrl || '/Buddyshare.svg'"
               height="160px"
               cover
               class="stream-thumbnail"
             />
+            
+            <!-- Kontener na wideo podczas hovera - używamy unikalnej referencji dla każdego streamu -->
+            <div 
+              v-if="shouldShowPreview(stream.id) && stream.isLive"
+              class="video-preview-container"
+            >
+              <video 
+                :ref="el => onVideoMounted(el, stream.id)"
+                class="hover-video-preview" 
+                muted 
+                autoplay
+                playsinline
+              ></video>
+            </div>
+            
             <v-chip
               v-if="stream.isLive"
               color="red"
@@ -148,7 +357,7 @@ console.log(streamerAndStreamingStatus.value);
                   {{ stream.title || "Untitled Stream" }}
                 </v-card-title>
                 <v-card-subtitle class="pa-0 text-truncate">
-                  {{ stream.user?.username || "Unknown User" }}
+                  {{ stream.username || "Unknown User" }}
                 </v-card-subtitle>
               </div>
             </div>
@@ -186,6 +395,8 @@ console.log(streamerAndStreamingStatus.value);
 
 .thumbnail-container {
   position: relative;
+  height: 160px;
+  overflow: hidden;
 }
 
 .stream-thumbnail {
@@ -202,6 +413,7 @@ console.log(streamerAndStreamingStatus.value);
   left: 10px;
   font-weight: bold;
   opacity: 0.9;
+  z-index: 2;
 }
 
 .viewer-count {
@@ -216,5 +428,33 @@ console.log(streamerAndStreamingStatus.value);
   gap: 4px;
   font-size: 12px;
   color: white;
+  z-index: 2;
+}
+
+.hover-video {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.video-preview-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  background-color: #000;
+}
+
+.hover-video-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.is-preview .thumbnail-container {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 </style>
