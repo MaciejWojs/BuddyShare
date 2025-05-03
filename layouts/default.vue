@@ -1,4 +1,3 @@
-<!-- layouts/default.vue -->
 <template>
   <v-app class="d-flex flex-column min-h-100vh">
     <v-app-bar
@@ -14,18 +13,30 @@
       }"
       :elevation="0"
     >
-      <v-tooltip
-        location="bottom"
-        text="Menu"
-      >
-        <template #activator="{ props }">
+      <!-- Owijamy pierwszy v-tooltip w ClientOnly -->
+      <client-only>
+        <v-tooltip
+          location="bottom"
+          text="Menu"
+        >
+          <template #activator="{ props }">
+            <v-app-bar-nav-icon
+              v-bind="props"
+              @click.stop="drawer = !drawer"
+              class="mr-4"
+            />
+          </template>
+        </v-tooltip>
+        
+        <!-- Fallback dla ClientOnly -->
+        <template #fallback>
           <v-app-bar-nav-icon
-            v-bind="props"
             @click.stop="drawer = !drawer"
             class="mr-4"
           />
         </template>
-      </v-tooltip>
+      </client-only>
+      
       <v-img
         src="/Buddyshare.svg"
         max-width="45"
@@ -45,216 +56,247 @@
 
       <div class="d-flex align-center">
         <!-- Notification Tray -->
-        <v-menu
-          v-if="authStore.authenticated"
-          v-model="showNotifications"
-          :close-on-content-click="false"
-          location="bottom end"
-          transition="slide-y-transition"
-          offset-y
-        >
-          <template #activator="{ props }">
-            <v-tooltip
-              location="bottom"
-              text="Notifications"
+        <client-only>
+          <v-btn
+            v-if="authStore.authenticated"
+            variant="text"
+            icon
+            color="white"
+            class="mr-2"
+            v-bind="showNotifications ? {} : {}"
+          >
+            <v-icon icon="mdi-bell-outline" />
+            <v-badge
+              :content="unreadCount"
+              :model-value="unreadCount > 0"
+              color="red"
+              floating
+            />
+            
+            <v-menu
+              v-model="showNotifications"
+              :close-on-content-click="false"
+              location="bottom end"
+              transition="slide-y-transition"
+              activator="parent"
             >
-              <template #activator="{ props: tooltipProps }">
-                <v-badge
-                  :content="unreadCount"
-                  :model-value="unreadCount > 0"
-                  color="red"
-                  class="mr-2"
+              <v-card width="350">
+                <v-toolbar
+                  density="compact"
+                  color="grey-darken-4"
                 >
+                  <v-toolbar-title>Notifications</v-toolbar-title>
+                  <v-spacer />
                   <v-btn
                     variant="text"
-                    icon="mdi-bell-outline"
-                    color="white"
-                    v-bind="{ ...props, ...tooltipProps }"
+                    icon="mdi-check-all"
+                    @click="markAllAsRead"
+                    :disabled="unreadCount === 0"
+                    title="Mark all as read"
                   />
-                </v-badge>
+                  <v-btn
+                    variant="text"
+                    icon="mdi-delete-sweep"
+                    @click="deleteAllNotifications"
+                    :disabled="notifications.length === 0"
+                    title="Delete all notifications"
+                    class="ml-2"
+                  />
+                </v-toolbar>
+
+                <v-list
+                  class="py-0"
+                  density="compact"
+                >
+                  <template v-if="notifications.length > 0">
+                    <v-list-item
+                      v-for="notification in notifications"
+                      :key="notification.id"
+                      :class="{ 'bg-grey-darken-3': !notification.isRead }"
+                    >
+                      <template #prepend>
+                        <v-icon
+                          icon="mdi-bell-outline"
+                          color="primary"
+                        />
+                      </template>
+
+                      <v-list-item-subtitle
+                        class="text-caption"
+                        @click="handleNotificationClick(notification)"
+                        style="cursor: pointer"
+                      >
+                        {{ notification.message }}
+                      </v-list-item-subtitle>
+                      <v-list-item-subtitle
+                        class="text-caption text-medium-emphasis text-right"
+                      >
+                        {{ formatTime(notification.created_at) }}
+                      </v-list-item-subtitle>
+
+                      <template #append>
+                        <v-btn
+                          icon="mdi-delete-outline"
+                          variant="text"
+                          size="small"
+                          color="error"
+                          @click.stop="handleDeleteNotification(notification.id)"
+                          title="Delete notification"
+                        />
+                      </template>
+                    </v-list-item>
+                  </template>
+
+                  <v-list-item v-else>
+                    <v-list-item-title class="text-caption text-center py-4">
+                      No new notifications
+                    </v-list-item-title>
+                  </v-list-item>
+                </v-list>
+              </v-card>
+            </v-menu>
+          </v-btn>
+          
+          <template #fallback>
+            <v-btn
+              variant="text"
+              icon="mdi-bell-outline"
+              color="white"
+              class="mr-2"
+              disabled
+            />
+          </template>
+        </client-only>
+
+        <!-- Auth Buttons -->
+        <client-only>
+          <template v-if="!isAuthenticated">
+            <v-btn
+              variant="text"
+              to="/register"
+              class="text-white mx-2"
+            >
+              Register
+            </v-btn>
+            <v-btn
+              variant="text"
+              to="/login"
+              class="text-white mx-2"
+            >
+              Login
+            </v-btn>
+          </template>
+          
+          <template v-else>
+            <v-btn
+              variant="text"
+              @click="logout"
+              class="text-white mx-2"
+            >
+              Logout
+            </v-btn>
+
+            <v-tooltip
+              location="bottom"
+              text="Your Profile"
+            >
+              <template #activator="{ props }">
+                <Icon
+                  name="ic:baseline-person-outline"
+                  size="2em"
+                  v-bind="props"
+                  @click="navigateToProfile"
+                  class="cursor-pointer transition-opacity hover:opacity-80"
+                />
               </template>
             </v-tooltip>
           </template>
-
-          <v-card width="350">
-            <v-toolbar
-              density="compact"
-              color="grey-darken-4"
-            >
-              <v-toolbar-title>Notifications</v-toolbar-title>
-              <v-spacer />
-              <v-btn
-                variant="text"
-                icon="mdi-check-all"
-                @click="markAllAsRead"
-                :disabled="unreadCount === 0"
-                title="Mark all as read"
-              />
-              <v-btn
-                variant="text"
-                icon="mdi-delete-sweep"
-                @click="deleteAllNotifications"
-                :disabled="notifications.length === 0"
-                title="Delete all notifications"
-                class="ml-2"
-              />
-            </v-toolbar>
-
-            <v-list
-              class="py-0"
-              density="compact"
-            >
-              <template v-if="notifications.length > 0">
-                <v-list-item
-                  v-for="notification in notifications"
-                  :key="notification.id"
-                  :class="{ 'bg-grey-darken-3': !notification.isRead }"
-                >
-                  <template #prepend>
-                    <v-icon
-                      icon="mdi-bell-outline"
-                      color="primary"
-                    />
-                  </template>
-
-                  <v-list-item-subtitle
-                    class="text-caption"
-                    @click="handleNotificationClick(notification)"
-                    style="cursor: pointer"
-                  >
-                    {{ notification.message }}
-                  </v-list-item-subtitle>
-                  <v-list-item-subtitle
-                    class="text-caption text-medium-emphasis text-right"
-                  >
-                    {{ formatTime(notification.created_at) }}
-                  </v-list-item-subtitle>
-
-                  <template #append>
-                    <v-btn
-                      icon="mdi-delete-outline"
-                      variant="text"
-                      size="small"
-                      color="error"
-                      @click.stop="handleDeleteNotification(notification.id)"
-                      title="Delete notification"
-                    />
-                  </template>
-                </v-list-item>
-              </template>
-
-              <v-list-item v-else>
-                <v-list-item-title class="text-caption text-center py-4">
-                  No new notifications
-                </v-list-item-title>
-              </v-list-item>
-            </v-list>
-          </v-card>
-        </v-menu>
-
-        <!-- Auth Buttons -->
-        <v-btn
-          v-if="!authStore.authenticated"
-          variant="text"
-          to="/register"
-          class="text-white mx-2"
-        >
-          Register
-        </v-btn>
-        <v-btn
-          v-if="!authStore.authenticated"
-          variant="text"
-          to="/login"
-          class="text-white mx-2"
-        >
-          Login
-        </v-btn>
-
-        <v-btn
-          v-if="authStore.authenticated"
-          variant="text"
-          @click="authStore.logout"
-          class="text-white mx-2"
-        >
-          Logout
-        </v-btn>
-
-        <v-tooltip
-          v-if="authStore.authenticated"
-          location="bottom"
-          text="Your Profile"
-        >
-          <template #activator="{ props }">
-            <Icon
-              name="ic:baseline-person-outline"
-              size="2em"
-              v-bind="props"
-              @click="navigateTo(`/user/${authStore.userName}/profile`)"
-              class="cursor-pointer transition-opacity hover:opacity-80"
-            />
+          
+          <!-- Fallback dla przycisków auth -->
+          <template #fallback>
+            <div class="d-flex align-center">
+              <v-skeleton-loader
+                type="button"
+                width="70"
+                class="mx-2"
+              ></v-skeleton-loader>
+              <v-skeleton-loader
+                type="button"
+                width="70"
+                class="mx-2"
+              ></v-skeleton-loader>
+            </div>
           </template>
-        </v-tooltip>
+        </client-only>
       </div>
     </v-app-bar>
 
-    <v-navigation-drawer
-      v-model="drawer"
-      app
-      dark
-      width="280"
-      class="pa-4"
-    >
-      <v-list density="compact">
-        <template
-          v-for="(item, i) in navItems"
-          :key="i"
-        >
-          <!-- Element z dziećmi - używamy v-list-group -->
-          <v-list-group
-            v-if="item.children"
-            v-model="openGroups[i]"
-            class="minimal-indent"
+    <client-only>
+      <v-navigation-drawer
+        v-model="drawer"
+        app
+        dark
+        width="280"
+        class="pa-4"
+      >
+        <v-list density="compact">
+          <template
+            v-for="(item, i) in computedNavItems"
+            :key="i"
           >
-            <template v-slot:activator="{ props }">
-              <v-list-item v-bind="props">
-                <template #prepend>
-                  <v-icon :icon="item.icon" />
-                </template>
-                <v-list-item-title>{{ item.title }}</v-list-item-title>
-              </v-list-item>
-            </template>
+            <!-- Element z dziećmi - używamy v-list-group -->
+            <v-list-group
+              v-if="item.children"
+              v-model="openGroups[i]"
+              class="minimal-indent"
+            >
+              <template v-slot:activator="{ props }">
+                <v-list-item v-bind="props">
+                  <template #prepend>
+                    <v-icon :icon="item.icon" />
+                  </template>
+                  <v-list-item-title>{{ item.title }}</v-list-item-title>
+                </v-list-item>
+              </template>
 
+              <v-list-item
+                v-for="(child, j) in item.children"
+                :key="j"
+                :to="child.to"
+                active-class="active-nav-item"
+                class="child-item"
+              >
+                <template #prepend>
+                  <v-icon
+                    :icon="child.icon"
+                    class="child-icon"
+                  />
+                </template>
+                <v-list-item-title>{{ child.title }}</v-list-item-title>
+              </v-list-item>
+            </v-list-group>
+
+            <!-- Standardowy element bez dzieci -->
             <v-list-item
-              v-for="(child, j) in item.children"
-              :key="j"
-              :to="child.to"
+              v-else
+              :to="item.to"
               active-class="active-nav-item"
-              class="child-item"
             >
               <template #prepend>
-                <v-icon
-                  :icon="child.icon"
-                  class="child-icon"
-                />
+                <v-icon :icon="item.icon" />
               </template>
-              <v-list-item-title>{{ child.title }}</v-list-item-title>
+              <v-list-item-title>{{ item.title }}</v-list-item-title>
             </v-list-item>
-          </v-list-group>
-
-          <!-- Standardowy element bez dzieci -->
-          <v-list-item
-            v-else
-            :to="item.to"
-            active-class="active-nav-item"
-          >
-            <template #prepend>
-              <v-icon :icon="item.icon" />
-            </template>
-            <v-list-item-title>{{ item.title }}</v-list-item-title>
-          </v-list-item>
+          </template>
+        </v-list>
+        
+        <template #fallback>
+          <div class="pa-4 text-center">
+            <v-progress-circular indeterminate color="primary"></v-progress-circular>
+          </div>
         </template>
-      </v-list>
-    </v-navigation-drawer>
+      </v-navigation-drawer>
+    </client-only>
 
     <v-main class="streaming-bg flex-grow-1">
       <v-container
@@ -275,134 +317,158 @@
   </v-app>
 
   <!-- Dialog potwierdzenia usunięcia wszystkich powiadomień -->
-  <v-dialog
-    v-model="showDeleteConfirmDialog"
-    max-width="400"
-  >
-    <v-card>
-      <v-card-title class="text-h6"> Delete all notifications? </v-card-title>
-      <v-card-text>
-        This action is <strong>irreversible</strong>. All notifications will be
-        permanently deleted. Are you sure you want to continue?
-      </v-card-text>
-      <v-card-actions>
-        <v-spacer></v-spacer>
-        <v-btn
-          color="grey"
-          variant="text"
-          @click="showDeleteConfirmDialog = false"
-        >
-          Cancel
-        </v-btn>
-        <v-btn
-          color="error"
-          variant="text"
-          @click="confirmDeleteAllNotifications"
-        >
-          Delete all
-        </v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+  <client-only>
+    <v-dialog
+      v-model="showDeleteConfirmDialog"
+      max-width="400"
+    >
+      <v-card>
+        <v-card-title class="text-h6"> Delete all notifications? </v-card-title>
+        <v-card-text>
+          This action is <strong>irreversible</strong>. All notifications will be
+          permanently deleted. Are you sure you want to continue?
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn
+            color="grey"
+            variant="text"
+            @click="showDeleteConfirmDialog = false"
+          >
+            Cancel
+          </v-btn>
+          <v-btn
+            color="error"
+            variant="text"
+            @click="confirmDeleteAllNotifications"
+          >
+            Delete all
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+  </client-only>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { useNotificationsStore } from "~/stores/notifications";
-// import { useAuthStore } from "~/stores/auth";
+import { useAuthStore } from "~/stores/auth";
 
+// Inicjalizacja prostych wartości (nie zależnych od stanu autentykacji)
 const drawer = ref(false);
 const showNotifications = ref(false);
-const authStore = useAuthStore();
 const showDeleteConfirmDialog = ref(false);
-const openGroups = ref<boolean[]>([]); // Dodajemy reaktywny stan dla grup
+const openGroups = ref<boolean[]>([]);
 
-// Dodajemy zmienne do śledzenia przewijania
+// Zmienne do śledzenia przewijania
 const lastScrollY = ref(0);
 const isScrollingDown = ref(false);
 
+// Store
+const authStore = useAuthStore();
 const notificationsStore = useNotificationsStore();
+
+// Izolujemy dane zależne od stanu autentykacji do computed
+const isAuthenticated = computed(() => authStore.authenticated);
+const userName = computed(() => authStore.userName);
+const isAdmin = computed(() => authStore.isAdmin);
+
+// Funkcje pomocnicze do nawigacji
+const navigateToProfile = () => {
+  navigateTo(`/user/${userName.value}/profile`);
+};
+
+const logout = () => {
+  authStore.logout();
+};
+
+// Notifications
 const notifications = computed(() => {
-  // Filtrujemy out pole 'count' z tablicy powiadomień
   return notificationsStore.notifications.filter(
     (item) => typeof item !== "object" || !("count" in item)
   );
 });
 
-console.log("Notifications: ", notifications.value);
-
 const unreadCount = computed(
   () => notifications.value.filter((n: { isRead: boolean }) => !n.isRead).length
 );
 
-const navItems = computed(() => [
-  { title: "Home", icon: "mdi-home", to: "/" },
-  {
-    title: "Discover",
-    icon: "mdi-compass",
-    to: "/discover",
-  },
-  ...(authStore.authenticated
-    ? [
+// Używamy funkcji zamiast computed do generowania elementów nawigacyjnych
+// aby zapobiec problemom z hydratacją
+const computedNavItems = computed(() => {
+  const items = [
+    { title: "Home", icon: "mdi-home", to: "/" },
+    {
+      title: "Discover",
+      icon: "mdi-compass",
+      to: "/discover",
+    }
+  ];
+  
+  // Dynamiczne elementy tylko gdy użytkownik jest zalogowany
+  if (isAuthenticated.value) {
+    items.push({
+      title: "Community",
+      icon: "mdi-account-group",
+      children: [
         {
-          title: "Community",
-          icon: "mdi-account-group",
-          children: [
-            {
-              title: "Following",
-              icon: "mdi-heart",
-              to: `/user/${authStore.userName}/profile/following`,
-            },
-            {
-              title: "Followed By",
-              icon: "mdi-account-multiple",
-              to: `/user/${authStore.userName}/profile/followers`,
-            },
-          ],
+          title: "Following",
+          icon: "mdi-heart",
+          to: `/user/${userName.value}/profile/following`,
         },
         {
-          title: "Management",
-          icon: "mdi-cog-outline",
-          children: [
-            {
-              title: "Dashboard",
-              icon: "mdi-view-dashboard",
-              to: `/user/${authStore.userName}/dashboard`,
-            },
-            {
-              title: "Your Stream",
-              icon: "mdi-video-account",
-              to: `/user/${authStore.userName}`,
-            },
-            {
-              title: "Profile",
-              icon: "mdi-account",
-              to: `/user/${authStore.userName}/profile`,
-            },
-            {
-              title: "Settings",
-              icon: "mdi-cog",
-              to: `/user/${authStore.userName}/settings`,
-            },
-          ],
+          title: "Followed By",
+          icon: "mdi-account-multiple",
+          to: `/user/${userName.value}/profile/followers`,
         },
-        ...(authStore.isAdmin
-          ? [
-              {
-                title: "Admin",
-                icon: "mdi-shield-account",
-                to: "/admin",
-              },
-            ]
-          : []),
-      ]
-    : []),
-  {
+      ],
+    });
+    
+    items.push({
+      title: "Management",
+      icon: "mdi-cog-outline",
+      children: [
+        {
+          title: "Dashboard",
+          icon: "mdi-view-dashboard",
+          to: `/user/${userName.value}/dashboard`,
+        },
+        {
+          title: "Your Stream",
+          icon: "mdi-video-account",
+          to: `/user/${userName.value}`,
+        },
+        {
+          title: "Profile",
+          icon: "mdi-account",
+          to: `/user/${userName.value}/profile`,
+        },
+        {
+          title: "Settings",
+          icon: "mdi-cog",
+          to: `/user/${userName.value}/settings`,
+        },
+      ],
+    });
+    
+    if (isAdmin.value) {
+      items.push({
+        title: "Admin",
+        icon: "mdi-shield-account",
+        to: "/admin",
+      });
+    }
+  }
+  
+  items.push({
     title: "About",
     icon: "mdi-information",
     to: "/about",
-  },
-]);
+  });
+  
+  return items;
+});
 
 const formatTime = (date: string | Date) => {
   const dateObj = date instanceof Date ? date : new Date(date);
@@ -415,9 +481,8 @@ const markAllAsRead = async () => {
 
 const handleNotificationClick = async (notification: any) => {
   await notificationsStore.markAsRead(notification.id);
-  // Przekierowanie na stronę streamu jeśli istnieje stream_id
   if (notification.stream_id) {
-    const streamer = notification.streamerName ||  notification.message.split(" ")[0];
+    const streamer = notification.streamerName || notification.message.split(" ")[0];
     navigateTo(`/user/${streamer}`);
   }
   showNotifications.value = false;
@@ -434,7 +499,7 @@ const deleteAllNotifications = async () => {
 const confirmDeleteAllNotifications = async () => {
   showDeleteConfirmDialog.value = false;
   await notificationsStore.deleteAllNotifications();
-  showNotifications.value = false; // Zamykamy menu powiadomień po usunięciu wszystkich
+  showNotifications.value = false;
 };
 
 const handleScroll = () => {
@@ -443,12 +508,17 @@ const handleScroll = () => {
   lastScrollY.value = currentScrollY;
 };
 
+// Lifecycle hooks
 onMounted(() => {
-  window.addEventListener("scroll", handleScroll, { passive: true });
+  if (import.meta.client) {
+    window.addEventListener("scroll", handleScroll, { passive: true });
+  }
 });
 
 onBeforeUnmount(() => {
-  window.removeEventListener("scroll", handleScroll);
+  if (import.meta.client) {
+    window.removeEventListener("scroll", handleScroll);
+  }
 });
 </script>
 

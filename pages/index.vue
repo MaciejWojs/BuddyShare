@@ -224,6 +224,7 @@ console.log(streamerAndStreamingStatus.value);
     <!-- Pasek wyszukiwania -->
     <v-sheet class="mb-6 search-container">
       <v-text-field
+        id="search-input"
         v-model="searchQuery"
         label="Szukaj streamów..."
         variant="outlined"

@@ -72,56 +72,88 @@
               #append
             >
               <div class="d-flex">
-                <v-tooltip
-                  location="top"
-                  text="Usuń wiadomość"
-                >
-                  <template v-slot:activator="{ props }">
-                    <v-btn
-                      v-bind="props"
-                      icon="mdi-delete"
-                      density="compact"
-                      variant="text"
-                      color="error"
-                      size="small"
-                      @click.stop="onMessageAction('delete', msg, index)"
-                    />
-                  </template>
-                </v-tooltip>
+                <ClientOnly>
+                  <v-tooltip
+                    location="top"
+                    text="Usuń wiadomość"
+                  >
+                    <template v-slot:activator="{ props }">
+                      <v-btn
+                        v-bind="props"
+                        icon="mdi-delete"
+                        density="compact"
+                        variant="text"
+                        color="error"
+                        size="small"
+                        @click.stop="onMessageAction('delete', msg, index)"
+                      />
+                    </template>
+                  </v-tooltip>
 
-                <v-tooltip
-                  location="top"
-                  text="Timeout użytkownika"
-                >
-                  <template v-slot:activator="{ props }">
-                    <v-btn
-                      v-bind="props"
-                      icon="mdi-timer-off"
-                      density="compact"
-                      variant="text"
-                      color="warning"
-                      size="small"
-                      @click.stop="onMessageAction('timeout', msg, index)"
-                    />
-                  </template>
-                </v-tooltip>
+                  <v-tooltip
+                    location="top"
+                    text="Timeout użytkownika"
+                  >
+                    <template v-slot:activator="{ props }">
+                      <v-btn
+                        v-bind="props"
+                        icon="mdi-timer-off"
+                        density="compact"
+                        variant="text"
+                        color="warning"
+                        size="small"
+                        @click.stop="onMessageAction('timeout', msg, index)"
+                      />
+                    </template>
+                  </v-tooltip>
 
-                <v-tooltip
-                  location="top"
-                  text="Zbanuj użytkownika"
-                >
-                  <template v-slot:activator="{ props }">
-                    <v-btn
-                      v-bind="props"
-                      icon="mdi-account-cancel"
-                      density="compact"
-                      variant="text"
-                      color="error"
-                      size="small"
-                      @click.stop="onMessageAction('ban', msg, index)"
-                    />
+                  <v-tooltip
+                    location="top"
+                    text="Zbanuj użytkownika"
+                  >
+                    <template v-slot:activator="{ props }">
+                      <v-btn
+                        v-bind="props"
+                        icon="mdi-account-cancel"
+                        density="compact"
+                        variant="text"
+                        color="error"
+                        size="small"
+                        @click.stop="onMessageAction('ban', msg, index)"
+                      />
+                    </template>
+                  </v-tooltip>
+                  
+                  <!-- Fallback dla ClientOnly -->
+                  <template #fallback>
+                    <div class="d-flex">
+                      <v-btn
+                        icon="mdi-delete"
+                        density="compact"
+                        variant="text"
+                        color="error"
+                        size="small"
+                        @click.stop="onMessageAction('delete', msg, index)"
+                      />
+                      <v-btn
+                        icon="mdi-timer-off"
+                        density="compact"
+                        variant="text"
+                        color="warning"
+                        size="small"
+                        @click.stop="onMessageAction('timeout', msg, index)"
+                      />
+                      <v-btn
+                        icon="mdi-account-cancel"
+                        density="compact"
+                        variant="text"
+                        color="error"
+                        size="small"
+                        @click.stop="onMessageAction('ban', msg, index)"
+                      />
+                    </div>
                   </template>
-                </v-tooltip>
+                </ClientOnly>
               </div>
             </template>
           </v-list-item>
