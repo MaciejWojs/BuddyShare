@@ -1,6 +1,6 @@
-import { defineStore } from 'pinia'
-import StreamSettings from '~/components/stream/StreamSettings.vue'
-import type { Stream } from '~/types/Streams'
+import { defineStore } from "pinia";
+import StreamSettings from "~/components/stream/StreamSettings.vue";
+import type { Stream } from "~/types/Streams";
 
 export const useStreamsStore = defineStore("Streams", () => {
   const config = useRuntimeConfig();
@@ -11,6 +11,7 @@ export const useStreamsStore = defineStore("Streams", () => {
   const headers = useRequestHeaders(["cookie"]);
   const ws = usePublicWebSocket();
   const streams = ref<Stream[]>([]);
+  const authStore = useAuthStore();
 
   const fetchStreams = async () => {
     console.log("Fetching streams...");
@@ -50,9 +51,9 @@ export const useStreamsStore = defineStore("Streams", () => {
       ws.onStreamStarted((data: Stream) => {
         console.log("Stream started:", data);
         addStream(data);
-        const stream = streams.value.findIndex(s => s.id === data.id);
+        const stream = streams.value.findIndex((s) => s.id === data.id);
         streams.value[stream].viewer_count = 0;
-      })
+      });
 
       ws.onPatchStream((data: Stream) => {
         const patchList = Array.isArray(data) ? data : [data];
@@ -68,32 +69,39 @@ export const useStreamsStore = defineStore("Streams", () => {
         });
       });
 
-      
-      
       ws.onStreamEnded((data) => {
-        console.log('Stream ended id:', data.streamerId);
-        const streamerId = typeof data.streamerId === "number" ? data.streamerId : parseInt(data.streamerId);
-        console.log('Stream ended id:', streamerId);
-        const stream = streams.value.find(s => s.streamer_id === streamerId);
-        
-        console.log('Stream ended:', stream?.id);
-        
+        console.log("Stream ended id:", data.streamerId);
+        const streamerId =
+          typeof data.streamerId === "number"
+            ? data.streamerId
+            : parseInt(data.streamerId);
+        console.log("Stream ended id:", streamerId);
+        const stream = streams.value.find((s) => s.streamer_id === streamerId);
+
+        console.log("Stream ended:", stream?.id);
+
         if (stream) {
           removeStream(streamerId);
         }
-      })
-      
+      });
+
       ws.onStreamStatsBasic((data) => {
-        console.log('STORE STREAM STATS:', data);
-        const streamIndex = streams.value.findIndex(s => s.options_id === parseInt(data.streamId));
+        console.log("STORE STREAM STATS:", data);
+        const streamIndex = streams.value.findIndex(
+          (s) => s.options_id === parseInt(data.streamId)
+        );
         if (streamIndex === -1) {
-          console.log('Stream not found:', data.streamId);
+          console.log("Stream not found:", data.streamId);
           return;
         }
-        
+
         streams.value[streamIndex].viewer_count = data.viewers;
-        console.log('Stream stats updated:', streams.value[streamIndex].viewer_count, data.viewers);
-      })
+        console.log(
+          "Stream stats updated:",
+          streams.value[streamIndex].viewer_count,
+          data.viewers
+        );
+      });
     } catch (error) {
       console.error("Error fetching streams:", error);
     }
@@ -182,6 +190,12 @@ export const useStreamsStore = defineStore("Streams", () => {
     }
   };
 
+  const isStreamOwner = () => {
+    return streams.value.some(
+      (stream) => stream.username === authStore.userName
+    );
+  };
+
   // Zwracamy dostępne dane i funkcje ze store'a
   return {
     streams,
@@ -192,5 +206,6 @@ export const useStreamsStore = defineStore("Streams", () => {
     removeStream,
     fetchStreams,
     isStreamerLive,
+    isStreamOwner,
   };
 });

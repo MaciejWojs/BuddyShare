@@ -26,7 +26,85 @@
         <div class="my-6"></div>
         <!-- Stream info section -->
         <div class="stream-info pa-4 bg-grey-darken-3 rounded">
-          <h1 class="text-h4 mb-2">{{ stream.title || "" }}</h1>
+          <div class="d-flex align-center mb-2">
+            <h1 class="text-h4 mb-0">{{ stream.title || "" }}</h1>
+            <v-spacer></v-spacer>
+            <div class="d-flex flex-column">
+              <v-btn
+                v-if="streamStore.isStreamOwner()"
+                color="pink-darken-1"
+                variant="elevated"
+                prepend-icon="mdi-video"
+                class="text-uppercase font-weight-bold py-2"
+                block
+                @click="navigateTo(`/user/${displayName}/stream/start`)"
+              >
+                GO LIVE
+              </v-btn>
+
+              <!-- Dodajemy margin top do dialogu -->
+              <v-dialog
+                v-model="editDialog"
+                max-width="600px"
+                class="mt-6"
+              >
+                <template v-slot:activator="{ props }">
+                  <v-btn
+                    v-if="streamStore.isStreamOwner()"
+                    color="purple-lighten-2"
+                    v-bind="props"
+                    prepend-icon="mdi-pencil"
+                    variant="outlined"
+                    class="text-uppercase font-weight-bold py-2 mt-6"
+                    block
+                  >
+                    EDYTUJ STREAM
+                  </v-btn>
+                </template>
+                <v-card>
+                  <v-card-title>Edytuj informacje o streamie</v-card-title>
+                  <v-card-text>
+                    <v-form @submit.prevent="updateStreamInfo">
+                      <v-text-field
+                        v-model="editedTitle"
+                        label="Tytuł streamu"
+                        variant="outlined"
+                        class="mb-4"
+                        required
+                      ></v-text-field>
+                      <v-textarea
+                        v-model="editedDescription"
+                        label="Opis streamu"
+                        variant="outlined"
+                        rows="4"
+                        class="mb-4"
+                        required
+                      ></v-textarea>
+                      <v-switch
+                        v-model="isPublic"
+                        label="Stream publiczny"
+                        color="primary"
+                      ></v-switch>
+                    </v-form>
+                  </v-card-text>
+                  <v-card-actions>
+                    <v-spacer></v-spacer>
+                    <v-btn
+                      color="error"
+                      variant="text"
+                      @click="editDialog = false"
+                      >Anuluj</v-btn
+                    >
+                    <v-btn
+                      color="primary"
+                      @click="updateStreamInfo"
+                      >Zapisz zmiany</v-btn
+                    >
+                  </v-card-actions>
+                </v-card>
+              </v-dialog>
+            </div>
+          </div>
           <p class="text-body-1 mb-4">{{ stream.stream_description }}</p>
 
           <v-divider class="mb-3"></v-divider>
@@ -83,9 +161,17 @@ import { ref, watch, onMounted, computed } from "vue";
 
 const streamsStore = useStreamsStore();
 
+const config = useRuntimeConfig();
+
+const BACK_HOST = config.public.BACK_HOST;
+
 const route = useRoute();
+
+const endpoint = `http://${BACK_HOST}`;
+
 const displayName = route.params.displayname as string;
 
+const streamStore = useStreamsStore();
 
 const stream = computed(() => {
   return (
@@ -244,6 +330,73 @@ onBeforeUnmount(() => {
   streamerAndStreamingStatus.value = false;
   console.log("Checking after - >", streamerAndStreamingStatus.value);
 });
+
+const {
+  data: streamPatchData,
+  status: streamPatchStatus,
+  error: streamPatchError,
+} = useFetch(`${endpoint}/streams/${displayName}/${streamId.value}`, {
+  method: "PATCH",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: {
+    title: stream.value.title || "Sample Stream Title",
+    description: stream.value.stream_description || "Sample Stream Description",
+    isPublic: true,
+    thumbnail: "null",
+  },
+  credentials: "include",
+});
+
+// Dodaj te zmienne po istniejącym kodzie
+const editDialog = ref(false);
+const editedTitle = ref("");
+const editedDescription = ref("");
+const isPublic = ref(true);
+
+// Inicjalizuj wartości po załadowaniu danych
+watch(
+  () => stream.value,
+  (newValue) => {
+    if (newValue) {
+      editedTitle.value = newValue.title || "";
+      editedDescription.value = newValue.stream_description || "";
+    }
+  },
+  { immediate: true }
+);
+
+// Funkcja aktualizująca dane streamu
+// const updateStreamInfo = async () => {
+//   try {
+//     const response = await $fetch(
+//       `${endpoint}/streams/${displayName}/${streamId.value}`,
+//       {
+//         method: "PATCH",
+//         headers: {
+//           "Content-Type": "application/json",
+//         },
+//         body: {
+//           title: editedTitle.value,
+//           description: editedDescription.value,
+//           isPublic: isPublic.value,
+//           thumbnail: "null",
+//         },
+//         credentials: "include",
+//       }
+//     );
+
+//     // Zamknij dialog i odśwież dane
+//     editDialog.value = false;
+//     await streamsStore.fetchStreams();
+
+//     // Opcjonalnie: pokaż powiadomienie o sukcesie
+//   } catch (error) {
+//     console.error("Błąd podczas aktualizacji informacji o streamie:", error);
+//     // Opcjonalnie: pokaż powiadomienie o błędzie
+//   }
+// };
 </script>
 
 <style lang="scss">
