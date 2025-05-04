@@ -150,6 +150,7 @@
 import { ref, onMounted, watch, computed } from "vue";
 import { useDashPlayer, type Quality } from '@/composables/useDashPlayer';
 import { useStreamsStore } from '~/stores/streams';
+import { useWindowScroll } from "@vueuse/core";
 
 interface Props {
   displayName: string;
@@ -159,6 +160,7 @@ const props = defineProps<Props>();
 
 // Pobieramy store ze streamami
 const streamsStore = useStreamsStore();
+const ws = usePublicWebSocket();
 
 // Referencja na dane streamu
 const streamData = computed(() => streamsStore.getStreamByStreamerName(props.displayName));
@@ -244,7 +246,7 @@ watch(streamData, () => {
   console.log('Stream URLs:', streamData.value?.stream_urls);
   console.log('Selected quality:', selectedQuality.value);
   console.log('Available qualities:', qualitiesRef.value);
-  
+
   if (streamData.value && streamData.value.isLive) {
     const cleanupTimer = updateStreamTime();
     return cleanupTimer;
@@ -252,17 +254,23 @@ watch(streamData, () => {
   return undefined;
 }, { immediate: true });
 
-// Obserwuj zmiany streamstore (dla aktualizacji w czasie rzeczywistym)
-watch(() => streamsStore.streams, () => {
-  // Aktualizacja zostanie obsłużona automatycznie przez computed properties
-  console.log('StreamStore updated, stream:', streamData.value);
-}, { deep: true });
+// // Obserwuj zmiany streamstore (dla aktualizacji w czasie rzeczywistym)
+// watch(() => streamsStore.streams, () => {
+//   // Aktualizacja zostanie obsłużona automatycznie przez computed properties
+//   console.log('StreamStore updated, stream:', streamData.value);
+// }, { deep: true });
 
 onMounted(() => {
   initPlayer();
   console.log(`Mounted VideoPlayer for streamer: ${props.displayName}`);
   console.log('Current stream data:', streamData.value);
   console.log('All streams:', streamsStore.streams);
+  ws.joinStream(streamData.value?.options_id.toString());
+});
+
+onBeforeUnmount(() => {
+  ws.leaveStream(streamData.value?.options_id.toString());
+  console.log(`Unmounted VideoPlayer for streamer: ${props.displayName}`);
 });
 </script>
 

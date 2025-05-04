@@ -7,6 +7,27 @@ type StreamData = {
     category: string;
 };
 
+// Dodanie typów dla statystyk streamu
+type StreamCurrentStats = {
+    viewers: number;
+    followers: number;
+    subscribers: number;
+};
+
+type StreamStatsHistory = {
+    timestamp: number;
+    value: number;
+}[];
+
+type StreamStats = {
+    streamId: string;
+    timestamp: number;
+    currentStats: StreamCurrentStats;
+    viewerHistory: StreamStatsHistory;
+    followerHistory: StreamStatsHistory;
+    subscriberHistory: StreamStatsHistory;
+};
+
 export const useAuthWebSocket = () => {
     const nuxtApp = useNuxtApp();
     
@@ -149,6 +170,12 @@ export const useAuthWebSocket = () => {
         on("notifyStreamer", handler);
     };
 
+    // Stream stats handling
+    const onStreamStats = (handler: (stats: StreamStats) => void) => {
+        on("streamStats", handler);
+        console.log("Registered handler for stream stats:", handler);
+    };
+
     return {
         on,
         off,
@@ -172,5 +199,7 @@ export const useAuthWebSocket = () => {
         onStreamNotification,
         onNotifyStreamer,
         onChatMessage,
+        // Stream stats handler
+        onStreamStats,
     };
 };

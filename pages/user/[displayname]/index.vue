@@ -86,9 +86,6 @@ const streamsStore = useStreamsStore();
 const route = useRoute();
 const displayName = route.params.displayname as string;
 
-onMounted(async () => {
-  await streamsStore.fetchStreams();
-});
 
 const stream = computed(() => {
   return (
@@ -102,6 +99,18 @@ const stream = computed(() => {
 });
 
 const streamId = computed(() => stream.value?.id);
+
+// const streamOptionsId = computed(() => stream.value?.options_id);
+
+// const pWS = usePublicWebSocket();
+
+onMounted(async () => {
+  await streamsStore.fetchStreams();
+  // pWS.joinStream(streamOptionsId.value?.toString());
+  // pWS.onStreamStatsBasic((data) => {
+  //   console.log("Stream stats data:", data);
+  // });
+});
 
 definePageMeta({
   middleware: [

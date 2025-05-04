@@ -3,6 +3,14 @@ import type { Stream } from "~/types/Streams";
 
 type EventHandler = (data: any) => void;
 
+// Dodanie typu dla podstawowych statystyk streamu
+type StreamStatsBasic = {
+    streamId: string;
+    viewers: number;
+    followers: number;
+    subscribers: number;
+};
+
 export const usePublicWebSocket = () => {
     const nuxtApp = useNuxtApp();
     // Pobierz instancję socketu bezpośrednio z wtyczki
@@ -90,6 +98,11 @@ export const usePublicWebSocket = () => {
         on('followerCountUpdate', handler);
     };
 
+    // Obsługa statystyk streamu dla widzów
+    const onStreamStatsBasic = (handler: (stats: StreamStatsBasic) => void) => {
+        on('streamStatsBasic', handler);
+    };
+
     const onChatMessageBeta = (streamId: string, handler: (data: {
         userId: string,
         username: string,
@@ -136,5 +149,7 @@ export const usePublicWebSocket = () => {
         onChatMessage,
         onChatMessageBeta,
         onPatchStream,
+        // Stream stats handler
+        onStreamStatsBasic,
     };
 };

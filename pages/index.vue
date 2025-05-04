@@ -224,7 +224,6 @@ console.log(streamerAndStreamingStatus.value);
     <!-- Pasek wyszukiwania -->
     <v-sheet class="mb-6 search-container">
       <v-text-field
-        id="search-input"
         v-model="searchQuery"
         label="Szukaj streamów..."
         variant="outlined"
@@ -335,7 +334,7 @@ console.log(streamerAndStreamingStatus.value);
                 color="white"
                 >mdi-account</v-icon
               >
-              <span>{{ formatViewCount(stream.viewerCount || 0) }}</span>
+              <span>{{ formatViewCount(stream.viewer_count || 0) }}</span>
             </div>
           </div>
 
