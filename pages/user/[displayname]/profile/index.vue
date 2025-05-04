@@ -110,12 +110,9 @@ const profileData = ref({
   followers: userFollowers,
   following: userFollowing,
   joinDate: userJoinDate,
-  // socialLinks: [
-  //   { icon: "mdi-twitter", url: "#" },
-  //   { icon: "mdi-instagram", url: "#" },
-  //   { icon: "mdi-youtube", url: "#" },
-  // ],
 });
+
+const streamsStore = useStreamsStore();
 </script>
 
 <template>
@@ -167,24 +164,34 @@ const profileData = ref({
             <p class="text-subtitle-1 text-grey-lighten-1">
               @{{ profileData.username }}
             </p>
-            <v-btn
-              color="primary"
-              class="mt-2"
-              prepend-icon="mdi-check"
-              >Obserwuj</v-btn
-            >
+            <div class="d-flex">
+              <v-btn
+                color="primary"
+                class="mt-2 mr-2"
+                prepend-icon="mdi-check"
+                >Obserwuj</v-btn
+              >
+              <v-btn
+                v-if="streamsStore.isStreamerLive(displayName as string)"
+                color="secondary"
+                class="mt-2"
+                prepend-icon="mdi-video"
+                @click="navigateTo(`/user/${displayName}`)"
+                >view Stream</v-btn
+              >
+            </div>
           </div>
 
           <!-- Social Links -->
           <div class="d-flex justify-center my-4">
-            <v-btn
+            <!-- <v-btn
               v-for="(link, index) in profileData.socialLinks"
               :key="index"
               :icon="link.icon"
               variant="text"
               density="comfortable"
               class="mx-1"
-            ></v-btn>
+            ></v-btn> -->
           </div>
         </v-col>
 

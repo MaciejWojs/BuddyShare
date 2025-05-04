@@ -1,20 +1,20 @@
-import { defineStore } from 'pinia'
-import type { Stream } from '~/types/Streams'
+import { defineStore } from "pinia";
+import type { Stream } from "~/types/Streams";
 
-export const useStreamsStore = defineStore('Streams', () => {
-  const config = useRuntimeConfig()
-  const BACK_HOST = config.public.BACK_HOST
-  const BACK_PORT = config.public.BACK_PORT
-  const BACK_URL = `${BACK_HOST}${BACK_PORT ? `:${BACK_PORT}` : ""}`
-  const endpoint = `http://${BACK_URL}/streams`
+export const useStreamsStore = defineStore("Streams", () => {
+  const config = useRuntimeConfig();
+  const BACK_HOST = config.public.BACK_HOST;
+  const BACK_PORT = config.public.BACK_PORT;
+  const BACK_URL = `${BACK_HOST}${BACK_PORT ? `:${BACK_PORT}` : ""}`;
+  const endpoint = `http://${BACK_URL}/streams`;
   const headers = useRequestHeaders(["cookie"]);
-  const ws = usePublicWebSocket()
-  const streams = ref<Stream[]>([])
+  const ws = usePublicWebSocket();
+  const streams = ref<Stream[]>([]);
 
   const fetchStreams = async () => {
-    console.log('Fetching streams...');
+    console.log("Fetching streams...");
     const data = await $fetch<Stream[]>(endpoint, {
-      method: 'GET',
+      method: "GET",
       headers: {
         "Content-Type": "application/json",
         ...headers,
@@ -23,8 +23,8 @@ export const useStreamsStore = defineStore('Streams', () => {
     });
 
     streams.value = data;
-    console.log('Fetched streams:', streams.value);
-  }
+    console.log("Fetched streams:", streams.value);
+  };
 
   onMounted(async () => {
     if (!import.meta.client) return;
@@ -47,83 +47,90 @@ export const useStreamsStore = defineStore('Streams', () => {
       // });
 
       ws.onStreamStarted((data: Stream) => {
-        console.log('Stream started:', data);
+        console.log("Stream started:", data);
         addStream(data);
-      })
+      });
 
       ws.onPatchStream((data: Stream) => {
         const patchList = Array.isArray(data) ? data : [data];
 
         patchList.forEach((stream) => {
-          const existing = streams.value.find(s => s.id === stream.id);
+          const existing = streams.value.find((s) => s.id === stream.id);
           if (existing) {
             updateStream(stream);
           } else {
-            console.log('🆕 Stream not found, adding instead');
+            console.log("🆕 Stream not found, adding instead");
             addStream(stream);
           }
         });
       });
 
-
       ws.onStreamEnded((data) => {
-        console.log('Stream ended id:', data.streamerId);
-        const streamerId = typeof data.streamerId === "number" ? data.streamerId : parseInt(data.streamerId);
-        console.log('Stream ended id:', streamerId);
-        const stream = streams.value.find(s => s.streamer_id === streamerId);
+        console.log("Stream ended id:", data.streamerId);
+        const streamerId =
+          typeof data.streamerId === "number"
+            ? data.streamerId
+            : parseInt(data.streamerId);
+        console.log("Stream ended id:", streamerId);
+        const stream = streams.value.find((s) => s.streamer_id === streamerId);
 
-        console.log('Stream ended:', stream?.id);
+        console.log("Stream ended:", stream?.id);
 
         if (stream) {
           removeStream(streamerId);
         }
-      })
+      });
     } catch (error) {
-      console.error('Error fetching streams:', error);
+      console.error("Error fetching streams:", error);
     }
   });
 
   // Funkcje pomocnicze do zarządzania streamami
   function addStream(stream: Stream) {
-    const exists = streams.value.some(s => s.id === stream.id);
+    const exists = streams.value.some((s) => s.id === stream.id);
     if (!exists) {
       streams.value.push(stream);
     }
   }
 
   function updateStream(updatedStream: Stream) {
-    const index = streams.value.findIndex(s => s.id === updatedStream.id);
+    const index = streams.value.findIndex((s) => s.id === updatedStream.id);
     if (index !== -1) {
       // Splice jest reakcją, która Vue "widzi"
       streams.value.splice(index, 1, {
         ...streams.value[index],
-        ...updatedStream
+        ...updatedStream,
       });
     }
   }
 
-
   function removeStream(streamerId: number) {
-    const index = streams.value.findIndex(s => s.streamer_id === streamerId);
+    const index = streams.value.findIndex((s) => s.streamer_id === streamerId);
     if (index !== -1) {
       streams.value.splice(index, 1);
     }
   }
 
   function getStreamByStreamerName(streamerName: string) {
-    const stream = streams.value.find(stream => stream.username === streamerName);
+    const stream = streams.value.find(
+      (stream) => stream.username === streamerName
+    );
     if (!stream) return undefined;
 
     if (stream.isPublic) {
-      console.log('getStreamByStreamerName - public stream found');
+      console.log("getStreamByStreamerName - public stream found");
       return stream;
     } else {
       const authStore = useAuthStore();
       if (stream.username === authStore.userName) {
-        console.log('getStreamByStreamerName - private stream found but user is streamer');
+        console.log(
+          "getStreamByStreamerName - private stream found but user is streamer"
+        );
         return stream;
       }
-      console.log('getStreamByStreamerName - private stream found but user is not streamer');
+      console.log(
+        "getStreamByStreamerName - private stream found but user is not streamer"
+      );
       return undefined;
     }
   }
@@ -132,7 +139,7 @@ export const useStreamsStore = defineStore('Streams', () => {
   async function getStream(streamId: string): Promise<Stream | undefined> {
     try {
       const stream = await $fetch<Stream>(`${endpoint}/${streamId}`, {
-        method: 'GET',
+        method: "GET",
         headers: {
           "Content-Type": "application/json",
           ...headers,
@@ -146,6 +153,21 @@ export const useStreamsStore = defineStore('Streams', () => {
     }
   }
 
+  const isStreamerLive = (streamerName: string) => {
+    const stream = getStreamByStreamerName(streamerName);
+    if (!stream) return false;
+
+    if (stream.isPublic) {
+      return true;
+    } else {
+      const authStore = useAuthStore();
+      if (stream.username === authStore.userName) {
+        return true;
+      }
+      return false;
+    }
+  };
+
   // Zwracamy dostępne dane i funkcje ze store'a
   return {
     streams,
@@ -154,6 +176,7 @@ export const useStreamsStore = defineStore('Streams', () => {
     getStreamByStreamerName,
     updateStream,
     removeStream,
-    fetchStreams
-  }
-})
+    fetchStreams,
+    isStreamerLive,
+  };
+});

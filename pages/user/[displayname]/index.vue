@@ -1,12 +1,25 @@
 <!-- pages/[displayname]/index.vue -->
 <template>
-  <v-container fluid class="stream-layout pa-0 fill-height">
-    <v-row no-gutters class="fill-height">
+  <v-container
+    fluid
+    class="stream-layout pa-0 fill-height"
+  >
+    <v-row
+      no-gutters
+      class="fill-height"
+    >
       <!-- Main Content Column -->
-      <v-col cols="12" lg="9" class="h-100">
-        <v-responsive :aspect-ratio="16 / 9" class="h-100">
+      <v-col
+        cols="12"
+        lg="9"
+        class="h-100"
+      >
+        <v-responsive
+          :aspect-ratio="16 / 9"
+          class="h-100"
+        >
           <!-- Poprawione przekazywanie jakości do VideoPlayer -->
-            <LazyStreamVideoPlayer :display-name="displayName" />
+          <LazyStreamVideoPlayer :display-name="displayName" />
         </v-responsive>
 
         <!-- Vertical spacer -->
@@ -19,21 +32,46 @@
           <v-divider class="mb-3"></v-divider>
 
           <div class="d-flex align-center">
-            <v-avatar class="mr-3" size="42">
-              <v-img src="/Buddyshare.svg" alt="Streamer avatar" />
+            <v-avatar
+              class="mr-3"
+              size="42"
+            >
+              <v-img
+                src="/Buddyshare.svg"
+                alt="Streamer avatar"
+              />
             </v-avatar>
             <div>
               <span class="text-h6">{{ displayName }}</span>
               <div class="text-caption">{{ stream.description }}</div>
             </div>
+            <v-spacer></v-spacer>
+            <v-btn
+              color="white"
+              variant="outlined"
+              size="small"
+              prepend-icon="mdi-account"
+              @click="navigateTo(`/user/${displayName}/profile`)"
+            >
+              Profil
+            </v-btn>
           </div>
         </div>
       </v-col>
 
       <!-- Chat Column -->
-      <v-col v-if="streamId" cols="12" lg="3" class="h-100 bg-grey-darken-4">
-        <LiveChat :stream-id="streamId" :messages="chatMessages" title="Live Chat"
-          @message-action="handleMessageAction" />
+      <v-col
+        v-if="streamId"
+        cols="12"
+        lg="3"
+        class="h-100 bg-grey-darken-4"
+      >
+        <LiveChat
+          :stream-id="streamId"
+          :messages="chatMessages"
+          title="Live Chat"
+          @message-action="handleMessageAction"
+        />
       </v-col>
     </v-row>
   </v-container>
@@ -53,12 +91,14 @@ onMounted(async () => {
 });
 
 const stream = computed(() => {
-  return streamsStore.getStreamByStreamerName(displayName) || {
-    title: '',
-    stream_description: '',
-    description: '',
-    id: null
-  };
+  return (
+    streamsStore.getStreamByStreamerName(displayName) || {
+      title: "",
+      stream_description: "",
+      description: "",
+      id: null,
+    }
+  );
 });
 
 const streamId = computed(() => stream.value?.id);
@@ -222,4 +262,5 @@ onBeforeUnmount(() => {
 //   .h-100 {
 //     height: auto !important;
 //   }
-// }</style>
+// }
+</style>
