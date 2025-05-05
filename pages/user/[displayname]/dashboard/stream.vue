@@ -21,11 +21,6 @@
             <!-- Używamy komponentu VideoPlayer zamiast powtarzać kod -->
             <LazyVideoPlayer
               :display-name="displayName"
-              :is-live="isLive"
-              viewer-count="12.8K"
-              :stream-url="streamUrl"
-              avatar="/Buddyshare.svg"
-              current-time="22:02"
             />
           </v-responsive>
         </v-col>

@@ -4,7 +4,7 @@ import type { Stream } from "~/types/Streams";
 type EventHandler = (data: any) => void;
 
 // Dodanie typu dla podstawowych statystyk streamu
-type StreamStatsBasic = {
+type StreamStats = {
     streamId: string;
     viewers: number;
     followers: number;
@@ -99,23 +99,9 @@ export const usePublicWebSocket = () => {
     };
 
     // Obsługa statystyk streamu dla widzów
-    const onStreamStatsBasic = (handler: (stats: StreamStatsBasic) => void) => {
-        on('streamStatsBasic', handler);
+    const onStreamStats = (handler: (stats: StreamStats) => void) => {
+        on('streamStats', handler);
     };
-
-    const onChatMessageBeta = (streamId: string, handler: (data: {
-        userId: string,
-        username: string,
-        message: string,
-        timestamp: string
-    }) => void) => {
-        console.log('onChatMessageBeta', streamId);
-        // Nasłuchuj na dynamiczny event specyficzny dla pokoju
-        on(`chat:${streamId}`, (data) => {
-            console.log('chat message', data);
-            handler(data);
-        });
-    }
 
     const onChatMessage = (handler: (data: {
         userId: string;
@@ -147,9 +133,8 @@ export const usePublicWebSocket = () => {
         onStreamEnded,
         onFollowerCountUpdate,
         onChatMessage,
-        onChatMessageBeta,
         onPatchStream,
         // Stream stats handler
-        onStreamStatsBasic,
+        onStreamStats,
     };
 };

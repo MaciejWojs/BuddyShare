@@ -1,31 +1,63 @@
 <template>
-    <div>
-      <h1>User Dashboard</h1>
-      <p>Welcome to your dashboard, {{ displayName }}!</p>
-      
-      <section>
-        <h2>User Statistics</h2>
-        <!-- Placeholder for user statistics component -->
-        <user-statistics :username="displayName" />
-      </section>
-  
-      <section>
-        <h2>Links</h2>
-        <ul>
-          <li><nuxt-link :to="`/user/${displayName}/dashboard/stream`">View Stream</nuxt-link></li>
-          <li><nuxt-link :to="`/user/${displayName}/settings`">Account Settings</nuxt-link></li>
-          <li><nuxt-link :to="`/user/${displayName}/activity`">Recent Activity</nuxt-link></li>
-        </ul>
-      </section>
-    </div>
-  </template>
-  
-  <script setup lang="ts">
-    import { useRoute } from 'vue-router';
-    const route = useRoute();
-  const displayName = route.params.displayname;
-  </script>
-  
-  <style scoped>
-  /* Add any specific styles for the dashboard here */
-  </style>
+  <div class="dashboard">
+    <h1 class="text-h4 mb-6">Dashboard</h1>
+    <p>Witaj w swoim dashboardzie, {{ displayName }}!</p>
+
+    <v-divider class="my-4"></v-divider>
+
+    <section class="stream-stats-section">
+      <h2 class="text-h5 mb-4">Statystyki streama</h2>
+      <v-row>
+        <v-col cols="12" md="8">
+          <!-- Wykres statystyk -->
+          <ViewerChart :streamerName="displayName"/>
+        </v-col>
+      </v-row>
+    </section>
+
+    <v-divider class="my-4"></v-divider>
+
+    <section>
+      <h2 class="text-h5 mb-4">Szybkie akcje</h2>
+      <v-row>
+        <v-col cols="12" md="4">
+          <v-btn block color="primary" :to="`/user/${displayName}/dashboard/stream`">
+            Ustawienia streama
+          </v-btn>
+        </v-col>
+        <v-col cols="12" md="4">
+          <v-btn block color="secondary" :to="`/user/${displayName}/settings`">
+            Ustawienia konta
+          </v-btn>
+        </v-col>
+        <v-col cols="12" md="4">
+          <v-btn block color="info" :to="`/user/${displayName}`">
+            Przejdź do kanału
+          </v-btn>
+        </v-col>
+      </v-row>
+    </section>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { useRoute } from 'vue-router';
+import { useStreamsStore } from '~/stores/streams';
+
+const route = useRoute();
+const displayName = route.params.displayname;
+const streamsStore = useStreamsStore();
+
+</script>
+
+<style scoped>
+.dashboard {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+section {
+  margin-bottom: 2rem;
+}
+</style>

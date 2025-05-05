@@ -25,7 +25,18 @@ export const useStreamsStore = defineStore("Streams", () => {
     });
 
     streams.value = data;
+    for (let stream of streams.value) {
+      stream.viewer_count = 0;
+      stream.follower_count = 0;
+      stream.subscriber_count = 0;
+      stream.history = {};
+      stream.history.viewers = [];
+      stream.history.followers = [];
+      stream.history.subscribers = [];
+    }
     console.log("Fetched streams:", streams.value);
+
+    console.log("Fetched streams:", data[0]);
   };
 
   onMounted(async () => {
@@ -51,8 +62,6 @@ export const useStreamsStore = defineStore("Streams", () => {
       ws.onStreamStarted((data: Stream) => {
         console.log("Stream started:", data);
         addStream(data);
-        const stream = streams.value.findIndex((s) => s.id === data.id);
-        streams.value[stream].viewer_count = 0;
       });
 
       ws.onPatchStream((data: Stream) => {
@@ -85,7 +94,7 @@ export const useStreamsStore = defineStore("Streams", () => {
         }
       });
 
-      ws.onStreamStatsBasic((data) => {
+      ws.onStreamStats((data) => {
         console.log("STORE STREAM STATS:", data);
         const streamIndex = streams.value.findIndex(
           (s) => s.options_id === parseInt(data.streamId)
@@ -95,12 +104,28 @@ export const useStreamsStore = defineStore("Streams", () => {
           return;
         }
 
-        streams.value[streamIndex].viewer_count = data.viewers;
+        console.log('🔥 Nowa historia widzów dla streamId', data.streamId, data.history.viewers)
+
+
+        const updated = {
+          ...streams.value[streamIndex],
+          viewer_count: data.stats.viewers,
+          follower_count: data.stats.followers,
+          subscriber_count: data.stats.subscribers,
+          history: data.history,
+        };
+        streams.value.splice(streamIndex, 1, updated);
+
         console.log(
           "Stream stats updated:",
           streams.value[streamIndex].viewer_count,
-          data.viewers
+          data.stats.viewers
         );
+
+        console.log(
+          "Stream history updated:",
+          streams.value[streamIndex].history,
+        )
       });
     } catch (error) {
       console.error("Error fetching streams:", error);
@@ -110,8 +135,20 @@ export const useStreamsStore = defineStore("Streams", () => {
   // Funkcje pomocnicze do zarządzania streamami
   function addStream(stream: Stream) {
     const exists = streams.value.some((s) => s.id === stream.id);
+
     if (!exists) {
       streams.value.push(stream);
+
+      const streamIndex = streams.value.findIndex((s) => s.options_id === stream.options_id);
+      streams.value[streamIndex].viewer_count = 0;
+
+      streams.value[streamIndex].follower_count = stream.follower_count || 0;
+      streams.value[streamIndex].subscriber_count = stream.subscriber_count || 0;
+
+      streams.value[streamIndex].history = {}
+      streams.value[streamIndex].history.viewers = [];
+      streams.value[streamIndex].history.followers = [];
+      streams.value[streamIndex].history.subscribers = [];
     }
   }
 
