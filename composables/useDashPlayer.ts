@@ -280,7 +280,6 @@ export function useDashPlayer(
       player.value.off(dashjs.MediaPlayer.events.ERROR, errorHandler);
       player.value.reset();
       player.value.destroy();
-      player.value.updateSource("");
       player.value = null;
     }
     if (retryTimeout) clearTimeout(retryTimeout);
