@@ -30,18 +30,6 @@
             <h1 class="text-h4 mb-0">{{ stream.title || "" }}</h1>
             <v-spacer></v-spacer>
             <div class="d-flex flex-column">
-              <v-btn
-                v-if="streamStore.isStreamOwner()"
-                color="pink-darken-1"
-                variant="elevated"
-                prepend-icon="mdi-video"
-                class="text-uppercase font-weight-bold py-2"
-                block
-                @click="navigateTo(`/user/${displayName}/stream/start`)"
-              >
-                GO LIVE
-              </v-btn>
-
               <!-- Dodajemy margin top do dialogu -->
               <v-dialog
                 v-model="editDialog"
@@ -51,14 +39,14 @@
                 <template v-slot:activator="{ props }">
                   <v-btn
                     v-if="streamStore.isStreamOwner()"
-                    color="purple-lighten-2"
+                    color="pink-darken-1"
+                    variant="elevated"
+                    prepend-icon="mdi-video"
                     v-bind="props"
-                    prepend-icon="mdi-pencil"
-                    variant="outlined"
-                    class="text-uppercase font-weight-bold py-2 mt-6"
+                    class="text-uppercase font-weight-bold py-2"
                     block
                   >
-                    EDYTUJ STREAM
+                    GO LIVE
                   </v-btn>
                 </template>
                 <v-card>
@@ -331,23 +319,23 @@ onBeforeUnmount(() => {
   console.log("Checking after - >", streamerAndStreamingStatus.value);
 });
 
-const {
-  data: streamPatchData,
-  status: streamPatchStatus,
-  error: streamPatchError,
-} = useFetch(`${endpoint}/streams/${displayName}/${streamId.value}`, {
-  method: "PATCH",
-  headers: {
-    "Content-Type": "application/json",
-  },
-  body: {
-    title: stream.value.title || "Sample Stream Title",
-    description: stream.value.stream_description || "Sample Stream Description",
-    isPublic: true,
-    thumbnail: "null",
-  },
-  credentials: "include",
-});
+// const {
+//   data: streamPatchData,
+//   status: streamPatchStatus,
+//   error: streamPatchError,
+// } = useFetch(`${endpoint}/streams/${displayName}/${streamId.value}`, {
+//   method: "PATCH",
+//   headers: {
+//     "Content-Type": "application/json",
+//   },
+//   body: {
+//     title: stream.value.title || "Sample Stream Title",
+//     description: stream.value.stream_description || "Sample Stream Description",
+//     isPublic: true,
+//     thumbnail: "null",
+//   },
+//   credentials: "include",
+// });
 
 // Dodaj te zmienne po istniejącym kodzie
 const editDialog = ref(false);
@@ -367,36 +355,53 @@ watch(
   { immediate: true }
 );
 
+const streamID = computed(
+  () => streamStore.getStreamByStreamerName(displayName)?.options_id
+);
 // Funkcja aktualizująca dane streamu
-// const updateStreamInfo = async () => {
-//   try {
-//     const response = await $fetch(
-//       `${endpoint}/streams/${displayName}/${streamId.value}`,
-//       {
-//         method: "PATCH",
-//         headers: {
-//           "Content-Type": "application/json",
-//         },
-//         body: {
-//           title: editedTitle.value,
-//           description: editedDescription.value,
-//           isPublic: isPublic.value,
-//           thumbnail: "null",
-//         },
-//         credentials: "include",
-//       }
-//     );
+const updateStreamInfo = async () => {
+  if (!editedTitle.value || !editedDescription.value) {
+    console.error("Tytuł i opis są wymagane.");
+    alert("Tytuł i opis są wymagane.");
+    return;
+  }
+  try {
+    const response = await $fetch(
+      `${endpoint}/streams/${displayName}/${streamID.value}`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: {
+          title: editedTitle.value,
+          description: editedDescription.value,
+          isPublic: isPublic.value,
+          thumbnail: null,
+        },
+        credentials: "include",
+      }
+    );
 
-//     // Zamknij dialog i odśwież dane
-//     editDialog.value = false;
-//     await streamsStore.fetchStreams();
+    // Zamknij dialog
+    editDialog.value = false;
 
-//     // Opcjonalnie: pokaż powiadomienie o sukcesie
-//   } catch (error) {
-//     console.error("Błąd podczas aktualizacji informacji o streamie:", error);
-//     // Opcjonalnie: pokaż powiadomienie o błędzie
-//   }
-// };
+    // Bezpośrednia aktualizacja wartości w store
+    const currentStream = streamsStore.getStreamByStreamerName(displayName);
+    if (currentStream) {
+      currentStream.title = editedTitle.value;
+      currentStream.stream_description = editedDescription.value;
+    }
+
+    // Odśwież dane w tle
+    streamsStore.fetchStreams();
+
+    // Opcjonalnie: pokaż powiadomienie o sukcesie
+  } catch (error) {
+    console.error("Błąd podczas aktualizacji informacji o streamie:", error);
+    // Opcjonalnie: pokaż powiadomienie o błędzie
+  }
+};
 </script>
 
 <style lang="scss">
