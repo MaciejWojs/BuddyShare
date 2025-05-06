@@ -1,6 +1,5 @@
 // useDashPlayer.ts
 import { ref, watch, onBeforeUnmount, type Ref, nextTick } from 'vue';
-import * as dashjs from 'dashjs';
 
 export interface Quality {
   name: string;
@@ -24,6 +23,14 @@ export function useDashPlayer(
   let retryCount = 0;
   let retryTimeout: NodeJS.Timeout | null = null;
 
+  onBeforeUnmount(() => {
+    if (player.value) {
+      player.value.off(dashjs.MediaPlayer.events.ERROR, errorHandler);
+      player.value.destroy();
+    }
+    if (retryTimeout) clearTimeout(retryTimeout);
+  });
+
   const errorHandler = (e: any) => {
     console.error('Player error:', e);
     if (
@@ -41,6 +48,47 @@ export function useDashPlayer(
     return q ? q.url : streamUrl.value; // Zmiana dostępu do właściwości
   };
 
+  // Funkcja pozwalająca na aktualizację źródła odtwarzania bez niszczenia odtwarzacza
+  const updateSource = async (newVideoElement: HTMLVideoElement, newStreamUrl: string, newQualities: Quality[] = []) => {
+    console.log('Updating player source to:', newStreamUrl);
+
+    // Aktualizuj referencję do elementu wideo
+    videoElement.value = newVideoElement;
+
+    // Aktualizuj jakości jeśli zostały podane
+    if (newQualities.length > 0) {
+      qualities.value = newQualities;
+      if (newQualities.length > 0 && (!selectedQuality.value || !qualities.value.find(q => q.name === selectedQuality.value))) {
+        selectedQuality.value = newQualities[0].name;
+      }
+    }
+
+    // Jeśli nie mamy jeszcze odtwarzacza, zainicjalizuj go
+    if (!player.value) {
+      await initPlayer();
+      return;
+    }
+
+    try {
+      // Pobierz URL dla aktualnie wybranej jakości lub użyj nowego URL-a
+      const url = qualities.value.length > 0 ?
+        getDashUrl(selectedQuality.value) :
+        newStreamUrl;
+
+      // Zmień źródło bez niszczenia odtwarzacza
+      player.value.attachView(newVideoElement);
+      player.value.attachSource(url);
+
+      console.log('Player source updated successfully');
+    } catch (error) {
+      console.error('Error updating player source:', error);
+      // W przypadku błędu spróbuj zainicjalizować odtwarzacz od nowa
+      player.value.destroy();
+      player.value = null;
+      await initPlayer();
+    }
+  };
+
   const copyToClipboard = () => {
     const currentUrl = window.location.href;
     navigator.clipboard
@@ -54,6 +102,10 @@ export function useDashPlayer(
   };
 
   const initPlayer = async () => {
+    if (!import.meta.client) return;
+    const dashjs = await import('dashjs');
+
+
     if (!videoElement.value) {
       await nextTick();
       if (!videoElement.value) return;
@@ -71,7 +123,7 @@ export function useDashPlayer(
     }
 
     const url = getDashUrl(selectedQuality.value) || streamUrl.value;
-    
+
     // Czyszczenie poprzedniej instancji
     if (player.value) {
       player.value.off(dashjs.MediaPlayer.events.ERROR, errorHandler);
@@ -82,6 +134,7 @@ export function useDashPlayer(
     // Inicjalizacja nowego player-a
     try {
       player.value = dashjs.MediaPlayer().create();
+      player.value.addUTCTimingSource('urn:mpeg:dash:utc:http-xsdate:2014', 'http://time.akamai.com/?iso');
       player.value.initialize(
         videoElement.value!,
         url,
@@ -126,7 +179,7 @@ export function useDashPlayer(
 
     selectedQuality.value = newQuality;
     const url = getDashUrl(newQuality);
-    
+
     if (url) {
       console.log("Changing quality URL to:", url);
 
@@ -179,7 +232,7 @@ export function useDashPlayer(
       player.value.initialize(videoElement.value, url, false);
       player.value.setAutoPlay(true);
       player.value.attachView(videoElement.value);
-      
+
       // Ustaw czas odtwarzania, jeśli podano
       if (seekTime) {
         player.value.seek(seekTime);
@@ -199,7 +252,7 @@ export function useDashPlayer(
   watch(initialQualities, (newQualities) => {
     if (newQualities.length > 0) {
       qualities.value = newQualities;
-      
+
       if (!selectedQuality.value && newQualities.length > 0) {
         selectedQuality.value = initialQualityName.value || newQualities[0].name;
       }
@@ -222,13 +275,16 @@ export function useDashPlayer(
     }
   });
 
-  onBeforeUnmount(() => {
+  const destroyPlayer = () => {
     if (player.value) {
       player.value.off(dashjs.MediaPlayer.events.ERROR, errorHandler);
+      player.value.reset();
       player.value.destroy();
+      player.value = null;
     }
     if (retryTimeout) clearTimeout(retryTimeout);
-  });
+  };
+
 
   return {
     qualities,
@@ -237,6 +293,8 @@ export function useDashPlayer(
     showCopyNotification,
     copyToClipboard,
     initPlayer,
-    isInitialized
+    isInitialized,
+    destroyPlayer,
+    updateSource
   };
 }

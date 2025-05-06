@@ -32,12 +32,16 @@ export default defineNuxtConfig({
     "@nuxt/image",
     "@pinia/nuxt", // required
     "pinia-plugin-persistedstate/nuxt",
+    'nuxt-echarts',
+
     // "@nuxtjs/color-mode",
     // "@nuxtjs/i18n",
 
     //...
   ],
-
+  echarts: {
+    ssr: true,
+  },
   vite: {
     vue: {
       template: {

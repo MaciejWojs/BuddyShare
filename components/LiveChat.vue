@@ -1,36 +1,60 @@
 <!--components/LiveChat.vue-->
 <template>
-  <v-card class="d-flex flex-column h-100" :color="background" flat>
+  <v-card
+    class="d-flex flex-column h-100"
+    :color="background"
+    flat
+  >
     <!-- Nagłówek czatu -->
     <v-card-title class="chat-header py-2 px-4">
       <div class="d-flex align-center justify-space-between w-100">
         <span class="text-subtitle-1">{{ title }}</span>
-        <v-chip v-if="showOnlineCount" variant="tonal" color="primary" size="small">
+        <!-- <v-chip v-if="showOnlineCount" variant="tonal" color="primary" size="small">
           {{ onlineCount }} Online
-        </v-chip>
+        </v-chip> -->
         <slot name="header-actions"></slot>
       </div>
     </v-card-title>
 
     <!-- Wiadomości czatu -->
-    <v-card-text class="chat-messages pa-2 flex-grow-1" ref="chatContainer">
-      <v-list lines="two" density="compact" class="bg-transparent messages-list">
-        <template v-for="(msg, index) in messages" :key="index">
+    <v-card-text
+      class="chat-messages pa-2 flex-grow-1"
+      ref="chatContainer"
+    >
+      <v-list
+        lines="two"
+        density="compact"
+        class="bg-transparent messages-list"
+      >
+        <template
+          v-for="(msg, index) in messages"
+          :key="index"
+        >
           <!-- Wiadomości użytkownika -->
-          <v-list-item v-if="msg.type !== 'system'" :class="{ 'message-highlight': msg.highlight }"
-            @click="onMessageClick(msg, index)" @mouseover="onMessageHover(msg, index, true)"
-            @mouseleave="onMessageHover(msg, index, false)">
+          <v-list-item
+            v-if="msg.type !== 'system'"
+            :class="{ 'message-highlight': msg.highlight }"
+            @click="onMessageClick(msg, index)"
+            @mouseover="onMessageHover(msg, index, true)"
+            @mouseleave="onMessageHover(msg, index, false)"
+          >
             <!-- Avatar użytkownika -->
             <template #prepend>
-              <v-avatar size="32" class="mr-2">
+              <v-avatar
+                size="32"
+                class="mr-2"
+              >
                 <v-img :src="msg.avatar || defaultAvatar" />
               </v-avatar>
             </template>
 
             <!-- Nagłówek wiadomości z nazwą użytkownika i czasem -->
             <v-list-item-subtitle class="d-flex justify-space-between">
-              <span class="font-weight-medium" :class="getRoleClass(msg.role)">
-                {{ msg.user }}
+              <span
+                class="font-weight-medium"
+                :class="getRoleClass(msg.role)"
+              >
+                {{ msg.username }}
               </span>
               <!-- <span class="text-caption text-medium-emphasis">
                 {{ formatTime(msg.timestamp) }}
@@ -43,34 +67,102 @@
             </v-list-item-title>
 
             <!-- Akcje do wiadomości widoczne w trybie moderacji -->
-            <template v-if="isUserModerator && isHovered === index" #append>
+            <template
+              v-if="isUserModerator && isHovered === index"
+              #append
+            >
               <div class="d-flex">
-                <v-tooltip location="top" text="Usuń wiadomość">
-                  <template v-slot:activator="{ props }">
-                    <v-btn v-bind="props" icon="mdi-delete" density="compact" variant="text" color="error" size="small"
-                      @click.stop="onMessageAction('delete', msg, index)" />
-                  </template>
-                </v-tooltip>
+                <ClientOnly>
+                  <v-tooltip
+                    location="top"
+                    text="Usuń wiadomość"
+                  >
+                    <template v-slot:activator="{ props }">
+                      <v-btn
+                        v-bind="props"
+                        icon="mdi-delete"
+                        density="compact"
+                        variant="text"
+                        color="error"
+                        size="small"
+                        @click.stop="onMessageAction('delete', msg, index)"
+                      />
+                    </template>
+                  </v-tooltip>
 
-                <v-tooltip location="top" text="Timeout użytkownika">
-                  <template v-slot:activator="{ props }">
-                    <v-btn v-bind="props" icon="mdi-timer-off" density="compact" variant="text" color="warning"
-                      size="small" @click.stop="onMessageAction('timeout', msg, index)" />
-                  </template>
-                </v-tooltip>
+                  <v-tooltip
+                    location="top"
+                    text="Timeout użytkownika"
+                  >
+                    <template v-slot:activator="{ props }">
+                      <v-btn
+                        v-bind="props"
+                        icon="mdi-timer-off"
+                        density="compact"
+                        variant="text"
+                        color="warning"
+                        size="small"
+                        @click.stop="onMessageAction('timeout', msg, index)"
+                      />
+                    </template>
+                  </v-tooltip>
 
-                <v-tooltip location="top" text="Zbanuj użytkownika">
-                  <template v-slot:activator="{ props }">
-                    <v-btn v-bind="props" icon="mdi-account-cancel" density="compact" variant="text" color="error"
-                      size="small" @click.stop="onMessageAction('ban', msg, index)" />
+                  <v-tooltip
+                    location="top"
+                    text="Zbanuj użytkownika"
+                  >
+                    <template v-slot:activator="{ props }">
+                      <v-btn
+                        v-bind="props"
+                        icon="mdi-account-cancel"
+                        density="compact"
+                        variant="text"
+                        color="error"
+                        size="small"
+                        @click.stop="onMessageAction('ban', msg, index)"
+                      />
+                    </template>
+                  </v-tooltip>
+                  
+                  <!-- Fallback dla ClientOnly -->
+                  <template #fallback>
+                    <div class="d-flex">
+                      <v-btn
+                        icon="mdi-delete"
+                        density="compact"
+                        variant="text"
+                        color="error"
+                        size="small"
+                        @click.stop="onMessageAction('delete', msg, index)"
+                      />
+                      <v-btn
+                        icon="mdi-timer-off"
+                        density="compact"
+                        variant="text"
+                        color="warning"
+                        size="small"
+                        @click.stop="onMessageAction('timeout', msg, index)"
+                      />
+                      <v-btn
+                        icon="mdi-account-cancel"
+                        density="compact"
+                        variant="text"
+                        color="error"
+                        size="small"
+                        @click.stop="onMessageAction('ban', msg, index)"
+                      />
+                    </div>
                   </template>
-                </v-tooltip>
+                </ClientOnly>
               </div>
             </template>
           </v-list-item>
 
           <!-- Wiadomości systemowe -->
-          <v-list-item v-else class="justify-center text-center">
+          <v-list-item
+            v-else
+            class="justify-center text-center"
+          >
             <span class="text-caption text-medium-emphasis">
               {{ msg.text }}
             </span>
@@ -80,11 +172,29 @@
     </v-card-text>
 
     <!-- Pole wprowadzania wiadomości -->
-    <v-card-actions v-if="!readOnly" class="chat-input pa-2 px-4">
-      <v-text-field v-model="newMessage" :placeholder="inputPlaceholder" variant="outlined" density="compact"
-        hide-details rounded bg-color="grey-darken-3" class="mt-2" @keyup.enter="sendMessage">
+    <v-card-actions
+      v-if="!readOnly"
+      class="chat-input pa-2 px-4"
+    >
+      <v-text-field
+        v-model="newMessage"
+        :placeholder="inputPlaceholder"
+        variant="outlined"
+        density="compact"
+        hide-details
+        rounded
+        bg-color="grey-darken-3"
+        class="mt-2"
+        @keyup.enter="sendMessage"
+      >
         <template #append-inner>
-          <v-btn :icon="sendIcon" variant="text" color="primary" size="small" @click="sendMessage" />
+          <v-btn
+            :icon="sendIcon"
+            variant="text"
+            color="primary"
+            size="small"
+            @click="sendMessage"
+          />
         </template>
         <slot name="input-actions"></slot>
       </v-text-field>
@@ -93,24 +203,18 @@
 </template>
 
 <script setup lang="ts">
-import {
-  ref,
-  computed,
-  watch,
-  nextTick,
-  onMounted,
-  warn,
-} from "vue";
+import { ref, computed, watch, nextTick, onMounted, warn } from "vue";
 import { useState } from "#app"; // Import useState z Nuxt
 
 import type { Moderator } from "@/types/moderator"; // Import typu Moderator
 
 const publicWS = usePublicWebSocket();
 const streamStore = useStreamsStore();
+const authStore = useAuthStore();
 const authWS = useAuthWebSocket();
 
 interface ChatMessage {
-  user: string;
+  username: string;
   text: string;
   time: Date;
   type?: "user" | "system" | "notification";
@@ -129,41 +233,46 @@ const administratorStatus = useState<any | null>(
   "administratorStatus",
   () => null
 );
-const streamerStatus = useState<any | null>("streamerStatus", () => null);
+// const streamerStatus = useState<any | null>("streamerStatus", () => null);
 
 console.log("Moderator status:", moderatorStatus.value?.moderatorId);
+
+const streamerAndStreamingStatus = useState<Boolean>(
+  "streamerAndStreamingStatus",
+  () => false
+);
 
 const isUserModerator = !!(
   moderatorStatus.value ||
   administratorStatus.value ||
-  streamerStatus.value
+  streamerAndStreamingStatus.value
 );
+
+const readOnly = computed(() => {
+  return !authStore.authenticated;
+});
 
 const props = defineProps({
   streamId: {
-    type: String,
+    type: Number,
     required: true,
   },
   messages: {
     type: Array as () => ChatMessage[],
     default: () => [],
   },
-  onlineCount: {
-    type: [String, Number],
-    default: "0",
-  },
+  // onlineCount: {
+  //   type: [String, Number],
+  //   default: "0",
+  // },
   title: {
     type: String,
     default: "Live Chat",
   },
-  showOnlineCount: {
-    type: Boolean,
-    default: true,
-  },
-  readOnly: {
-    type: Boolean,
-    default: false,
-  },
+  // showOnlineCount: {
+  //   type: Boolean,
+  //   default: true,
+  // },
   // showModActions: {
   //   type: Boolean,
   //   default: false,
