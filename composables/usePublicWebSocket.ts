@@ -34,17 +34,17 @@ export const usePublicWebSocket = () => {
         }
     };
 
-    const emit = (event: string, data?: any) => {
+    const emit = (event: string, ...args: any[]) => {
         if (socket?.connected) {
-            socket.emit(event, data);
+            socket.emit(event, ...args);
         } else {
             console.error("Public WebSocket not connected during 'emit'");
         }
     };
 
-    const joinStream = (streamId: string) => {
-        console.log("emitting joinStream", streamId);
-        emit("joinStream", streamId)
+    const joinStream = (streamId: string, statsOnly = false) => {
+        console.log("emitting joinStream", streamId, statsOnly);
+        emit("joinStream", streamId, statsOnly)
     };
     const leaveStream = (streamId: string) => emit("leaveStream", streamId);
 

@@ -217,7 +217,7 @@ onMounted(() => {
     if (stream.value?.options_id) {
         const streamIdValue = stream.value.options_id.toString();
         console.log('🔌 Initializing WebSocket connection in onMounted for stream:', streamIdValue)
-        ws.joinStream(streamIdValue)
+        ws.joinStream(streamIdValue, true)
     }
 })
 
@@ -264,7 +264,7 @@ watch(
         if (newStream?.options_id) {
             const newId = newStream.options_id.toString();
             console.log('🔌 Joining stream on change:', newId)
-            ws.joinStream(newId)
+            ws.joinStream(newId, true)
             console.log('🔌 Current WebSocket state after joining:', (ws as any).connected ? 'connected' : 'disconnected') 
         }
     },
