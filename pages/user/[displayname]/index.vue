@@ -112,6 +112,8 @@
               <div class="text-caption">{{ stream.description }}</div>
             </div>
             <v-spacer></v-spacer>
+            <SubscribeButton />
+            <UnsubscribeButton />
             <v-btn
               color="white"
               variant="outlined"
@@ -146,6 +148,8 @@
 <script setup lang="ts">
 import { useStreamsStore } from "#imports";
 import { ref, watch, onMounted, computed } from "vue";
+import SubscribeButton from "@/components/SubscribeButton.vue";
+import UnsubscribeButton from "@/components/UnsubscribeButton.vue";
 
 const streamsStore = useStreamsStore();
 const route = useRoute();
@@ -357,7 +361,7 @@ const updateStreamInfo = async () => {
       title: editedTitle.value,
       description: editedDescription.value,
       isPublic: isPublic.value,
-      thumbnail: null
+      thumbnail: null,
     }
   );
 
