@@ -1,30 +1,11 @@
 <template>
-  <AuthForm 
-    title="Rejestracja" 
-    submitText="Zarejestruj się" 
-    :errorMessage="errorMessage"
-    @submit="register"
-  >
+  <AuthForm title="Rejestracja" submitText="Zarejestruj się" :errorMessage="errorMessage" @submit="register">
     <template #fields>
-      <v-text-field
-        label="Username"
-        v-model="username"
-      ></v-text-field>
-      <v-text-field
-        label="Email"
-        v-model="email"
-      ></v-text-field>
-      <v-text-field
-        label="Hasło"
-        type="password"
-        v-model="password"
-      ></v-text-field>
-      <v-text-field
-        label="Powtórz hasło"
-        type="password"
-        v-model="confirmPassword"
-        @keydown.enter="register"
-      ></v-text-field>
+      <v-text-field label="Username" v-model="username"></v-text-field>
+      <v-text-field label="Email" v-model="email"></v-text-field>
+      <v-text-field label="Hasło" type="password" v-model="password"></v-text-field>
+      <v-text-field label="Powtórz hasło" type="password" v-model="confirmPassword"
+        @keydown.enter="register"></v-text-field>
     </template>
   </AuthForm>
 </template>
@@ -44,6 +25,7 @@ const password = ref("");
 const confirmPassword = ref("");
 const errorMessage = ref("");
 const config = useRuntimeConfig();
+const { auth } = useApi();
 
 const clearErrorMessage = () => {
   setTimeout(() => {
@@ -51,7 +33,7 @@ const clearErrorMessage = () => {
   }, 5000);
 };
 
-const register = () => {
+const register = async () => {
   if (
     !username.value ||
     !email.value ||
@@ -75,63 +57,45 @@ const register = () => {
     return;
   }
 
-  // Environment variables
-  const BACK_HOST = config.public.BACK_HOST;
+  try {
+    const { data, error } = await auth.register(
+      username.value,
+      email.value,
+      password.value
+    );
 
-  const dataREQUEST = JSON.stringify({
-    username: username.value,
-    email: email.value,
-    // reqHASH: HASH,
-    password: password.value,
-  });
-
-  // console.log(dataREQUEST);
-
-  fetch(`http://${BACK_HOST}/auth/register`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: dataREQUEST,
-  })
-    .then(async (response) => {
-      if (response.status === StatusCodes.CREATED) {
-        return response.json();
+    if (error.value) {
+      // Handle different error types
+      if (error.value.statusCode === StatusCodes.CONFLICT) {
+        const cause = error.value.data?.cause;
+        const whatsWrong = cause === "username" ? "podanej nazwie" : "podanym emailu";
+        errorMessage.value = `Użytkownik o ${whatsWrong} już istnieje`;
+      } else if (error.value.statusCode === StatusCodes.BAD_REQUEST) {
+        errorMessage.value = "Błąd rejestracji";
       } else {
-        const respJSON = await response.json();
-        // Handle different error types
-        if (response.status === StatusCodes.CONFLICT) {
-          console.log(" response.statusText", response.statusText);
-          console.log("respJSON", respJSON["cause"]);
-          const whatsWrong =
-            respJSON["cause"] === "username"
-              ? "podanej nazwie"
-              : "podanym emailu";
-          errorMessage.value = `Użytkownik o ${whatsWrong} już istnieje`;
-        } else if (response.status === StatusCodes.BAD_REQUEST) {
-          errorMessage.value = "Błąd rejestracji";
-        } else {
-          errorMessage.value = "Błąd serwera";
-        }
-
-        // Clear error message after timeout
-        clearErrorMessage();
-
-        return respJSON;
+        errorMessage.value = "Błąd serwera";
       }
-    })
-    .then((data) => {
-      if (data.success) {
-        // Handle successful registration
-        console.log("Registration successful");
-        navigateTo("/login", { replace: true });
-      } else {
-        // Handle registration failure
-        console.log("Registration failed");
-      }
-    })
-    .catch((error) => {
-      console.error(error);
-    });
+
+      // Clear error message after timeout
+      clearErrorMessage();
+      console.log("Registration failed");
+      return;
+    }
+
+    if (data.value?.success) {
+      // Handle successful registration
+      console.log("Registration successful");
+      navigateTo("/login", { replace: true });
+    } else {
+      // Handle registration failure
+      console.log("Registration failed");
+      errorMessage.value = "Błąd rejestracji";
+      clearErrorMessage();
+    }
+  } catch (error) {
+    console.error(error);
+    errorMessage.value = "Błąd serwera";
+    clearErrorMessage();
+  }
 };
 </script>

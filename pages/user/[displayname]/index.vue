@@ -148,17 +148,10 @@ import { useStreamsStore } from "#imports";
 import { ref, watch, onMounted, computed } from "vue";
 
 const streamsStore = useStreamsStore();
-
-const config = useRuntimeConfig();
-
-const BACK_HOST = config.public.BACK_HOST;
-
 const route = useRoute();
-
-const endpoint = `http://${BACK_HOST}`;
+const api = useApi();
 
 const displayName = route.params.displayname as string;
-
 const streamStore = useStreamsStore();
 
 const stream = computed(() => {
@@ -174,16 +167,8 @@ const stream = computed(() => {
 
 const streamId = computed(() => stream.value?.id);
 
-// const streamOptionsId = computed(() => stream.value?.options_id);
-
-// const pWS = usePublicWebSocket();
-
 onMounted(async () => {
   await streamsStore.fetchStreams();
-  // pWS.joinStream(streamOptionsId.value?.toString());
-  // pWS.onStreamStatsBasic((data) => {
-  //   console.log("Stream stats data:", data);
-  // });
 });
 
 definePageMeta({
@@ -337,7 +322,6 @@ onBeforeUnmount(() => {
 //   credentials: "include",
 // });
 
-// Dodaj te zmienne po istniejącym kodzie
 const editDialog = ref(false);
 const editedTitle = ref("");
 const editedDescription = ref("");
@@ -358,49 +342,37 @@ watch(
 const streamID = computed(
   () => streamStore.getStreamByStreamerName(displayName)?.options_id
 );
-// Funkcja aktualizująca dane streamu
+
 const updateStreamInfo = async () => {
   if (!editedTitle.value || !editedDescription.value) {
     console.error("Tytuł i opis są wymagane.");
     alert("Tytuł i opis są wymagane.");
     return;
   }
-  try {
-    const response = await $fetch(
-      `${endpoint}/streams/${displayName}/${streamID.value}`,
-      {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: {
-          title: editedTitle.value,
-          description: editedDescription.value,
-          isPublic: isPublic.value,
-          thumbnail: null,
-        },
-        credentials: "include",
-      }
-    );
 
-    // Zamknij dialog
-    editDialog.value = false;
-
-    // Bezpośrednia aktualizacja wartości w store
-    const currentStream = streamsStore.getStreamByStreamerName(displayName);
-    if (currentStream) {
-      currentStream.title = editedTitle.value;
-      currentStream.stream_description = editedDescription.value;
+  const { error } = await api.streams.updateStream(
+    displayName,
+    streamID.value,
+    {
+      title: editedTitle.value,
+      description: editedDescription.value,
+      isPublic: isPublic.value,
+      thumbnail: null
     }
+  );
 
-    // Odśwież dane w tle
-    streamsStore.fetchStreams();
-
-    // Opcjonalnie: pokaż powiadomienie o sukcesie
-  } catch (error) {
-    console.error("Błąd podczas aktualizacji informacji o streamie:", error);
-    // Opcjonalnie: pokaż powiadomienie o błędzie
+  if (error.value) {
+    console.error("Błąd aktualizacji:", error.value);
+    return;
   }
+
+  editDialog.value = false;
+  const currentStream = streamsStore.getStreamByStreamerName(displayName);
+  if (currentStream) {
+    currentStream.title = editedTitle.value;
+    currentStream.stream_description = editedDescription.value;
+  }
+  streamsStore.fetchStreams();
 };
 </script>
 

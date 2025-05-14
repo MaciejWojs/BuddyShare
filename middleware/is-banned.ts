@@ -1,47 +1,48 @@
+// middleware/is-user-not-banned.ts
 export default defineNuxtRouteMiddleware(async (to) => {
-  if (import.meta.server) return;
+  // Nie wykonujemy na serwerze
+  if (import.meta.server) return
 
-  const authStore = useAuthStore();
+  const authStore = useAuthStore()
 
-  const isAdmin = authStore.isAdmin;
+  // Admin zawsze przepuszczamy
+  if (authStore.isAdmin) return
 
-  if (isAdmin) return;
-
-  const username = to.params.displayname;
-
-  const config = useRuntimeConfig();
-
-  const BACK_HOST = config.public.BACK_HOST;
-
-  console.log("Checking if user exists:", to.params);
-
-  console.log("Checking if user exists:", username);
-
+  // Musimy mieć nazwę użytkownika w URL
+  const username = to.params.displayname as string | undefined
   if (!username) {
     throw createError({
       statusCode: 400,
-      statusMessage: "Username is required",
-    });
+      statusMessage: 'Username is required',
+    })
   }
-  const baben = `http://${BACK_HOST}/users/${username}`;
 
-  console.log("Checking if user exists:", baben);
-  const { error, status, data } = await useFetch(baben);
+  const { users } = useApi()
+  const { data, error } = await users.checkIfExists(username)
 
-  // console.log("ERROR: ", error.value);
-  // console.log("STATUS: ", status);
-  // console.log("DATA: ", data.value);
-  if (!data.value) {
+  // Błąd sieci lub inny niż brak rekordu traktujemy jako wewnętrzny
+  if (error.value) {
+    console.error('Failed to verify user existence:', error.value)
     throw createError({
       statusCode: 500,
-      statusMessage: "Failed to verify user",
-    });
+      statusMessage: 'Failed to verify user',
+    })
   }
 
-  if ((data.value as { isBanned?: boolean })?.isBanned) {
+  // Jeżeli API zwróciło null lub undefined, to znaczy że coś nie tak z odpowiedzią
+  if (!data.value) {
+    console.error('Empty response verifying user:', username)
+    throw createError({
+      statusCode: 500,
+      statusMessage: 'Failed to verify user',
+    })
+  }
+
+  // Sprawdzamy pole isBanned
+  if ((data.value as { isBanned?: boolean }).isBanned) {
     throw createError({
       statusCode: 404,
       statusMessage: `${username} is banned`,
-    });
+    })
   }
-});
+})

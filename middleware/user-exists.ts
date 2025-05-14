@@ -1,40 +1,29 @@
 // middleware/user-exists.ts
 export default defineNuxtRouteMiddleware(async (to) => {
-  const username = to.params.displayname;
+  if (import.meta.server) return
 
-  const config = useRuntimeConfig();
-
-  const BACK_HOST = config.public.BACK_HOST;
-  const BACK_PORT = config.public.BACK_PORT;
-  const BACK_URL = `${BACK_HOST}${BACK_PORT ? `:${BACK_PORT}` : ""}`;
-
-  console.log("Checking if user exists:", to.params);
-
-  console.log("Checking if user exists:", username);
-
+  const username = to.params.displayname as string | undefined
   if (!username) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: "Username is required",
-    });
+    throw createError({ statusCode: 400, statusMessage: 'Username is required' })
   }
-  const baben = `http://${BACK_URL}/users/${username}`;
 
-  console.log("Checking if user exists:", baben);
-  const { error } = await useFetch(baben);
-
-  if (error.value?.statusCode === 404) {
-    throw createError({
-      statusCode: 404,
-      statusMessage: "User not found",
-      fatal: true,
-    });
-  }
+  const api = useApi()
+  const { error } = await api.users.checkIfExists(username)
 
   if (error.value) {
+    // 404 → user not found
+    if (error.value.statusCode === 404) {
+      throw createError({
+        statusCode: 404,
+        statusMessage: `User "${username}" not found`,
+      })
+    }
+    // anything else → server error
     throw createError({
-      statusCode: 500,
-      statusMessage: "Failed to verify user",
-    });
+      statusCode: error.value.statusCode || 500,
+      statusMessage: error.value.statusMessage || 'Failed to verify user',
+    })
   }
-});
+
+  // if we get here, the user exists and is not banned
+})

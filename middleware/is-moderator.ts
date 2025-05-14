@@ -1,76 +1,67 @@
 // middleware/is-moderator.ts
-import type { Moderator } from "~/types/moderator";
+import type { Moderator } from '~/types/moderator'
+import { useApi } from '~/composables/useApi'
+
 export default defineNuxtRouteMiddleware(async (to) => {
-  if (import.meta.server) return;
+  if (import.meta.server) return
 
-  const authStore = useAuthStore();
-  // const nuxtData = useNuxtApp();
+  const authStore = useAuthStore()
+  // globalny stan, w którym będziemy przechowywać info o moderatorze
   const moderatorStatus = useState<Moderator | null>(
-    "moderatorStatus",
+    'moderatorStatus',
     () => null
-  );
+  )
 
-  // Sprawdzenie czy użytkownik jest zalogowany
+  // jeśli niezalogowany, wychodzimy
   if (!authStore.authenticated) {
-    return;
+    return
   }
 
-  // Pobranie nazwy użytkownika z authStore
-  const currentUserUsername = authStore.userName;
-  console.log("currentUserUsername", currentUserUsername);
+  const currentUserUsername = authStore.userName
   if (!currentUserUsername) {
-    console.error("EXITING MIDDLEWARE : currentUserUsername is null");
-    return;
+    console.error('EXITING MIDDLEWARE: brak nazwy użytkownika')
+    return
   }
 
-  // Pobranie nazwy streamera z parametrów ścieżki
-  const streamerUsername = to.params.displayname;
+  const streamerUsername = to.params.displayname as string | undefined
   if (!streamerUsername) {
     throw createError({
       statusCode: 400,
-      statusMessage: "Nazwa streamera jest wymagana",
-    });
+      statusMessage: 'Nazwa streamera jest wymagana',
+    })
   }
 
-  const config = useRuntimeConfig();
-  const BACK_HOST = config.public.BACK_HOST;
+  // korzystamy z useApi
+  const { streamers } = useApi()
 
-  // Budowanie URL do API
-  const url = `http://${BACK_HOST}/streamers/${streamerUsername}/moderators/${currentUserUsername}`;
-  const headers = useRequestHeaders(["cookie"]);
+  // wywołujemy endpoint GET /streamers/:streamer/moderators/:user
+  const { data, error } = await streamers.getModerator(
+    streamerUsername,
+    currentUserUsername
+  )
 
-  // Wysłanie zapytania do API z tokenem autoryzacyjnym używając useFetch
-  const { data, error } = await useFetch<Moderator | null>(url, {
-    headers: {
-      "Content-Type": "application/json",
-      ...headers,
-    },
-    credentials: "include",
-  });
-
+  // 404 → nie jest moderatorem, wychodzimy bez błędu
   if (error.value?.statusCode === 404) {
-    console.error("EXITING MIDDLEWARE : user is not a moderator");
-    return;
+    console.log('EXITING MIDDLEWARE: użytkownik nie jest moderatorem')
+    return
   }
 
+  // inny błąd → logujemy i wychodzimy
   if (error.value) {
     console.error(
-      "EXITING MIDDLEWARE : Error fetching moderator status",
+      'EXITING MIDDLEWARE: błąd pobierania statusu moderatora',
       error.value
-    );
-    console.error("EXITING MIDDLEWARE : error value", error.value.statusCode);
-    return;
+    )
+    return
   }
 
+  // jeśli API zwróciło null albo undefined — nie jest moderatorem
   if (!data.value) {
-    console.error("EXITING MIDDLEWARE : user is not a moderator");
-
-    return;
+    console.log('EXITING MIDDLEWARE: użytkownik nie jest moderatorem')
+    return
   }
 
-  // nuxtData.$moderator = data.value;
-  moderatorStatus.value = data.value;
-  console.log("EXITING MIDDLEWARE : user is a moderator", data.value);
-  // console.log("EXITING MIDDLEWARE : NUXT DATA", nuxtData.$moderator);
-  // Sprawdzenie czy użytkownik jest moderatorem
-});
+  // zapiszemy info o moderatorze w stanie globalnym
+  moderatorStatus.value = data.value
+  console.log('EXITING MIDDLEWARE: użytkownik jest moderatorem', data.value)
+})

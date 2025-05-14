@@ -52,4 +52,10 @@ export default defineNuxtConfig({
 
   compatibilityDate: "2025-03-10",
   devtools: { enabled: true },
+
+  pinia: {
+    // autoImports: ['defineStore', 'acceptHMRUpdate'],
+    // Dodaj opcję do obsługi problemów z hydratacją
+    storesDirs: ['./stores/**'],
+  },
 });
