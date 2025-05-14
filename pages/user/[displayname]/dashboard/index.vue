@@ -1,43 +1,81 @@
 <template>
-  <div class="dashboard">
-    <h1 class="text-h4 mb-6">Dashboard</h1>
-    <p>Witaj w swoim dashboardzie, {{ displayName }}!</p>
+  <v-container class="py-6" fluid>
+    <v-row justify="center">
+      <v-col cols="12" md="10" lg="8">
+        <v-card elevation="2" class="pa-6">
+          <v-card-title class="text-h4">
+            Dashboard
+          </v-card-title>
+          <v-card-subtitle class="mb-4">
+            Witaj w swoim dashboardzie, <strong>{{ displayName }}</strong>!
+          </v-card-subtitle>
 
-    <v-divider class="my-4"></v-divider>
+          <v-divider class="my-4"></v-divider>
 
-    <section class="stream-stats-section">
-      <h2 class="text-h5 mb-4">Statystyki streama</h2>
-      <v-row>
-        <v-col cols="12" md="8">
-          <!-- Wykres statystyk -->
-          <ViewerChart :streamerName="displayName"/>
-        </v-col>
-      </v-row>
-    </section>
+          <section class="mb-8">
+            <v-card-title class="text-h5 mb-4">Statystyki streama</v-card-title>
+            <ViewerChart :streamerName="displayName" />
+          </section>
 
-    <v-divider class="my-4"></v-divider>
+          <v-divider class="my-4"></v-divider>
 
-    <section>
-      <h2 class="text-h5 mb-4">Szybkie akcje</h2>
-      <v-row>
-        <v-col cols="12" md="4">
-          <v-btn block color="primary" :to="`/user/${displayName}/dashboard/stream`">
-            Ustawienia streama
-          </v-btn>
-        </v-col>
-        <v-col cols="12" md="4">
-          <v-btn block color="secondary" :to="`/user/${displayName}/settings`">
-            Ustawienia konta
-          </v-btn>
-        </v-col>
-        <v-col cols="12" md="4">
-          <v-btn block color="info" :to="`/user/${displayName}`">
-            Przejdź do kanału
-          </v-btn>
-        </v-col>
-      </v-row>
-    </section>
-  </div>
+          <section>
+            <v-card-title class="text-h5 mb-4">Szybkie akcje</v-card-title>
+            <v-row dense>
+              <v-col cols="12" sm="6" md="4">
+                <v-card hover class="fill-height d-flex flex-column">
+                  <v-card-title>
+                    <v-icon left>mdi-video</v-icon>
+                    Ustawienia streama
+                  </v-card-title>
+                  <v-card-text class="flex-grow-1">
+                    Zarządzaj ustawieniami swojego streama.
+                  </v-card-text>
+                  <v-card-actions>
+                    <v-btn block color="primary" outlined :to="`/user/${displayName}/dashboard/stream`">
+                      Przejdź
+                    </v-btn>
+                  </v-card-actions>
+                </v-card>
+              </v-col>
+              <v-col cols="12" sm="6" md="4">
+                <v-card hover class="fill-height d-flex flex-column">
+                  <v-card-title>
+                    <v-icon left>mdi-cog</v-icon>
+                    Ustawienia konta
+                  </v-card-title>
+                  <v-card-text class="flex-grow-1">
+                    Dostosuj ustawienia swojego konta.
+                  </v-card-text>
+                  <v-card-actions>
+                    <v-btn block color="secondary" outlined :to="`/user/${displayName}/settings`">
+                      Przejdź
+                    </v-btn>
+                  </v-card-actions>
+                </v-card>
+              </v-col>
+              <v-col cols="12" sm="6" md="4">
+                <v-card hover class="fill-height d-flex flex-column">
+                  <v-card-title>
+                    <v-icon left>mdi-account</v-icon>
+                    Przejdź do kanału
+                  </v-card-title>
+                  <v-card-text class="flex-grow-1">
+                    Zobacz swój publiczny profil kanału.
+                  </v-card-text>
+                  <v-card-actions>
+                    <v-btn block color="info" outlined :to="`/user/${displayName}`">
+                      Przejdź
+                    </v-btn>
+                  </v-card-actions>
+                </v-card>
+              </v-col>
+            </v-row>
+          </section>
+        </v-card>
+      </v-col>
+    </v-row>
+  </v-container>
 </template>
 
 <script setup lang="ts">
@@ -47,17 +85,8 @@ import { useStreamsStore } from '~/stores/streams';
 const route = useRoute();
 const displayName = route.params.displayname;
 const streamsStore = useStreamsStore();
-
 </script>
 
 <style scoped>
-.dashboard {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px;
-}
-
-section {
-  margin-bottom: 2rem;
-}
+/* Styl jest teraz w dużej mierze przejęty przez Vuetify */
 </style>

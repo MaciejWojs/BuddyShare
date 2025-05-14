@@ -1,7 +1,7 @@
 <template>
     <div class="chart-container">
         <client-only>
-            <v-chart ref="chartRef" class="chart" :option="chartOptions" autoresize />
+            <v-chart ref="chartRef" class="chart" :option="chartOptions" autoresize style="width: 100%;" />
         </client-only>
     </div>
 </template>
@@ -59,6 +59,12 @@ const viewerData = computed(() => {
     return viewers.map((v: any) => [new Date(v.timestamp), v.count])
 })
 
+// Przygotowanie danych subskrybentów
+const subscriberData = computed(() => {
+    const subscribers = streamHistory.value.subscribers || []
+    return subscribers.map((s: any) => [new Date(s.timestamp), s.count])
+})
+
 // Ref do komponentu wykresu (opcjonalnie do ręcznego update'u)
 const chartRef = ref<any>(null)
 
@@ -79,13 +85,21 @@ const chartOptions = computed(() => {
     return {
         backgroundColor: 'transparent',
         title: {
-            text: 'Liczba widzów na żywo',
+            text: 'Statystyki na żywo',
             left: 'center',
             textStyle: { 
                 color: '#ffffff', 
                 fontSize: 18, 
                 fontWeight: 'bold' 
             }
+        },
+        legend: {
+            data: ['Widzowie', 'Subskrybenci'],
+            bottom: 0,
+            textStyle: {
+                color: '#ccc'
+            },
+            itemGap: 30
         },
         tooltip: {
             trigger: 'axis',
@@ -96,9 +110,16 @@ const chartOptions = computed(() => {
             borderRadius: 4,
             formatter: (params: any) => {
                 const date = new Date(params[0].data[0]).toLocaleTimeString()
-                const count = params[0].data[1]
-                return `<span style="font-weight:bold">${date}</span><br/>
-                        <span style="color:#6495ED">◉</span> <span style="font-size:14px">${count} widzów</span>`
+                let result = `<span style="font-weight:bold">${date}</span><br/>`
+                
+                params.forEach((param: any) => {
+                    const color = param.seriesName === 'Widzowie' ? '#6495ED' : '#FF7F50'
+                    const count = param.data[1]
+                    const name = param.seriesName
+                    result += `<span style="color:${color}">◉</span> <span style="font-size:14px">${count} ${name.toLowerCase()}</span><br/>`
+                })
+                
+                return result
             }
         },
         grid: {
@@ -202,6 +223,57 @@ const chartOptions = computed(() => {
                         borderWidth: 2
                     }
                 }
+            },
+            {
+                data: subscriberData.value,
+                type: 'line',
+                smooth: true,
+                name: 'Subskrybenci',
+                areaStyle: {
+                    opacity: 0.6,
+                    color: {
+                        type: 'linear',
+                        x: 0, y: 0, x2: 0, y2: 1,
+                        colorStops: [
+                            { offset: 0, color: 'rgba(255, 127, 80, 0.7)' },
+                            { offset: 1, color: 'rgba(255, 127, 80, 0.1)' }
+                        ]
+                    }
+                },
+                lineStyle: {
+                    color: '#FF7F50', // Coral color for subscribers
+                    width: 3
+                },
+                itemStyle: {
+                    color: '#FF7F50',
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                },
+                showSymbol: false,
+                emphasis: {
+                    focus: 'series',
+                    itemStyle: {
+                        color: '#ffffff',
+                        borderColor: '#FF7F50',
+                        borderWidth: 3,
+                        shadowBlur: 10,
+                        shadowColor: 'rgba(255, 127, 80, 0.7)'
+                    }
+                },
+                markPoint: {
+                    symbol: 'circle',
+                    symbolSize: 8,
+                    label: { show: false },
+                    data: [
+                        { type: 'max', name: 'Maksimum' },
+                        { type: 'min', name: 'Minimum' }
+                    ],
+                    itemStyle: {
+                        color: '#ffffff',
+                        borderColor: '#FF7F50',
+                        borderWidth: 2
+                    }
+                }
             }
         ]
     }
@@ -231,15 +303,20 @@ onBeforeUnmount(() => {
 
 // Ręczne wymuszenie update'u serii
 watch(
-    [() => viewerData.value, () => streamHistory.value],
-    ([newData], [oldData]) => {
-        console.log('👁️ viewerData changed:', newData)
+    [() => viewerData.value, () => subscriberData.value, () => streamHistory.value],
+    ([newViewerData, newSubscriberData], [oldViewerData, oldSubscriberData]) => {
+        console.log('👁️ viewerData changed:', newViewerData)
+        console.log('👁️ subscriberData changed:', newSubscriberData)
         console.log('👁️ stream history changed:', streamHistory.value)
-        console.log('👁️ Previous data length:', oldData?.length || 0, 'New data length:', newData?.length || 0)
+        console.log('👁️ Previous viewer data length:', oldViewerData?.length || 0, 'New viewer data length:', newViewerData?.length || 0)
+        console.log('👁️ Previous subscriber data length:', oldSubscriberData?.length || 0, 'New subscriber data length:', newSubscriberData?.length || 0)
         if (chartRef.value) {
             nextTick(() => {
                 chartRef.value.setOption({
-                    series: [{ data: newData }]
+                    series: [
+                        { data: newViewerData },
+                        { data: newSubscriberData }
+                    ]
                 })
             })
         }
@@ -292,10 +369,13 @@ watch(
     background-color: rgba(30, 30, 30, 0.5);
     margin: 15px 0;
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+    box-sizing: border-box;
 }
 
 .chart {
     width: 100%;
     height: 100%;
+    max-width: 100%;
+    display: block;
 }
 </style>
