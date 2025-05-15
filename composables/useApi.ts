@@ -20,11 +20,23 @@ export const useApi = () => {
       baseURL,
       credentials: "include",
       ...options,
+      // lazy: true,
+      server: false,
+      onRequestError: (error) => {
+        console.error(`Request error during: ${endpoint}`, error);
+      },
+      onResponseError: (error) => {
+        console.error(`Response error during: ${endpoint}`, error);
+      },
+      onResponse: (response) => {
+        if (response._data) {
+          console.log(`Response data during: ${endpoint}`, response._data);
+        }
+      },
     });
 
     return { data, error, pending };
   };
-
   /**
    * Autentykacja
    */
@@ -131,6 +143,14 @@ export const useApi = () => {
     getSubscriptions: (username: string) =>
       request(`/users/${username}/subscriptions`),
 
+    getSubscriptionsDollar: (username: string) =>
+      $fetch(`http://${host}/users/${username}/subscriptions`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+      }),
     getNotifications: (username: string) => {
       console.log("(COMPOSABLES) useApi: getNotifications", username);
       return request(`/users/${username}/notifications`);

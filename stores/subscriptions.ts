@@ -1,10 +1,11 @@
+import { config } from "dotenv";
 import { defineStore } from "pinia";
 import { useAuthStore } from "~/stores/auth";
 import type { Subscription } from "~/types/Subscription";
 
 export const useSubscriptionStore = defineStore("subscriptions", {
   state: () => ({
-    subscriptions: [] as Subscription[],
+    subscriptions: Array<Subscription>(),
     isLoading: false,
     error: null as Error | null,
   }),
@@ -14,6 +15,8 @@ export const useSubscriptionStore = defineStore("subscriptions", {
       console.log("[STORESUB] Fetching subscriptions");
       const authStore = useAuthStore();
       const { users } = useApi(); // Przeniesione do wnętrza metody
+      const config = useRuntimeConfig();
+      const host = config.public.BACK_HOST;
 
       if (!authStore.userName) {
         console.log("[STORESUB] Error: User not logged in");
@@ -26,13 +29,48 @@ export const useSubscriptionStore = defineStore("subscriptions", {
         console.log(
           `[STORESUB] Requesting subscriptions for user: ${authStore.userName}`
         );
-        const { data, error } = await users.getSubscriptions(
-          authStore.userName
+        const dataDollar = await $fetch(
+          `http://${host}/users/${authStore.userName}/subscriptions`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            credentials: "include",
+          }
         );
-        if (error) throw error;
-        this.subscriptions = data.value;
+
+        // const {
+        //   data: dataUse,
+        //   error: errorUse,
+        //   pending: pendingUse,
+        // } = await useFetch(
+        //   `http://${host}/users/${authStore.userName}/subscriptions`,
+        //   {
+        //     method: "GET",
+        //     headers: {
+        //       "Content-Type": "application/json",
+        //     },
+        //     credentials: "include",
+        //     // lazy: true,
+        //   }
+        // );
+        const {
+          data: APIdata,
+          error: APIerror,
+          pending: APIpending,
+        } = await users.getSubscriptions(authStore.userName);
+        console.log("[STORESUB] Fetched subscriptions($):", dataDollar);
+        // console.log("[STORESUB] Fetched subscriptions(use):", dataUse.value);
+        // console.log("[STORESUB] Error(use):", errorUse.value);
+        // console.log("[STORESUB] Pending(use):", pendingUse.value);
+        console.log("[STORESUB] data(API):", APIdata.value);
+        console.log("[STORESUB] error(API):", APIerror.value);
+        console.log("[STORESUB] pending(API):", APIpending.value);
+
+        this.subscriptions = APIdata;
         this.error = null;
-        console.log("[STORESUB] Fetched subscriptions:", this.subscriptions);
+        // console.log("[STORESUB] Fetched subscriptions:", this.subscriptions);
       } catch (err) {
         console.log("[STORESUB] Error fetching subscriptions:", err);
         this.error = err as Error;

@@ -34,9 +34,7 @@ async function loadSubscriptions() {
     //   }
     // );
 
-    const response = await subscriptionStore.fetchSubscriptions(
-      authStore.userName
-    );
+    const response = await subscriptionStore.fetchSubscriptions();
 
     console.log("SUB: Subscriptions response", response);
 
@@ -125,174 +123,127 @@ async function handleUnsubscribe(username: string) {
 </script>
 
 <template>
-  <div class="subscriptions-container">
-    <h1 class="title">Moje subskrypcje</h1>
-
-    <div
-      v-if="isLoading"
-      class="loading"
-    >
-      <p>Ładowanie subskrypcji...</p>
-    </div>
-
-    <div
-      v-else-if="!isCurrentUser"
-      class="error-message"
-    >
-      <p>Możesz przeglądać tylko własne subskrypcje.</p>
-    </div>
-
-    <div
-      v-else-if="subscriptionStore.error"
-      class="error-message"
-    >
-      <p>
-        Wystąpił błąd podczas pobierania subskrypcji:
-        {{ subscriptionStore.error.message }}
-      </p>
-    </div>
-
-    <div
-      v-else-if="!subscriptionStore.subscribedStreamers.length"
-      class="empty-state"
-    >
-      <p>Nie subskrybujesz jeszcze żadnych streamerów.</p>
-      <NuxtLink
-        to="/discover"
-        class="discover-link"
-        >Odkryj streamerów</NuxtLink
+  <v-container
+    class="py-6"
+    fluid
+  >
+    <v-row justify="center">
+      <v-col
+        cols="12"
+        md="10"
+        lg="8"
       >
-    </div>
-
-    <div
-      v-else
-      class="subscriptions-list"
-    >
-      <div
-        v-for="streamer in subscriptionStore.subscribedStreamers"
-        :key="streamer.id"
-        class="subscription-card"
-      >
-        <div class="avatar">
-          <img
-            v-if="streamer.profilePicture"
-            :src="streamer.profilePicture"
-            :alt="streamer.username"
-          />
-          <div
-            v-else
-            class="fallback-avatar"
-          >
-            {{ streamer.username.charAt(0).toUpperCase() }}
-          </div>
-        </div>
-        <div class="info">
-          <NuxtLink
-            :to="`/user/${streamer.username}`"
-            class="username"
-          >
-            {{ streamer.username }}
-          </NuxtLink>
-        </div>
-        <button
-          class="unsubscribe-button"
-          @click="handleUnsubscribe(streamer.username)"
+        <v-card
+          elevation="2"
+          class="pa-6"
         >
-          Anuluj subskrypcję
-        </button>
-      </div>
-    </div>
-  </div>
+          <v-card-title class="text-h4"> Moje subskrypcje </v-card-title>
+
+          <v-divider class="my-4"></v-divider>
+
+          <div
+            v-if="isLoading"
+            class="text-center pa-8"
+          >
+            <v-progress-circular
+              indeterminate
+              color="primary"
+            ></v-progress-circular>
+            <div class="mt-4">Ładowanie subskrypcji...</div>
+          </div>
+
+          <v-alert
+            v-else-if="!isCurrentUser"
+            type="warning"
+            class="mt-4"
+          >
+            Możesz przeglądać tylko własne subskrypcje.
+          </v-alert>
+
+          <v-alert
+            v-else-if="subscriptionStore.error"
+            type="error"
+            class="mt-4"
+          >
+            Wystąpił błąd podczas pobierania subskrypcji:
+            {{ subscriptionStore.error.message }}
+          </v-alert>
+
+          <v-card
+            v-else-if="!subscriptionStore.subscribedStreamers.length"
+            class="pa-6 text-center"
+            flat
+          >
+            <v-card-text>
+              <p class="text-h6">
+                Nie subskrybujesz jeszcze żadnych streamerów.
+              </p>
+              <v-btn
+                class="mt-4"
+                color="primary"
+                to="/discover"
+              >
+                Odkryj streamerów
+              </v-btn>
+            </v-card-text>
+          </v-card>
+
+          <v-row v-else>
+            <v-col
+              v-for="streamer in subscriptionStore.subscribedStreamers"
+              :key="streamer.id"
+              cols="12"
+              sm="6"
+              md="4"
+            >
+              <v-card
+                hover
+                class="fill-height d-flex flex-column"
+              >
+                <div class="d-flex justify-center pa-4">
+                  <v-avatar size="80">
+                    <v-img
+                      v-if="streamer.profilePicture"
+                      :src="streamer.profilePicture"
+                      :alt="streamer.username"
+                    ></v-img>
+                    <v-avatar
+                      v-else
+                      color="primary"
+                      size="80"
+                    >
+                      {{ streamer.username.charAt(0).toUpperCase() }}
+                    </v-avatar>
+                  </v-avatar>
+                </div>
+                <v-card-title class="justify-center">
+                  {{ streamer.username }}
+                </v-card-title>
+                <v-card-actions class="justify-center">
+                  <v-btn
+                    color="primary"
+                    variant="text"
+                    :to="`/user/${streamer.username}`"
+                  >
+                    Odwiedź profil
+                  </v-btn>
+                  <v-btn
+                    color="error"
+                    variant="outlined"
+                    @click="handleUnsubscribe(streamer.username)"
+                  >
+                    Anuluj subskrypcję
+                  </v-btn>
+                </v-card-actions>
+              </v-card>
+            </v-col>
+          </v-row>
+        </v-card>
+      </v-col>
+    </v-row>
+  </v-container>
 </template>
 
-<style lang="scss" scoped>
-.subscriptions-container {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 20px;
-}
-.title {
-  font-size: 24px;
-  margin-bottom: 20px;
-  font-weight: bold;
-}
-.loading,
-.error-message,
-.empty-state {
-  text-align: center;
-  padding: 40px 0;
-  color: #666;
-}
-.discover-link {
-  display: inline-block;
-  margin-top: 10px;
-  color: #4a6cf7;
-  text-decoration: underline;
-}
-.subscriptions-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 20px;
-}
-.subscription-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 20px;
-  background-color: #f5f5f5;
-  border-radius: 8px;
-  transition: transform 0.2s ease;
-}
-.subscription-card:hover {
-  transform: translateY(-5px);
-}
-.avatar {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  overflow: hidden;
-  margin-bottom: 10px;
-}
-.avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.fallback-avatar {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: #4a6cf7;
-  color: white;
-  font-size: 24px;
-  font-weight: bold;
-}
-.info {
-  text-align: center;
-  margin-bottom: 10px;
-}
-.username {
-  font-weight: 600;
-  font-size: 18px;
-  color: #333;
-  text-decoration: none;
-}
-.username:hover {
-  text-decoration: underline;
-}
-.unsubscribe-button {
-  margin-top: 10px;
-  background-color: #ff4d4f;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  padding: 8px 12px;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-}
-.unsubscribe-button:hover {
-  background-color: #ff7875;
-}
+<style scoped>
+/* Style zarządzane przez Vuetify */
 </style>
