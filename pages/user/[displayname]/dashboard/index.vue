@@ -14,7 +14,17 @@
 
           <section class="mb-8">
             <v-card-title class="text-h5 mb-4">Statystyki streama</v-card-title>
-            <ViewerChart :streamerName="displayName" />
+            <ChartViewers :streamerName="displayName" />
+          </section>
+
+          <v-divider class="my-4"></v-divider>
+          <section class="mb-8">
+            <ChartSubsribers :streamerName="displayName" />
+          </section>
+
+          <v-divider class="my-4"></v-divider>
+          <section class="mb-8">
+            <ChartFollowers :streamerName="displayName" />
           </section>
 
           <v-divider class="my-4"></v-divider>
@@ -79,6 +89,7 @@
 </template>
 
 <script setup lang="ts">
+import { ChartViewers } from '#components';
 import { useRoute } from 'vue-router';
 import { useStreamsStore } from '~/stores/streams';
 

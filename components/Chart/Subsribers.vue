@@ -53,12 +53,6 @@ const streamHistory = computed(() => {
 
 // 1) Poprawione zwracanie stream
 
-// 2) Przygotowanie danych widzów
-const viewerData = computed(() => {
-    const viewers = streamHistory.value.viewers || []
-    return viewers.map((v: any) => [new Date(v.timestamp), v.count])
-})
-
 // Przygotowanie danych subskrybentów
 const subscriberData = computed(() => {
     const subscribers = streamHistory.value.subscribers || []
@@ -85,7 +79,7 @@ const chartOptions = computed(() => {
     return {
         backgroundColor: 'transparent',
         title: {
-            text: 'Statystyki na żywo',
+            text: 'Subskrybenci na żywo',
             left: 'center',
             textStyle: { 
                 color: '#ffffff', 
@@ -94,7 +88,7 @@ const chartOptions = computed(() => {
             }
         },
         legend: {
-            data: ['Widzowie', 'Subskrybenci'],
+            data: ['Subskrybenci'],
             bottom: 0,
             textStyle: {
                 color: '#ccc'
@@ -113,7 +107,7 @@ const chartOptions = computed(() => {
                 let result = `<span style="font-weight:bold">${date}</span><br/>`
                 
                 params.forEach((param: any) => {
-                    const color = param.seriesName === 'Widzowie' ? '#6495ED' : '#FF7F50'
+                    const color = '#FF7F50'
                     const count = param.data[1]
                     const name = param.seriesName
                     result += `<span style="color:${color}">◉</span> <span style="font-size:14px">${count} ${name.toLowerCase()}</span><br/>`
@@ -151,7 +145,7 @@ const chartOptions = computed(() => {
         },
         yAxis: {
             type: 'value',
-            name: 'Widzowie',
+            name: 'Subskrybenci',
             minInterval: 1,
             nameTextStyle: { 
                 color: '#ccc',
@@ -173,57 +167,6 @@ const chartOptions = computed(() => {
             }
         },
         series: [
-            {
-                data: viewerData.value,
-                type: 'line',
-                smooth: true,
-                name: 'Widzowie',
-                areaStyle: {
-                    opacity: 0.6,
-                    color: {
-                        type: 'linear',
-                        x: 0, y: 0, x2: 0, y2: 1,
-                        colorStops: [
-                            { offset: 0, color: 'rgba(65, 105, 225, 0.7)' },
-                            { offset: 1, color: 'rgba(65, 105, 225, 0.1)' }
-                        ]
-                    }
-                },
-                lineStyle: {
-                    color: '#6495ED', // Dodano jaśniejszy odcień niebieskiego
-                    width: 3
-                },
-                itemStyle: {
-                    color: '#6495ED',
-                    borderWidth: 2,
-                    borderColor: '#ffffff'
-                },
-                showSymbol: false,
-                emphasis: {
-                    focus: 'series',
-                    itemStyle: {
-                        color: '#ffffff',
-                        borderColor: '#6495ED',
-                        borderWidth: 3,
-                        shadowBlur: 10,
-                        shadowColor: 'rgba(100, 149, 237, 0.7)'
-                    }
-                },
-                markPoint: {
-                    symbol: 'circle',
-                    symbolSize: 8,
-                    label: { show: false },
-                    data: [
-                        { type: 'max', name: 'Maksimum' },
-                        { type: 'min', name: 'Minimum' }
-                    ],
-                    itemStyle: {
-                        color: '#ffffff',
-                        borderColor: '#6495ED',
-                        borderWidth: 2
-                    }
-                }
-            },
             {
                 data: subscriberData.value,
                 type: 'line',
@@ -303,18 +246,15 @@ onBeforeUnmount(() => {
 
 // Ręczne wymuszenie update'u serii
 watch(
-    [() => viewerData.value, () => subscriberData.value, () => streamHistory.value],
-    ([newViewerData, newSubscriberData], [oldViewerData, oldSubscriberData]) => {
-        console.log('👁️ viewerData changed:', newViewerData)
+    [() => subscriberData.value, () => streamHistory.value],
+    ([newSubscriberData], [oldSubscriberData]) => {
         console.log('👁️ subscriberData changed:', newSubscriberData)
         console.log('👁️ stream history changed:', streamHistory.value)
-        console.log('👁️ Previous viewer data length:', oldViewerData?.length || 0, 'New viewer data length:', newViewerData?.length || 0)
         console.log('👁️ Previous subscriber data length:', oldSubscriberData?.length || 0, 'New subscriber data length:', newSubscriberData?.length || 0)
         if (chartRef.value) {
             nextTick(() => {
                 chartRef.value.setOption({
                     series: [
-                        { data: newViewerData },
                         { data: newSubscriberData }
                     ]
                 })
