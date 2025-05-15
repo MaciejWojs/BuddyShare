@@ -93,22 +93,22 @@ onMounted(() => {
 });
 
 // Jeżeli dynamicznie zmieni się route, ponów sprawdzanie
-watch(
-  () => route.params.displayname,
-  (newName) => {
-    console.log("SUB: Route displayname changed to", newName);
-    isLoading.value = true;
-    if (newName === authStore.userName) {
-      console.log("SUB: Current user detected after route change");
-      isCurrentUser.value = true;
-      loadSubscriptions();
-    } else {
-      console.log("SUB: Not current user after route change");
-      isCurrentUser.value = false;
-      isLoading.value = false;
-    }
-  }
-);
+// watch(
+//   () => route.params.displayname,
+//   (newName) => {
+//     console.log("SUB: Route displayname changed to", newName);
+//     isLoading.value = true;
+//     if (newName === authStore.userName) {
+//       console.log("SUB: Current user detected after route change");
+//       isCurrentUser.value = true;
+//       loadSubscriptions();
+//     } else {
+//       console.log("SUB: Not current user after route change");
+//       isCurrentUser.value = false;
+//       isLoading.value = false;
+//     }
+//   }
+// );
 
 // Obsługa anulowania subskrypcji
 async function handleUnsubscribe(username: string) {

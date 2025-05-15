@@ -12,8 +12,14 @@ export const useSubscriptionStore = defineStore("subscriptions", {
 
   actions: {
     async fetchSubscriptions() {
-      console.log("[STORESUB] Fetching subscriptions");
+      if (!import.meta.client) return;
       const authStore = useAuthStore();
+      await authStore.waitUntilReady?.();
+      if (!authStore.authenticated) {
+        console.log("User not authenticated, skipping fetchSubscriptions.");
+        return;
+      }
+      console.log("[STORESUB] Fetching subscriptions");
       const { users } = useApi(); // Przeniesione do wnętrza metody
       const config = useRuntimeConfig();
       const host = config.public.BACK_HOST;
