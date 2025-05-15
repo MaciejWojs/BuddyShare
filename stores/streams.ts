@@ -43,7 +43,7 @@ export const useStreamsStore = defineStore("Streams", () => {
     if (!import.meta.client) return;
 
     try {
-      await fetchStreams();
+      // await fetchStreams();
 
       // Nasłuchiwanie zdarzeń WebSocket dla aktualizacji streamów
       // ws.subscribe('streams', (payload) => {

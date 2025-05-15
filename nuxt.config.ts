@@ -48,9 +48,20 @@ export default defineNuxtConfig({
         transformAssetUrls,
       },
     },
+     optimizeDeps: {
+      include: [
+        'vuetify', 
+        'echarts', 
+        'pinia', 
+        'socket.io-client',
+        'dashjs',
+        '@vueuse/core'
+      ],
+    },
+    cacheDir: '.nuxt/vite', 
   },
 
-  compatibilityDate: "2025-03-10",
+  compatibilityDate: "2025-05-15",
   devtools: { enabled: true },
 
   pinia: {
