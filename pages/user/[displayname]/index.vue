@@ -1,23 +1,10 @@
 <!-- pages/[displayname]/index.vue -->
 <template>
-  <v-container
-    fluid
-    class="stream-layout pa-0 fill-height"
-  >
-    <v-row
-      no-gutters
-      class="fill-height"
-    >
+  <v-container fluid class="stream-layout pa-0 fill-height">
+    <v-row no-gutters class="fill-height">
       <!-- Main Content Column -->
-      <v-col
-        cols="12"
-        lg="9"
-        class="h-100"
-      >
-        <v-responsive
-          :aspect-ratio="16 / 9"
-          class="h-100"
-        >
+      <v-col cols="12" lg="9" class="h-100">
+        <v-responsive :aspect-ratio="16 / 9" class="h-100">
           <!-- Poprawione przekazywanie jakości do VideoPlayer -->
           <LazyStreamVideoPlayer :display-name="displayName" />
         </v-responsive>
@@ -31,21 +18,10 @@
             <v-spacer></v-spacer>
             <div class="d-flex flex-column">
               <!-- Dodajemy margin top do dialogu -->
-              <v-dialog
-                v-model="editDialog"
-                max-width="600px"
-                class="mt-6"
-              >
+              <v-dialog v-model="editDialog" max-width="600px" class="mt-6">
                 <template v-slot:activator="{ props }">
-                  <v-btn
-                    v-if="streamStore.isStreamOwner()"
-                    color="pink-darken-1"
-                    variant="elevated"
-                    prepend-icon="mdi-video"
-                    v-bind="props"
-                    class="text-uppercase font-weight-bold py-2"
-                    block
-                  >
+                  <v-btn v-if="streamStore.isStreamOwner()" color="pink-darken-1" variant="elevated"
+                    prepend-icon="mdi-video" v-bind="props" class="text-uppercase font-weight-bold py-2" block>
                     GO LIVE
                   </v-btn>
                 </template>
@@ -53,41 +29,17 @@
                   <v-card-title>Edytuj informacje o streamie</v-card-title>
                   <v-card-text>
                     <v-form @submit.prevent="updateStreamInfo">
-                      <v-text-field
-                        v-model="editedTitle"
-                        label="Tytuł streamu"
-                        variant="outlined"
-                        class="mb-4"
-                        required
-                      ></v-text-field>
-                      <v-textarea
-                        v-model="editedDescription"
-                        label="Opis streamu"
-                        variant="outlined"
-                        rows="4"
-                        class="mb-4"
-                        required
-                      ></v-textarea>
-                      <v-switch
-                        v-model="isPublic"
-                        label="Stream publiczny"
-                        color="primary"
-                      ></v-switch>
+                      <v-text-field v-model="editedTitle" label="Tytuł streamu" variant="outlined" class="mb-4"
+                        required></v-text-field>
+                      <v-textarea v-model="editedDescription" label="Opis streamu" variant="outlined" rows="4"
+                        class="mb-4" required></v-textarea>
+                      <v-switch v-model="isPublic" label="Stream publiczny" color="primary"></v-switch>
                     </v-form>
                   </v-card-text>
                   <v-card-actions>
                     <v-spacer></v-spacer>
-                    <v-btn
-                      color="error"
-                      variant="text"
-                      @click="editDialog = false"
-                      >Anuluj</v-btn
-                    >
-                    <v-btn
-                      color="primary"
-                      @click="updateStreamInfo"
-                      >Zapisz zmiany</v-btn
-                    >
+                    <v-btn color="error" variant="text" @click="editDialog = false">Anuluj</v-btn>
+                    <v-btn color="primary" @click="updateStreamInfo">Zapisz zmiany</v-btn>
                   </v-card-actions>
                 </v-card>
               </v-dialog>
@@ -98,14 +50,8 @@
           <v-divider class="mb-3"></v-divider>
 
           <div class="d-flex align-center">
-            <v-avatar
-              class="mr-3"
-              size="42"
-            >
-              <v-img
-                src="/Buddyshare.svg"
-                alt="Streamer avatar"
-              />
+            <v-avatar class="mr-3" size="42">
+              <v-img src="/Buddyshare.svg" alt="Streamer avatar" />
             </v-avatar>
             <div>
               <span class="text-h6">{{ displayName }}</span>
@@ -114,13 +60,8 @@
             <v-spacer></v-spacer>
             <SubscribeButton />
             <UnsubscribeButton />
-            <v-btn
-              color="white"
-              variant="outlined"
-              size="small"
-              prepend-icon="mdi-account"
-              @click="navigateTo(`/user/${displayName}/profile`)"
-            >
+            <v-btn color="white" variant="outlined" size="small" prepend-icon="mdi-account"
+              @click="navigateTo(`/user/${displayName}/profile`)">
               Profil
             </v-btn>
           </div>
@@ -128,28 +69,15 @@
       </v-col>
 
       <!-- Chat Column -->
-      <v-col
-        v-if="streamId"
-        cols="12"
-        lg="3"
-        class="h-100 bg-grey-darken-4"
-      >
-        <LiveChat
-          :stream-id="streamId"
-          :messages="chatMessages"
-          title="Live Chat"
-          @message-action="handleMessageAction"
-        />
+      <v-col v-if="streamId" cols="12" lg="3" class="h-100 bg-grey-darken-4">
+        <LiveChat :stream-id="streamId" :messages="chatMessages" title="Live Chat"
+          @message-action="handleMessageAction" />
       </v-col>
     </v-row>
   </v-container>
 </template>
 
 <script setup lang="ts">
-import { useStreamsStore } from "#imports";
-import { ref, watch, onMounted, computed } from "vue";
-import SubscribeButton from "@/components/SubscribeButton.vue";
-import UnsubscribeButton from "@/components/UnsubscribeButton.vue";
 
 const streamsStore = useStreamsStore();
 const route = useRoute();
@@ -157,6 +85,11 @@ const api = useApi();
 
 const displayName = route.params.displayname as string;
 const streamStore = useStreamsStore();
+
+onMounted(async() => {
+  // Fetch stream data when the component is mounted
+  await streamsStore.fetchStreams();
+});
 
 const stream = computed(() => {
   return (
@@ -170,10 +103,6 @@ const stream = computed(() => {
 });
 
 const streamId = computed(() => stream.value?.id);
-
-onMounted(async () => {
-  await streamsStore.fetchStreams();
-});
 
 definePageMeta({
   middleware: [
@@ -405,5 +334,4 @@ const updateStreamInfo = async () => {
 //   .h-100 {
 //     height: auto !important;
 //   }
-// }
-</style>
+// }</style>
