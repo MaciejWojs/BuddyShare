@@ -77,7 +77,7 @@
         {{ isLiveRef ? currentTime : "Offline" }}
       </span>
       <v-spacer />
-
+      <SubscribeButton />
       <!-- Dropdown do wyboru jakości -->
       <v-menu
         v-if="qualities.length > 0"
@@ -148,9 +148,10 @@
 
 <script setup lang="ts">
 import { ref, onMounted, watch, computed } from "vue";
-import { useDashPlayer, type Quality } from '@/composables/useDashPlayer';
-import { useStreamsStore } from '~/stores/streams';
+import { useDashPlayer, type Quality } from "@/composables/useDashPlayer";
+import { useStreamsStore } from "~/stores/streams";
 import { useWindowScroll } from "@vueuse/core";
+import SubscribeButton from "../SubscribeButton.vue";
 
 interface Props {
   displayName: string;
@@ -163,22 +164,31 @@ const streamsStore = useStreamsStore();
 const ws = usePublicWebSocket();
 
 // Referencja na dane streamu
-const streamData = computed(() => streamsStore.getStreamByStreamerName(props.displayName));
+const streamData = computed(() =>
+  streamsStore.getStreamByStreamerName(props.displayName)
+);
 
 // Referencje do danych streamu
 const isLiveRef = computed(() => !!streamData.value?.isLive);
 const streamUrlRef = computed(() => {
-  if (streamData.value?.stream_urls && Array.isArray(streamData.value.stream_urls) && streamData.value.stream_urls.length > 0) {
+  if (
+    streamData.value?.stream_urls &&
+    Array.isArray(streamData.value.stream_urls) &&
+    streamData.value.stream_urls.length > 0
+  ) {
     // Zwracamy pole dash z pierwszego elementu tablicy stream_urls
-    return streamData.value.stream_urls[0].dash || '';
+    return streamData.value.stream_urls[0].dash || "";
   }
-  return '';
+  return "";
 });
 const qualitiesRef = computed(() => {
-  if (streamData.value?.stream_urls && Array.isArray(streamData.value.stream_urls)) {
-    return streamData.value.stream_urls.map(q => ({ 
-      name: q.name || 'default',
-      url: q.dash || '' // Używamy pola dash dla adresu URL
+  if (
+    streamData.value?.stream_urls &&
+    Array.isArray(streamData.value.stream_urls)
+  ) {
+    return streamData.value.stream_urls.map((q) => ({
+      name: q.name || "default",
+      url: q.dash || "", // Używamy pola dash dla adresu URL
     }));
   }
   return [];
@@ -189,15 +199,17 @@ const initialQualityRef = computed(() => {
     return streamData.value.default_quality;
   }
   // W przeciwnym razie użyj source albo pierwszej jakości
-  const sourceQuality = qualitiesRef.value.find(q => q.name === 'source');
+  const sourceQuality = qualitiesRef.value.find((q) => q.name === "source");
   if (sourceQuality) {
     return sourceQuality.name;
   }
   return qualitiesRef.value[0]?.name || null;
 });
 const viewerCount = computed(() => streamData.value?.viewer_count || 0);
-const currentTime = ref('');
-const avatar = computed(() => streamData.value?.profile_picture || "/Buddyshare.svg");
+const currentTime = ref("");
+const avatar = computed(
+  () => streamData.value?.profile_picture || "/Buddyshare.svg"
+);
 
 // Ustawienia dla video playera
 const videoElement = ref<HTMLVideoElement | null>(null);
@@ -209,7 +221,7 @@ const {
   changeQuality,
   showCopyNotification,
   copyToClipboard,
-  initPlayer
+  initPlayer,
 } = useDashPlayer(
   videoElement,
   streamUrlRef,
@@ -224,35 +236,41 @@ const updateStreamTime = () => {
     const startTime = new Date(streamData.value.created_at);
     const updateTime = () => {
       if (!isLiveRef.value) return;
-      
+
       const elapsed = Math.floor((Date.now() - startTime.getTime()) / 1000);
       const hours = Math.floor(elapsed / 3600);
       const minutes = Math.floor((elapsed % 3600) / 60);
       const seconds = elapsed % 60;
-      currentTime.value = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+      currentTime.value = `${hours.toString().padStart(2, "0")}:${minutes
+        .toString()
+        .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
     };
-    
+
     updateTime();
     const timer = setInterval(updateTime, 1000);
-    
+
     return () => clearInterval(timer);
   }
   return undefined;
 };
 
 // Obserwuj zmiany streamData aby zaktualizować czas
-watch(streamData, () => {
-  console.log('Stream data updated:', streamData.value);
-  console.log('Stream URLs:', streamData.value?.stream_urls);
-  console.log('Selected quality:', selectedQuality.value);
-  console.log('Available qualities:', qualitiesRef.value);
+watch(
+  streamData,
+  () => {
+    console.log("Stream data updated:", streamData.value);
+    console.log("Stream URLs:", streamData.value?.stream_urls);
+    console.log("Selected quality:", selectedQuality.value);
+    console.log("Available qualities:", qualitiesRef.value);
 
-  if (streamData.value && streamData.value.isLive) {
-    const cleanupTimer = updateStreamTime();
-    return cleanupTimer;
-  }
-  return undefined;
-}, { immediate: true });
+    if (streamData.value && streamData.value.isLive) {
+      const cleanupTimer = updateStreamTime();
+      return cleanupTimer;
+    }
+    return undefined;
+  },
+  { immediate: true }
+);
 
 // // Obserwuj zmiany streamstore (dla aktualizacji w czasie rzeczywistym)
 // watch(() => streamsStore.streams, () => {
@@ -263,8 +281,8 @@ watch(streamData, () => {
 onMounted(() => {
   initPlayer();
   console.log(`Mounted VideoPlayer for streamer: ${props.displayName}`);
-  console.log('Current stream data:', streamData.value);
-  console.log('All streams:', streamsStore.streams);
+  console.log("Current stream data:", streamData.value);
+  console.log("All streams:", streamsStore.streams);
   ws.joinStream(streamData.value?.options_id.toString());
 });
 

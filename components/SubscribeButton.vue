@@ -47,7 +47,14 @@ onMounted(() => {
     class="subscribe-button"
     @click="onSubscribe"
   >
-    <span class="button-text">{{ isSubscribed ? "Unsub" : "Sub" }}</span>
+    <v-icon
+      start
+      :icon="isSubscribed ? 'mdi-bell-off-outline' : 'mdi-bell-plus-outline'"
+      class="mr-1"
+    ></v-icon>
+    <span class="button-text">{{
+      isSubscribed ? "Unsubscribe" : "Subscribe"
+    }}</span>
   </button>
 </template>
 
@@ -62,15 +69,16 @@ onMounted(() => {
   font-size: 14px;
   transition: all 0.3s ease;
   cursor: pointer;
-  border: none;
-  background-color: #6441a5; // Kolor Twitcha jako domyślny
-  color: white;
+  border: 2px solid white; // Zmieniono na biały kontur
+  background-color: transparent; // Ustawiono przezroczyste tło
+  color: white; // Kolor tekstu biały
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   width: 140px;
   height: 40px;
 
   &:hover {
-    background-color: #7d5bbe;
+    background-color: #7d5bbe; // Jasnofioletowe wypełnienie po najechaniu
+    border-color: #7d5bbe; // Kolor ramki dopasowany do tła po najechaniu
     transform: translateY(-1px);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
   }

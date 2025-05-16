@@ -112,14 +112,15 @@
               <div class="text-caption">{{ stream.description }}</div>
             </div>
             <v-spacer></v-spacer>
-            <SubscribeButton />
+            <!-- <SubscribeButton /> -->
             <!-- <UnsubscribeButton /> -->
             <v-btn
               color="white"
               variant="outlined"
-              size="small"
               prepend-icon="mdi-account"
               @click="navigateTo(`/user/${displayName}/profile`)"
+              class="profile-button-styled font-weight-bold"
+              rounded="pill"
             >
               Profil
             </v-btn>
@@ -402,4 +403,33 @@ const updateStreamInfo = async () => {
 //     height: auto !important;
 //   }
 // }
+
+.profile-button-styled {
+  border-width: 2px !important;
+  height: 40px !important;
+  min-width: 100px; /* Można dostosować lub usunąć dla automatycznej szerokości */
+  padding-left: 18px !important; /* Dostosowany padding dla ikony i tekstu */
+  padding-right: 18px !important;
+  font-size: 14px !important;
+  text-transform: none !important; /* Usuwa domyślne wielkie litery Vuetify */
+  letter-spacing: normal !important; /* Przywraca normalne odstępy między literami */
+  transition: all 0.3s ease; /* Dodajemy transition dla płynnego efektu */
+
+  .v-btn__prepend .v-icon {
+    margin-inline-end: 6px; /* Zmniejsza margines ikony */
+  }
+
+  &:hover {
+    background-color: #7d5bbe !important;
+    border-color: #7d5bbe !important;
+    color: white !important;
+    transform: translateY(-1px); /* Efekt uniesienia */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15); /* Opcjonalny cień */
+  }
+
+  &:active {
+    transform: translateY(1px); /* Efekt wciśnięcia */
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1); /* Opcjonalny cień */
+  }
+}
 </style>
