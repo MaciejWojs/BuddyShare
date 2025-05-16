@@ -5,19 +5,38 @@ const config = useRuntimeConfig();
 const BACK_HOST = config.public.BACK_HOST;
 const route = useRoute();
 
+import { useSubscriptionsStore } from "~/stores/subscriptions";
+import type { Subscription } from "~/types/Subscription";
+
+const store = useSubscriptionsStore();
+const subscriptions = computed(() => store.subscriptions);
+
+const authStore = useAuthStore();
 const displayName = route.params.displayname;
 
 const { users, streamers } = useApi();
 
 const streamerName = displayName as string;
+
+// Check if user is already subscribed to this streamer
+const isSubscribed = computed(() => {
+  return subscriptions.value.some(
+    (sub: Subscription) => sub.streamerUsername === displayName
+  );
+});
 </script>
 
 <template>
   <button
+    v-if="authStore.userName !== displayName"
     class="subscribe-button"
-    @click="streamers.subscribe(streamerName)"
+    @click="
+      isSubscribed
+        ? streamers.unsubscribe(streamerName)
+        : streamers.subscribe(streamerName)
+    "
   >
-    <span class="button-text">Sub</span>
+    <span class="button-text">{{ isSubscribed ? "Unsub" : "Sub" }}</span>
   </button>
 </template>
 
