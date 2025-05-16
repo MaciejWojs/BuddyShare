@@ -52,7 +52,10 @@ export default defineNuxtConfig({
         'pinia',
         'socket.io-client',
         'dashjs',
-        '@vueuse/core'
+        '@vueuse/core',
+        'http-status-codes',
+        'crypto-js'
+
       ],
     },
     cacheDir: '.nuxt/vite',
