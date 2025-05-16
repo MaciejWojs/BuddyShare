@@ -97,24 +97,6 @@ export const useAuthWebSocket = () => {
         emit("endStream", streamId);
     };
 
-    // Follower management
-    const followStreamer = (streamerId: string) => {
-        emit("followStreamer", streamerId);
-    };
-
-    const unfollowStreamer = (streamerId: string) => {
-        emit("unfollowStreamer", streamerId);
-    };
-
-    // Subscription management
-    const subscribeToStreamer = (streamerId: string) => {
-        emit("subscribeToStreamer", streamerId);
-    };
-
-    const unsubscribeFromStreamer = (streamerId: string) => {
-        emit("unsubscribeFromStreamer", streamerId);
-    };
-
     // Chat functionality
     const sendChatMessage = (streamId: string, message: string) => {
         if (!streamId) {
@@ -126,15 +108,6 @@ export const useAuthWebSocket = () => {
             return;
         }
         emit("sendChatMessage", { streamId, message });
-    };
-
-    // Stream Events - metody nasłuchujące
-    const onNewFollower = (handler: (data: { followerId: string; followerName: string }) => void) => {
-        on("newFollower", handler);
-    };
-
-    const onNewSubscriber = (handler: (data: { subscriberId: string; subscriberName: string }) => void) => {
-        on("newSubscriber", handler);
     };
 
     const onStreamNotification = (handler: (data: {
@@ -185,17 +158,9 @@ export const useAuthWebSocket = () => {
         // Stream management
         startStream,
         endStream,
-        // Follower management
-        followStreamer,
-        unfollowStreamer,
-        // Subscription management
-        subscribeToStreamer,
-        unsubscribeFromStreamer,
         // Chat functionality
         sendChatMessage,
         // Stream event handlers
-        onNewFollower,
-        onNewSubscriber,
         onStreamNotification,
         onNotifyStreamer,
         onChatMessage,
