@@ -55,24 +55,24 @@
             >
               <v-card
                 hover
-                class="fill-height d-flex flex-column"
+                class="fill-height d-flex flex-column pa-4"
+                color="grey-darken-4"
+                border="lg"
               >
                 <div class="d-flex justify-center pa-4">
-                  <v-avatar
-                    size="80"
-                    color="primary"
-                  >
-                    {{ sub.streamerUsername.charAt(0).toUpperCase() }}
+                  <v-avatar size="80">
+                    <v-img src="/Buddyshare.svg"></v-img>
                   </v-avatar>
                 </div>
-                <v-card-title class="justify-center">
+                <v-card-title class="text-center">
                   {{ sub.streamerUsername }}
                 </v-card-title>
-                <v-card-actions class="justify-center">
+                <v-card-actions class="d-flex flex-column align-center pa-2">
                   <v-btn
                     color="primary"
                     variant="text"
                     :to="`/user/${sub.streamerUsername}`"
+                    class="mb-2"
                   >
                     Odwiedź profil
                   </v-btn>
