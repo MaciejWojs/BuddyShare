@@ -1,41 +1,21 @@
 <!-- components/stream/VideoPlayer.vue -->
 <template>
-  <v-card
-    class="d-flex flex-column h-100"
-    color="grey-darken-4"
-  >
+  <v-card class="d-flex flex-column h-100" color="grey-darken-4">
     <!-- Stream Header -->
-    <v-card-title
-      class="stream-header d-flex align-center justify-space-between py-2 px-4"
-    >
+    <v-card-title class="stream-header d-flex align-center justify-space-between py-2 px-4">
       <div class="d-flex align-center">
-        <v-avatar
-          size="40"
-          class="mr-2"
-        >
+        <v-avatar size="40" class="mr-2">
           <v-img :src="avatar" />
         </v-avatar>
         <h2 class="text-h6 font-weight-bold">{{ displayName }}</h2>
       </div>
 
       <div class="d-flex align-center ga-2">
-        <v-chip
-          :color="isLiveRef ? 'red' : 'grey'"
-          variant="tonal"
-          size="small"
-          prepend-icon="mdi-circle"
-        >
+        <v-chip :color="isLiveRef ? 'red' : 'grey'" variant="tonal" size="small" prepend-icon="mdi-circle">
           {{ isLiveRef ? "LIVE" : "OFFLINE" }}
         </v-chip>
-        <v-chip
-          variant="outlined"
-          size="small"
-        >
-          <v-icon
-            start
-            size="small"
-            >mdi-account</v-icon
-          >
+        <v-chip variant="outlined" size="small">
+          <v-icon start size="small">mdi-account</v-icon>
           {{ viewerCount }}
         </v-chip>
       </div>
@@ -43,26 +23,11 @@
 
     <!-- Video Player -->
     <div class="video-wrapper flex-grow-1">
-      <video
-        ref="videoElement"
-        controls
-        autoplay
-        muted
-        class="video-player"
-        v-if="isLiveRef && streamUrlRef"
-      ></video>
+      <video ref="videoElement" controls autoplay muted class="video-player" v-if="isLiveRef && streamUrlRef"></video>
 
       <!-- Offline State -->
-      <div
-        v-else
-        class="offline-state d-flex flex-column align-center justify-center"
-      >
-        <v-icon
-          size="64"
-          color="grey-lighten-1"
-          class="mb-4"
-          >mdi-television-off</v-icon
-        >
+      <div v-else class="offline-state d-flex flex-column align-center justify-center">
+        <v-icon size="64" color="grey-lighten-1" class="mb-4">mdi-television-off</v-icon>
         <h3 class="text-h5 text-grey-lighten-1 mb-2">Stream offline</h3>
         <p class="text-body-2 text-grey-lighten-1 text-center">
           This stream is currently unavailable. <br />
@@ -77,70 +42,30 @@
         {{ isLiveRef ? currentTime : "Offline" }}
       </span>
       <v-spacer />
-
+      <SubscribeButton />
       <!-- Dropdown do wyboru jakości -->
-      <v-menu
-        v-if="qualities.length > 0"
-        location="top"
-        offset="4"
-      >
+      <v-menu v-if="qualities.length > 0" location="top" offset="4">
         <template v-slot:activator="{ props }">
-          <v-btn
-            v-bind="props"
-            variant="text"
-            color="white"
-            size="small"
-            class="text-none"
-            prepend-icon="mdi-quality-high"
-          >
+          <v-btn v-bind="props" variant="text" color="white" size="small" class="text-none"
+            prepend-icon="mdi-quality-high">
             {{ selectedQuality }}
           </v-btn>
         </template>
-        <v-list
-          density="compact"
-          bg-color="grey-darken-3"
-        >
-          <v-list-item
-            v-for="quality in qualities"
-            :key="quality.name"
-            :value="quality.name"
-            :title="quality.name"
-            @click="changeQuality(quality.name)"
-            :active="selectedQuality === quality.name"
-          />
+        <v-list density="compact" bg-color="grey-darken-3">
+          <v-list-item v-for="quality in qualities" :key="quality.name" :value="quality.name" :title="quality.name"
+            @click="changeQuality(quality.name)" :active="selectedQuality === quality.name" />
         </v-list>
       </v-menu>
 
       <!-- Snackbar dla powiadomień -->
-      <v-snackbar
-        v-model="showCopyNotification"
-        timeout="1000"
-        color="success"
-        location="bottom"
-      >
+      <v-snackbar v-model="showCopyNotification" timeout="1000" color="success" location="bottom">
         Copied to clipboard
       </v-snackbar>
 
       <div class="d-flex ga-1">
-        <v-btn
-          variant="text"
-          color="white"
-          icon="mdi-share-variant"
-          size="small"
-          @click="copyToClipboard"
-        />
-        <v-btn
-          variant="text"
-          color="white"
-          icon="mdi-heart-outline"
-          size="small"
-        />
-        <v-btn
-          variant="text"
-          color="white"
-          icon="mdi-dots-vertical"
-          size="small"
-        />
+        <v-btn variant="text" color="white" icon="mdi-share-variant" size="small" @click="copyToClipboard" />
+        <v-btn variant="text" color="white" icon="mdi-heart-outline" size="small" />
+        <v-btn variant="text" color="white" icon="mdi-dots-vertical" size="small" />
       </div>
     </v-card-actions>
   </v-card>
@@ -148,9 +73,10 @@
 
 <script setup lang="ts">
 import { ref, onMounted, watch, computed } from "vue";
-import { useDashPlayer, type Quality } from '@/composables/useDashPlayer';
-import { useStreamsStore } from '~/stores/streams';
+import { useDashPlayer, type Quality } from "@/composables/useDashPlayer";
+import { useStreamsStore } from "~/stores/streams";
 import { useWindowScroll } from "@vueuse/core";
+import SubscribeButton from "../SubscribeButton.vue";
 
 interface Props {
   displayName: string;
@@ -163,22 +89,31 @@ const streamsStore = useStreamsStore();
 const ws = usePublicWebSocket();
 
 // Referencja na dane streamu
-const streamData = computed(() => streamsStore.getStreamByStreamerName(props.displayName));
+const streamData = computed(() =>
+  streamsStore.getStreamByStreamerName(props.displayName)
+);
 
 // Referencje do danych streamu
 const isLiveRef = computed(() => !!streamData.value?.isLive);
 const streamUrlRef = computed(() => {
-  if (streamData.value?.stream_urls && Array.isArray(streamData.value.stream_urls) && streamData.value.stream_urls.length > 0) {
+  if (
+    streamData.value?.stream_urls &&
+    Array.isArray(streamData.value.stream_urls) &&
+    streamData.value.stream_urls.length > 0
+  ) {
     // Zwracamy pole dash z pierwszego elementu tablicy stream_urls
-    return streamData.value.stream_urls[0].dash || '';
+    return streamData.value.stream_urls[0].dash || "";
   }
-  return '';
+  return "";
 });
 const qualitiesRef = computed(() => {
-  if (streamData.value?.stream_urls && Array.isArray(streamData.value.stream_urls)) {
-    return streamData.value.stream_urls.map(q => ({ 
-      name: q.name || 'default',
-      url: q.dash || '' // Używamy pola dash dla adresu URL
+  if (
+    streamData.value?.stream_urls &&
+    Array.isArray(streamData.value.stream_urls)
+  ) {
+    return streamData.value.stream_urls.map((q) => ({
+      name: q.name || "default",
+      url: q.dash || "", // Używamy pola dash dla adresu URL
     }));
   }
   return [];
@@ -189,15 +124,17 @@ const initialQualityRef = computed(() => {
     return streamData.value.default_quality;
   }
   // W przeciwnym razie użyj source albo pierwszej jakości
-  const sourceQuality = qualitiesRef.value.find(q => q.name === 'source');
+  const sourceQuality = qualitiesRef.value.find((q) => q.name === "source");
   if (sourceQuality) {
     return sourceQuality.name;
   }
   return qualitiesRef.value[0]?.name || null;
 });
 const viewerCount = computed(() => streamData.value?.viewer_count || 0);
-const currentTime = ref('');
-const avatar = computed(() => streamData.value?.profile_picture || "/Buddyshare.svg");
+const currentTime = ref("");
+const avatar = computed(
+  () => streamData.value?.profile_picture || "/Buddyshare.svg"
+);
 
 // Ustawienia dla video playera
 const videoElement = ref<HTMLVideoElement | null>(null);
@@ -209,7 +146,7 @@ const {
   changeQuality,
   showCopyNotification,
   copyToClipboard,
-  initPlayer
+  initPlayer,
 } = useDashPlayer(
   videoElement,
   streamUrlRef,
@@ -229,7 +166,9 @@ const updateStreamTime = () => {
       const hours = Math.floor(elapsed / 3600);
       const minutes = Math.floor((elapsed % 3600) / 60);
       const seconds = elapsed % 60;
-      currentTime.value = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+      currentTime.value = `${hours.toString().padStart(2, "0")}:${minutes
+        .toString()
+        .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
     };
     
     updateTime();
@@ -241,18 +180,22 @@ const updateStreamTime = () => {
 };
 
 // Obserwuj zmiany streamData aby zaktualizować czas
-watch(streamData, () => {
-  console.log('Stream data updated:', streamData.value);
-  console.log('Stream URLs:', streamData.value?.stream_urls);
-  console.log('Selected quality:', selectedQuality.value);
-  console.log('Available qualities:', qualitiesRef.value);
+watch(
+  streamData,
+  () => {
+    console.log("Stream data updated:", streamData.value);
+    console.log("Stream URLs:", streamData.value?.stream_urls);
+    console.log("Selected quality:", selectedQuality.value);
+    console.log("Available qualities:", qualitiesRef.value);
 
-  if (streamData.value && streamData.value.isLive) {
-    const cleanupTimer = updateStreamTime();
-    return cleanupTimer;
-  }
-  return undefined;
-}, { immediate: true });
+    if (streamData.value && streamData.value.isLive) {
+      const cleanupTimer = updateStreamTime();
+      return cleanupTimer;
+    }
+    return undefined;
+  },
+  { immediate: true }
+);
 
 // // Obserwuj zmiany streamstore (dla aktualizacji w czasie rzeczywistym)
 // watch(() => streamsStore.streams, () => {
@@ -265,11 +208,19 @@ onMounted(() => {
   console.log(`Mounted VideoPlayer for streamer: ${props.displayName}`);
   console.log('Current stream data:', streamData.value);
   console.log('All streams:', streamsStore.streams);
-  ws.joinStream(streamData.value?.options_id.toString());
+  // ws.joinStream(streamData.value?.options_id.toString());
 });
 
+watch(streamData, (newStreamData) => {
+  if (newStreamData && newStreamData.isLive) {
+    ws.joinStream(newStreamData.options_id.toString());
+  } else {
+    ws.leaveStream(newStreamData?.options_id.toString());
+  }
+}, { immediate: true });
+
 onBeforeUnmount(() => {
-  ws.leaveStream(streamData.value?.options_id.toString());
+  // ws.leaveStream(streamData.value?.options_id.toString());
   console.log(`Unmounted VideoPlayer for streamer: ${props.displayName}`);
 });
 </script>

@@ -112,12 +112,15 @@
               <div class="text-caption">{{ stream.description }}</div>
             </div>
             <v-spacer></v-spacer>
+            <!-- <SubscribeButton /> -->
+            <!-- <UnsubscribeButton /> -->
             <v-btn
               color="white"
               variant="outlined"
-              size="small"
               prepend-icon="mdi-account"
               @click="navigateTo(`/user/${displayName}/profile`)"
+              class="profile-button-styled font-weight-bold"
+              rounded="pill"
             >
               Profil
             </v-btn>
@@ -144,22 +147,17 @@
 </template>
 
 <script setup lang="ts">
-import { useStreamsStore } from "#imports";
-import { ref, watch, onMounted, computed } from "vue";
-
 const streamsStore = useStreamsStore();
-
-const config = useRuntimeConfig();
-
-const BACK_HOST = config.public.BACK_HOST;
-
 const route = useRoute();
-
-const endpoint = `http://${BACK_HOST}`;
+const api = useApi();
 
 const displayName = route.params.displayname as string;
-
 const streamStore = useStreamsStore();
+
+// onMounted(async() => {
+//   // Fetch stream data when the component is mounted
+//   await streamsStore.fetchStreams();
+// });
 
 const stream = computed(() => {
   return (
@@ -173,18 +171,6 @@ const stream = computed(() => {
 });
 
 const streamId = computed(() => stream.value?.id);
-
-// const streamOptionsId = computed(() => stream.value?.options_id);
-
-// const pWS = usePublicWebSocket();
-
-onMounted(async () => {
-  await streamsStore.fetchStreams();
-  // pWS.joinStream(streamOptionsId.value?.toString());
-  // pWS.onStreamStatsBasic((data) => {
-  //   console.log("Stream stats data:", data);
-  // });
-});
 
 definePageMeta({
   middleware: [
@@ -337,7 +323,6 @@ onBeforeUnmount(() => {
 //   credentials: "include",
 // });
 
-// Dodaj te zmienne po istniejącym kodzie
 const editDialog = ref(false);
 const editedTitle = ref("");
 const editedDescription = ref("");
@@ -358,49 +343,37 @@ watch(
 const streamID = computed(
   () => streamStore.getStreamByStreamerName(displayName)?.options_id
 );
-// Funkcja aktualizująca dane streamu
+
 const updateStreamInfo = async () => {
   if (!editedTitle.value || !editedDescription.value) {
     console.error("Tytuł i opis są wymagane.");
     alert("Tytuł i opis są wymagane.");
     return;
   }
-  try {
-    const response = await $fetch(
-      `${endpoint}/streams/${displayName}/${streamID.value}`,
-      {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: {
-          title: editedTitle.value,
-          description: editedDescription.value,
-          isPublic: isPublic.value,
-          thumbnail: null,
-        },
-        credentials: "include",
-      }
-    );
 
-    // Zamknij dialog
-    editDialog.value = false;
-
-    // Bezpośrednia aktualizacja wartości w store
-    const currentStream = streamsStore.getStreamByStreamerName(displayName);
-    if (currentStream) {
-      currentStream.title = editedTitle.value;
-      currentStream.stream_description = editedDescription.value;
+  const { error } = await api.streams.updateStream(
+    displayName,
+    streamID.value,
+    {
+      title: editedTitle.value,
+      description: editedDescription.value,
+      isPublic: isPublic.value,
+      thumbnail: null,
     }
+  );
 
-    // Odśwież dane w tle
-    streamsStore.fetchStreams();
-
-    // Opcjonalnie: pokaż powiadomienie o sukcesie
-  } catch (error) {
-    console.error("Błąd podczas aktualizacji informacji o streamie:", error);
-    // Opcjonalnie: pokaż powiadomienie o błędzie
+  if (error.value) {
+    console.error("Błąd aktualizacji:", error.value);
+    return;
   }
+
+  editDialog.value = false;
+  const currentStream = streamsStore.getStreamByStreamerName(displayName);
+  if (currentStream) {
+    currentStream.title = editedTitle.value;
+    currentStream.stream_description = editedDescription.value;
+  }
+  // streamsStore.fetchStreams();
 };
 </script>
 
@@ -430,4 +403,33 @@ const updateStreamInfo = async () => {
 //     height: auto !important;
 //   }
 // }
+
+.profile-button-styled {
+  border-width: 2px !important;
+  height: 40px !important;
+  min-width: 100px; /* Można dostosować lub usunąć dla automatycznej szerokości */
+  padding-left: 18px !important; /* Dostosowany padding dla ikony i tekstu */
+  padding-right: 18px !important;
+  font-size: 14px !important;
+  text-transform: none !important; /* Usuwa domyślne wielkie litery Vuetify */
+  letter-spacing: normal !important; /* Przywraca normalne odstępy między literami */
+  transition: all 0.3s ease; /* Dodajemy transition dla płynnego efektu */
+
+  .v-btn__prepend .v-icon {
+    margin-inline-end: 6px; /* Zmniejsza margines ikony */
+  }
+
+  &:hover {
+    background-color: #7d5bbe !important;
+    border-color: #7d5bbe !important;
+    color: white !important;
+    transform: translateY(-1px); /* Efekt uniesienia */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15); /* Opcjonalny cień */
+  }
+
+  &:active {
+    transform: translateY(1px); /* Efekt wciśnięcia */
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1); /* Opcjonalny cień */
+  }
+}
 </style>

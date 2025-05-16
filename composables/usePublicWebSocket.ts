@@ -34,17 +34,17 @@ export const usePublicWebSocket = () => {
         }
     };
 
-    const emit = (event: string, data?: any) => {
+    const emit = (event: string, ...args: any[]) => {
         if (socket?.connected) {
-            socket.emit(event, data);
+            socket.emit(event, ...args);
         } else {
             console.error("Public WebSocket not connected during 'emit'");
         }
     };
 
-    const joinStream = (streamId: string) => {
-        console.log("emitting joinStream", streamId);
-        emit("joinStream", streamId)
+    const joinStream = (streamId: string, statsOnly = false) => {
+        console.log("emitting joinStream", streamId, statsOnly);
+        emit("joinStream", streamId, statsOnly)
     };
     const leaveStream = (streamId: string) => emit("leaveStream", streamId);
 
@@ -60,24 +60,6 @@ export const usePublicWebSocket = () => {
     };
 
     // Stream event handlers
-    const onViewerUpdate = (handler: (viewerCount: number) => void) => {
-        const wrappedHandler = (data: any) => {
-            if (typeof data === 'number') {
-                handler(data);
-            } else if (data && typeof data.viewerCount === 'number') {
-                handler(data.viewerCount);
-            } else {
-                console.error('Invalid viewerUpdate data format:', data);
-                handler(0);
-            }
-        };
-        on('viewerUpdate', wrappedHandler);
-    };
-
-    const onStreamStarted = (handler: (data: Stream) => void) => {
-        on('streamStarted', handler);
-    };
-
     const onPatchStream = (handler: (data: Stream) => void) => {
         on('patchStream', handler);
     };
@@ -91,13 +73,6 @@ export const usePublicWebSocket = () => {
         on('streamEnded', handler);
     };
 
-    const onFollowerCountUpdate = (handler: (data: {
-        streamerId: string,
-        count: number
-    }) => void) => {
-        on('followerCountUpdate', handler);
-    };
-
     // Obsługa statystyk streamu dla widzów
     const onStreamStats = (handler: (stats: StreamStats) => void) => {
         on('streamStats', handler);
@@ -108,10 +83,10 @@ export const usePublicWebSocket = () => {
         username: string;
         text: string; // Zmieniono z 'message' na 'text' zgodnie z poprzednim kodem
         timestamp: string;
-      }) => void) => {
+    }) => void) => {
         // Nasłuchuj na ogólny event 'chatMessage'
         on("chatMessage", handler);
-      };
+    };
 
 
     return {
@@ -128,10 +103,7 @@ export const usePublicWebSocket = () => {
         joinChatRoom,
         leaveChatRoom,
         // Stream event handlers
-        onViewerUpdate,
-        onStreamStarted,
         onStreamEnded,
-        onFollowerCountUpdate,
         onChatMessage,
         onPatchStream,
         // Stream stats handler

@@ -1,4 +1,6 @@
+import { useStreamsStore } from "#imports";
 import { io, Socket } from "socket.io-client";
+import type { Stream } from "~/types/Streams";
 
 // Definicja interfejsu dla wtyczki, aby zapewnić typowanie dla $io
 declare module '#app' {
@@ -11,19 +13,26 @@ declare module '#app' {
 export default defineNuxtPlugin(nuxtApp => {
     const config = useRuntimeConfig();
     const authStore = useAuthStore();
+    const streamsStore = useStreamsStore();
 
     const BACK_HOST = config.public.BACK_HOST;
     const BACK_PORT = config.public.BACK_PORT;
     const BACK_URL = `${BACK_HOST}${BACK_PORT ? `:${BACK_PORT}` : ""}`;
 
-    // --- Publiczny WebSocket ---
-    const publicSocketUrl = `ws://${BACK_URL}/public`;
-    const publicSocket = io(publicSocketUrl, {
+    const socketsOptions = {
         autoConnect: true,
         reconnection: true,
         withCredentials: true,
-        reconnectionDelay: 3000,
-    });
+        reconnectionAttempts: 10,         // Maksymalna liczba prób ponownego połączenia
+        reconnectionDelay: 1000,          // Początkowe opóźnienie (ms)
+        reconnectionDelayMax: 10000,      // Maksymalne opóźnienie (ms)
+        timeout: 20000,                   // Timeout połączenia (ms)
+        transports: ['websocket', 'polling'] // Preferuj WebSocket, z fallbackiem na polling
+    }
+
+    // --- Publiczny WebSocket ---
+    const publicSocketUrl = `ws://${BACK_URL}/public`;
+    const publicSocket = io(publicSocketUrl, socketsOptions);
 
     publicSocket.on("connect", () => {
         console.log("Connected to Public WebSocket (Plugin)");
@@ -37,6 +46,48 @@ export default defineNuxtPlugin(nuxtApp => {
         console.error("Public WebSocket connection error (Plugin):", error);
     });
 
+    publicSocket.on("patchStream", (data: Stream) => {
+        streamsStore.updateStream(data);
+        console.log("Stream updated from Auth WebSocket (Plugin):", data);
+    });
+
+    publicSocket.on("streamEnded", (data: Stream) => {
+        streamsStore.removeStream(data.options_id);
+    });
+
+    publicSocket.on("streamStarted", (data: Stream) => {
+        streamsStore.addStream(data);
+        console.log("Stream started from Public WebSocket (Plugin):", data);
+    });
+
+    publicSocket.on('streamStats', (data) => {
+        // Pobierz istniejący stream z store
+        const streamID = parseInt(data.streamId)
+        const stream = streamsStore.getStreamById(streamID);
+        if (stream) {
+            // Zaktualizuj statystyki streama
+            const updatedStream = {
+                ...stream,
+                viewerCount: data.stats.viewers,
+                followerCount: data.stats.followers,
+                subscriberCount: data.stats.subscribers,
+            };
+            streamsStore.updateStream(updatedStream);
+        }
+
+        // Aktualizuj historię streama przez store
+        const history = streamsStore.getHistoryByStreamId(streamID);
+        if (history) {
+            history.viewers = data.history.viewers;
+            history.followers = data.history.followers;
+            history.subscribers = data.history.subscribers;
+        }
+
+        console.log('(Plugin) 🔥 Nowa historia widzów dla streamId', data.streamId, data.history.viewers);
+        console.log('Stream stats updated:', data.stats.viewers);
+        console.log('Stream history updated:', data.history);
+    });
+
     // --- Autoryzowany WebSocket ---
     // Używamy ref, aby umożliwić reaktywne aktualizacje bez redefiniowania provide
     const authSocketRef = ref<Socket | null>(null);
@@ -45,12 +96,7 @@ export default defineNuxtPlugin(nuxtApp => {
     const initializeAuthSocket = () => {
         if (authStore.authenticated && !authSocketRef.value) {
             console.log("Initializing Auth WebSocket (Plugin)...");
-            const socket = io(authSocketUrl, {
-                autoConnect: true,
-                reconnection: true,
-                withCredentials: true,
-                reconnectionDelay: 3000,
-            });
+            const socket = io(authSocketUrl, socketsOptions);
 
             socket.on("connect", () => {
                 console.log("Connected to Auth WebSocket (Plugin)");

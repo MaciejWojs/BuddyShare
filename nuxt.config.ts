@@ -1,6 +1,8 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 
 import vuetify, { transformAssetUrls } from "vite-plugin-vuetify";
+import { L } from "vitest/dist/chunks/reporters.d.DG9VKi4m.js";
+import { md3 } from 'vuetify/blueprints';
 
 export default defineNuxtConfig({
   //...
@@ -22,12 +24,7 @@ export default defineNuxtConfig({
   },
 
   modules: [
-    (_options, nuxt) => {
-      nuxt.hooks.hook("vite:extendConfig", (config) => {
-        // @ts-expect-error
-        config.plugins.push(vuetify({ autoImport: true }));
-      });
-    },
+    'vuetify-nuxt-module',
     "@nuxt/icon",
     "@nuxt/image",
     "@pinia/nuxt", // required
@@ -48,8 +45,46 @@ export default defineNuxtConfig({
         transformAssetUrls,
       },
     },
+    optimizeDeps: {
+      include: [
+        'vuetify',
+        'echarts',
+        'pinia',
+        'socket.io-client',
+        'dashjs',
+        '@vueuse/core',
+        'http-status-codes',
+        'crypto-js'
+
+      ],
+    },
+    cacheDir: '.nuxt/vite',
   },
 
-  compatibilityDate: "2025-03-10",
+  compatibilityDate: "2025-05-15",
   devtools: { enabled: true },
+  vuetify: {
+    vuetifyOptions: {
+      blueprint: md3,
+      theme: {
+        defaultTheme: 'dark',
+        themes: {
+          dark: {
+            colors: {
+              background: '#0D0D0D', // ciemne tło
+              surface: '#1A1A1A',
+              primary: '#9C27B0',   // fiolet
+              secondary: '#7C4DFF',
+            },
+          },
+        },
+      },
+    },
+  },
+
+  pinia: {
+    // autoImports: ['defineStore', 'acceptHMRUpdate'],
+    // Dodaj opcję do obsługi problemów z hydratacją
+    storesDirs: ['./stores/**'],
+  },
 });

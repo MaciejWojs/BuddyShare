@@ -1,9 +1,9 @@
 // ~/stores/notifications.ts
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
-import { useIntervalFn } from '@vueuse/core'
 import { useAuthStore } from './auth'
 import { useAuthWebSocket } from '~/composables/useAuthWebSocket'
+import { useApi } from '~/composables/useApi'
 
 interface Notification {
     id: number;
@@ -12,7 +12,6 @@ interface Notification {
     message: string;
     created_at: string;
     isRead: boolean;
-    // Dodajemy opcjonalne pola, które mogą przyjść z WebSocket
     type?: string;
     streamer?: string;
     streamerName?: string;
@@ -21,34 +20,25 @@ interface Notification {
 
 export const useNotificationsStore = defineStore('notifications', () => {
     const notifications = ref<Notification[]>([])
-    // Usunięto wsConnected, ponieważ stan połączenia jest zarządzany globalnie przez wtyczkę
-    // i dostępny przez useAuthWebSocket().isConnected
-
     const authStore = useAuthStore()
-    const authWs = useAuthWebSocket() // Pobieramy instancję composable
+    const authWs = useAuthWebSocket()
+    const { users } = useApi()
 
     async function fetchNotifications() {
         try {
-            const config = useRuntimeConfig()
-            const headers = useRequestHeaders(['cookie'])
-            const data = await $fetch<Notification[]>(
-                `http://${config.public.BACK_HOST}/users/${authStore.userName}/notifications`,
-                { credentials: 'include', headers }
-            )
-            notifications.value = data
-            console.log('Pobrano powiadomienia:', data)
+            const { data, error } = await users.getNotifications(authStore.userName)
+            if (error.value) throw error.value
+            notifications.value = data.value || []
+            console.log('Pobrano powiadomienia:', notifications.value)
         } catch (e) {
-            console.error('Błąd fetch-notifications:', e)
+            console.error('Błąd fetchNotifications:', e)
         }
     }
 
-    // Funkcja do obsługi nowych powiadomień z WebSocket
     const handleNewNotification = (data: Notification) => {
         console.log('Otrzymano nowe powiadomienie przez WebSocket:', data)
-        // Sprawdź, czy powiadomienie już istnieje
         const exists = notifications.value.some(n => n.id === data.id)
         if (!exists) {
-            // Dodaj nowe powiadomienie na początek listy (najnowsze)
             notifications.value.unshift(data)
             console.log('Dodano nowe powiadomienie do listy.')
         } else {
@@ -57,27 +47,12 @@ export const useNotificationsStore = defineStore('notifications', () => {
     }
 
     async function updateNotificationStatus(id: number, isRead: boolean) {
-        const notification = notifications.value.find(
-            (n) => n.id === id)
-
-        if (!notification || notification.type === 'dismissable') {
-            return;
-        }
+        const notification = notifications.value.find(n => n.id === id)
+        if (!notification || notification.type === 'dismissable') return
 
         try {
-            const config = useRuntimeConfig()
-            const headers = useRequestHeaders(['cookie'])
-
-            await $fetch(
-                `http://${config.public.BACK_HOST}/users/${authStore.userName}/notifications/${id}`,
-                {
-                    method: 'PATCH',
-                    body: { isRead },
-                    credentials: 'include',
-                    headers
-                }
-            )
-            console.log(`Zaktualizowano status powiadomienia ${id} na serwerze`)
+            await users.updateNotification(authStore.userName, id, { isRead })
+            console.log(`Zaktualizowano status powiadomienia ${id}`)
         } catch (e) {
             console.error(`Błąd aktualizacji powiadomienia ${id}:`, e)
             await fetchNotifications()
@@ -86,19 +61,8 @@ export const useNotificationsStore = defineStore('notifications', () => {
 
     async function updateMultipleNotifications(notificationUpdates: { id: number, isRead: boolean }[]) {
         try {
-            const config = useRuntimeConfig()
-            const headers = useRequestHeaders(['cookie'])
-
-            await $fetch(
-                `http://${config.public.BACK_HOST}/users/${authStore.userName}/notifications`,
-                {
-                    method: 'PUT',
-                    body: { notifications: notificationUpdates },
-                    credentials: 'include',
-                    headers
-                }
-            )
-            console.log(`Zaktualizowano ${notificationUpdates.length} powiadomień na serwerze`)
+            await users.updateNotifications(authStore.userName, notificationUpdates)
+            console.log(`Zaktualizowano ${notificationUpdates.length} powiadomień`)
         } catch (e) {
             console.error('Błąd zbiorczej aktualizacji powiadomień:', e)
             await fetchNotifications()
@@ -106,46 +70,33 @@ export const useNotificationsStore = defineStore('notifications', () => {
     }
 
     async function markAsRead(id: number) {
-        const notification = notifications.value.find(
-            (n) => n.id === id && typeof n === 'object' && 'isRead' in n
-        );
-        if (notification && !notification.isRead) { // Dodano warunek !notification.isRead
-            notification.isRead = true;
-            await updateNotificationStatus(id, true);
+        const notification = notifications.value.find(n => n.id === id)
+        if (notification && !notification.isRead) {
+            notification.isRead = true
+            await updateNotificationStatus(id, true)
         }
     }
 
     async function markAllAsRead() {
-        const unreadNotifications = notifications.value
-            .filter(n => typeof n === 'object' && 'isRead' in n && !n.isRead && n.type !== 'dismissable')
-            .map(n => ({ id: n.id, isRead: true }));
+        const unread = notifications.value
+            .filter(n => !n.isRead && n.type !== 'dismissable')
+            .map(n => ({ id: n.id, isRead: true }))
 
-        if (unreadNotifications.length === 0) return;
+        if (!unread.length) return
 
-        notifications.value.forEach((notification) => {
-            if (typeof notification === 'object' && 'isRead' in notification) {
-                notification.isRead = true;
-            }
-        });
-        await updateMultipleNotifications(unreadNotifications);
+        notifications.value.forEach(n => {
+            if (n.type !== 'dismissable') n.isRead = true
+        })
+
+        await updateMultipleNotifications(unread)
     }
 
     async function deleteNotification(id: number) {
-        try {
-            const notification = notifications.value.find(n => n.id === id)
-            if (notification && notification.type !== 'dismissable') {
-                const config = useRuntimeConfig()
-                const headers = useRequestHeaders(['cookie'])
+        const notification = notifications.value.find(n => n.id === id)
+        if (!notification || notification.type === 'dismissable') return
 
-                await $fetch(
-                    `http://${config.public.BACK_HOST}/users/${authStore.userName}/notifications/${id}`,
-                    {
-                        method: 'DELETE',
-                        credentials: 'include',
-                        headers
-                    }
-                )
-            }
+        try {
+            await users.deleteNotification(authStore.userName, id)
             notifications.value = notifications.value.filter(n => n.id !== id)
             console.log(`Usunięto powiadomienie ${id}`)
         } catch (e) {
@@ -154,22 +105,11 @@ export const useNotificationsStore = defineStore('notifications', () => {
         }
     }
 
-    async function deleteNotificationsInBulk(notificationIds: number[]) {
+    async function deleteNotificationsInBulk(ids: number[]) {
         try {
-            const config = useRuntimeConfig()
-            const headers = useRequestHeaders(['cookie'])
-
-            await $fetch(
-                `http://${config.public.BACK_HOST}/users/${authStore.userName}/notifications`,
-                {
-                    method: 'DELETE', // Używamy DELETE zgodnie z sugestią dla usuwania zbiorczego
-                    body: { notifications: notificationIds }, // Przekazujemy ID w ciele żądania
-                    credentials: 'include',
-                    headers
-                }
-            )
-            notifications.value = notifications.value.filter(n => !notificationIds.includes(n.id))
-            console.log(`Usunięto ${notificationIds.length} powiadomień`)
+            await users.deleteNotifications(authStore.userName, ids)
+            notifications.value = notifications.value.filter(n => !ids.includes(n.id))
+            console.log(`Usunięto ${ids.length} powiadomień`)
         } catch (e) {
             console.error('Błąd usuwania powiadomień:', e)
             await fetchNotifications()
@@ -178,16 +118,16 @@ export const useNotificationsStore = defineStore('notifications', () => {
 
     async function deleteAllNotifications() {
         try {
-            const allNotificationIds = notifications.value.filter(n => n.type !== 'dismissable').map(n => n.id)
-            if (allNotificationIds.length === 0) return;
+            const deletable = notifications.value.filter(n => n.type !== 'dismissable').map(n => n.id)
+            if (!deletable.length) return
 
-            const previousNotifications = [...notifications.value]
+            const previous = [...notifications.value]
             notifications.value = []
 
             try {
-                await deleteNotificationsInBulk(allNotificationIds)
+                await deleteNotificationsInBulk(deletable)
             } catch (e) {
-                notifications.value = previousNotifications
+                notifications.value = previous
                 throw e
             }
         } catch (e) {
@@ -196,34 +136,28 @@ export const useNotificationsStore = defineStore('notifications', () => {
         }
     }
 
-    // Inicjalizacja i nasłuchiwanie na zmiany autentykacji
     if (import.meta.client) {
-        // Nasłuchuj na powiadomienia WebSocket tylko raz
-        authWs.onStreamNotification(handleNewNotification);
-        authWs.onNotifyStreamer((data) => {
-            console.log('Otrzymano powiadomienie jako streamer:', data);
+        authWs.onStreamNotification(handleNewNotification)
+        authWs.onNotifyStreamer(data => {
+            console.log('Otrzymano powiadomienie jako streamer:', data)
             if (data.streamerName === authStore.userName) {
-                console.log('Otrzymano powiadomienie o twoim streamie:', data);
-                handleNewNotification(data);
+                handleNewNotification(data)
             }
-        });
+        })
 
         watch(() => authStore.authenticated, (loggedIn) => {
             if (loggedIn) {
-                console.log("Użytkownik zalogowany, pobieram powiadomienia.");
-                fetchNotifications();
-                // Nie ma potrzeby ręcznego łączenia WebSocket, wtyczka to robi
+                console.log('Użytkownik zalogowany, pobieram powiadomienia.')
+                fetchNotifications()
             } else {
-                console.log("Użytkownik wylogowany, czyszczę powiadomienia.");
-                notifications.value = []; // Wyczyść powiadomienia po wylogowaniu
-                // Nie ma potrzeby ręcznego rozłączania WebSocket, wtyczka to robi
+                console.log('Użytkownik wylogowany, czyszczę powiadomienia.')
+                notifications.value = []
             }
-        }, { immediate: true }); // Uruchom od razu
+        }, { immediate: true })
     }
 
     return {
         notifications,
-        // usunięto wsConnected
         fetchNotifications,
         markAsRead,
         markAllAsRead,

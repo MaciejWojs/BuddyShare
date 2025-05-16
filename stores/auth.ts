@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import type { User } from "../types/User"; // Wydziel interfejs do osobnego pliku
+import type { User } from "../types/User";
 import { Role } from "~/types/Roles";
 
 export const useAuthStore = defineStore("auth", () => {
@@ -16,27 +16,20 @@ export const useAuthStore = defineStore("auth", () => {
   const isReady = computed(() => isAuthenticated.value);
   const isAdmin = computed(() => user.value?.userInfo.userRole === Role.ADMIN);
 
-  // Lazy imports dla funkcji Nuxt
-  const lazyFetch = () => {
-    const config = useRuntimeConfig();
-    const BACK_HOST = config.public.BACK_HOST;
-    const headers = useRequestHeaders(["cookie"]);
-    return { config, BACK_HOST, headers };
-  };
+  const { auth } = useApi();
 
   // actions
   async function fetchUser() {
-    const { BACK_HOST, headers } = lazyFetch();
-
     try {
-      user.value = await $fetch<User>(`http://${BACK_HOST}/auth/me`, {
-        method: "GET",
-        headers,
-        credentials: "include",
-      });
+      const { data, error } = await auth.getCurrentUser();
+      
+      if (error.value) {
+        clearUser();
+        return;
+      }
+      
+      user.value = data.value as User;
       isAuthenticated.value = !!user.value;
-      // console.log("User logged in:", user.value);
-      // console.log("User authenticated:", isAuthenticated.value);
     } catch (error) {
       clearUser();
     }
@@ -48,14 +41,8 @@ export const useAuthStore = defineStore("auth", () => {
   }
 
   async function logout() {
-    const { BACK_HOST, headers } = lazyFetch();
-
     try {
-      await $fetch(`http://${BACK_HOST}/auth/logout`, {
-        method: "GET",
-        headers,
-        credentials: "include",
-      });
+      await auth.logout();
     } catch (error) {
       console.error("Błąd podczas wylogowywania:", error);
     }
