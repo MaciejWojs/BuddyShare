@@ -60,24 +60,6 @@ export const usePublicWebSocket = () => {
     };
 
     // Stream event handlers
-    const onViewerUpdate = (handler: (viewerCount: number) => void) => {
-        const wrappedHandler = (data: any) => {
-            if (typeof data === 'number') {
-                handler(data);
-            } else if (data && typeof data.viewerCount === 'number') {
-                handler(data.viewerCount);
-            } else {
-                console.error('Invalid viewerUpdate data format:', data);
-                handler(0);
-            }
-        };
-        on('viewerUpdate', wrappedHandler);
-    };
-
-    const onStreamStarted = (handler: (data: Stream) => void) => {
-        on('streamStarted', handler);
-    };
-
     const onPatchStream = (handler: (data: Stream) => void) => {
         on('patchStream', handler);
     };
@@ -89,13 +71,6 @@ export const usePublicWebSocket = () => {
         streamerId: string | number
     }) => void) => {
         on('streamEnded', handler);
-    };
-
-    const onFollowerCountUpdate = (handler: (data: {
-        streamerId: string,
-        count: number
-    }) => void) => {
-        on('followerCountUpdate', handler);
     };
 
     // Obsługa statystyk streamu dla widzów
@@ -128,10 +103,7 @@ export const usePublicWebSocket = () => {
         joinChatRoom,
         leaveChatRoom,
         // Stream event handlers
-        onViewerUpdate,
-        onStreamStarted,
         onStreamEnded,
-        onFollowerCountUpdate,
         onChatMessage,
         onPatchStream,
         // Stream stats handler
