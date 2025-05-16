@@ -154,10 +154,10 @@ const api = useApi();
 const displayName = route.params.displayname as string;
 const streamStore = useStreamsStore();
 
-onMounted(async () => {
-  // Fetch stream data when the component is mounted
-  await streamsStore.fetchStreams();
-});
+// onMounted(async() => {
+//   // Fetch stream data when the component is mounted
+//   await streamsStore.fetchStreams();
+// });
 
 const stream = computed(() => {
   return (
@@ -373,7 +373,7 @@ const updateStreamInfo = async () => {
     currentStream.title = editedTitle.value;
     currentStream.stream_description = editedDescription.value;
   }
-  streamsStore.fetchStreams();
+  // streamsStore.fetchStreams();
 };
 </script>
 

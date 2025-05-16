@@ -30,7 +30,6 @@ use([
 
 const props = defineProps<{ streamerName: string }>()
 const streamsStore = useStreamsStore()
-const ws = usePublicWebSocket()
 
 const stream = computed(() => {
     const s = streamsStore.getStreamByStreamerName(props.streamerName)
@@ -38,26 +37,11 @@ const stream = computed(() => {
     return s
 })
 
-const streamId = computed(() => {
-    const id = stream.value?.options_id || ''
-    console.log('⭐ Stream ID computed:', id)
-    return id
-})
-
-// Utworzenie bezpośredniej referencji do historii widzów ze strumienia
-const streamHistory = computed(() => {
-    const history = stream.value?.history || { viewers: [] }
-    console.log('⭐ Stream history updated:', history)
-    return history
-})
-
-// 1) Poprawione zwracanie stream
-
-// Przygotowanie danych subskrybentów
 const subscriberData = computed(() => {
-    const subscribers = streamHistory.value.subscribers || []
-    return subscribers.map((s: any) => [new Date(s.timestamp), s.count])
+    const history = streamsStore.getHistoryByStreamerName(props.streamerName)
+    return history?.subscribers?.map((v: any) => [new Date(v.timestamp), v.count]) || [];
 })
+
 
 // Ref do komponentu wykresu (opcjonalnie do ręcznego update'u)
 const chartRef = ref<any>(null)
@@ -81,10 +65,10 @@ const chartOptions = computed(() => {
         title: {
             text: 'Subskrybenci na żywo',
             left: 'center',
-            textStyle: { 
-                color: '#ffffff', 
-                fontSize: 18, 
-                fontWeight: 'bold' 
+            textStyle: {
+                color: '#ffffff',
+                fontSize: 18,
+                fontWeight: 'bold'
             }
         },
         legend: {
@@ -105,14 +89,14 @@ const chartOptions = computed(() => {
             formatter: (params: any) => {
                 const date = new Date(params[0].data[0]).toLocaleTimeString()
                 let result = `<span style="font-weight:bold">${date}</span><br/>`
-                
+
                 params.forEach((param: any) => {
                     const color = '#FF7F50'
                     const count = param.data[1]
                     const name = param.seriesName
                     result += `<span style="color:${color}">◉</span> <span style="font-size:14px">${count} ${name.toLowerCase()}</span><br/>`
                 })
-                
+
                 return result
             }
         },
@@ -125,8 +109,8 @@ const chartOptions = computed(() => {
         },
         xAxis: {
             type: 'time',
-            axisLine: { 
-                lineStyle: { color: '#666' } 
+            axisLine: {
+                lineStyle: { color: '#666' }
             },
             axisLabel: {
                 color: '#ccc',
@@ -147,23 +131,23 @@ const chartOptions = computed(() => {
             type: 'value',
             name: 'Subskrybenci',
             minInterval: 1,
-            nameTextStyle: { 
+            nameTextStyle: {
                 color: '#ccc',
                 fontSize: 13,
                 padding: [0, 0, 10, 0]
             },
             axisLine: { lineStyle: { color: '#666' } },
-            axisLabel: { 
+            axisLabel: {
                 color: '#ccc',
-                fontSize: 11, 
+                fontSize: 11,
                 margin: 12
             },
-            splitLine: { 
+            splitLine: {
                 show: true,
-                lineStyle: { 
+                lineStyle: {
                     color: 'rgba(100, 100, 100, 0.2)',
-                    type: 'dashed' 
-                } 
+                    type: 'dashed'
+                }
             }
         },
         series: [
@@ -221,82 +205,6 @@ const chartOptions = computed(() => {
         ]
     }
 })
-
-// Dodanie funkcji nasłuchującej wydarzenia WebSocket
-onMounted(() => {
-    console.log('⭐ ViewerChart mounted for streamer:', props.streamerName)
-    console.log('⭐ Initial stream data:', stream.value)
-    console.log('⭐ Initial history:', streamHistory.value)
-    
-    // Inicjalizacja WebSocket podobnie jak w VideoPlayer.vue
-    if (stream.value?.options_id) {
-        const streamIdValue = stream.value.options_id.toString();
-        console.log('🔌 Initializing WebSocket connection in onMounted for stream:', streamIdValue)
-        ws.joinStream(streamIdValue, true)
-    }
-})
-
-// Sprzątanie po zniszczeniu komponentu
-onBeforeUnmount(() => {
-    if (stream.value?.options_id) {
-        console.log('🔌 Cleaning up WebSocket connection on unmount')
-        ws.leaveStream(stream.value.options_id.toString())
-    }
-})
-
-// Ręczne wymuszenie update'u serii
-watch(
-    [() => subscriberData.value, () => streamHistory.value],
-    ([newSubscriberData], [oldSubscriberData]) => {
-        console.log('👁️ subscriberData changed:', newSubscriberData)
-        console.log('👁️ stream history changed:', streamHistory.value)
-        console.log('👁️ Previous subscriber data length:', oldSubscriberData?.length || 0, 'New subscriber data length:', newSubscriberData?.length || 0)
-        if (chartRef.value) {
-            nextTick(() => {
-                chartRef.value.setOption({
-                    series: [
-                        { data: newSubscriberData }
-                    ]
-                })
-            })
-        }
-    },
-    { deep: true }
-)
-
-// Zamiast watch na streamId, użyjmy watch na samym stream.value
-watch(
-    stream,
-    (newStream, oldStream) => {
-        console.log('🔄 Stream reference changed:', newStream)
-        
-        // Opuszczamy stary stream
-        if (oldStream?.options_id) {
-            const oldId = oldStream.options_id.toString();
-            console.log('🔌 Leaving stream on change:', oldId)
-            ws.leaveStream(oldId)
-        }
-        
-        // Dołączamy do nowego streamu
-        if (newStream?.options_id) {
-            const newId = newStream.options_id.toString();
-            console.log('🔌 Joining stream on change:', newId)
-            ws.joinStream(newId, true)
-            console.log('🔌 Current WebSocket state after joining:', (ws as any).connected ? 'connected' : 'disconnected') 
-        }
-    },
-    { deep: true }
-)
-
-// Dodaj bezpośredni watch na historię strumienia
-watch(
-    () => streamsStore.streams,
-    () => {
-        console.log('🔄 StreamStore updated, current stream:', stream.value?.options_id)
-        console.log('🔄 Updated history:', streamHistory.value)
-    },
-    { deep: true }
-)
 
 </script>
 

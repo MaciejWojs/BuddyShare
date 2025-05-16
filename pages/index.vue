@@ -2,10 +2,15 @@
 import { ClientOnly } from '#components';
 
 const streamStore = useStreamsStore();
+const authStore = useAuthStore();
 const router = useRouter();
 const searchQuery = ref("");
 const streams = computed(() =>
-  streamStore.streams.filter(stream => stream.isPublic)
+  streamStore.streams.filter(stream => {
+    if (!authStore.authenticated) return stream.isPublic;
+
+    return stream.username === authStore.userName || stream.isPublic;
+  })
 );
 
 const hoverTimeout = ref<ReturnType<typeof setTimeout> | null>(null);

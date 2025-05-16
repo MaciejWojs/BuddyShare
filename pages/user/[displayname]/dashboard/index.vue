@@ -96,6 +96,23 @@ import { useStreamsStore } from '~/stores/streams';
 const route = useRoute();
 const displayName = route.params.displayname;
 const streamsStore = useStreamsStore();
+const ws = usePublicWebSocket();
+
+const streamData = computed(() => streamsStore.getStreamByStreamerName(displayName));
+
+let previousOptionsId: string | undefined;
+
+watch(streamData, (newStreamData) => {
+  const newId = newStreamData?.options_id?.toString();
+  if (newId === previousOptionsId) return;
+  if (previousOptionsId) {
+    ws.leaveStream(previousOptionsId);
+  }
+  if (newStreamData && newStreamData.isLive && newId) {
+    ws.joinStream(newId);
+  }
+  previousOptionsId = newId;
+}, { immediate: true });
 </script>
 
 <style scoped>

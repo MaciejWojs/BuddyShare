@@ -83,10 +83,10 @@ export const usePublicWebSocket = () => {
         username: string;
         text: string; // Zmieniono z 'message' na 'text' zgodnie z poprzednim kodem
         timestamp: string;
-      }) => void) => {
+    }) => void) => {
         // Nasłuchuj na ogólny event 'chatMessage'
         on("chatMessage", handler);
-      };
+    };
 
 
     return {
