@@ -109,7 +109,7 @@ watch(streamData, (newStreamData) => {
     ws.leaveStream(previousOptionsId);
   }
   if (newStreamData && newStreamData.isLive && newId) {
-    ws.joinStream(newId);
+    ws.joinStream(newId, true);
   }
   previousOptionsId = newId;
 }, { immediate: true });

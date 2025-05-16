@@ -130,13 +130,13 @@
 
       <!-- Chat Column -->
       <v-col
-        v-if="streamId"
+        v-if="streamID"
         cols="12"
         lg="3"
         class="h-100 bg-grey-darken-4"
       >
         <LiveChat
-          :stream-id="streamId"
+          :stream-id="streamID"
           :messages="chatMessages"
           title="Live Chat"
           @message-action="handleMessageAction"
@@ -153,6 +153,7 @@ const api = useApi();
 
 const displayName = route.params.displayname as string;
 const streamStore = useStreamsStore();
+const ws = usePublicWebSocket();
 
 // onMounted(async() => {
 //   // Fetch stream data when the component is mounted
@@ -169,8 +170,9 @@ const stream = computed(() => {
     }
   );
 });
-
-const streamId = computed(() => stream.value?.id);
+const streamID = computed(
+  () => streamStore.getStreamByStreamerName(displayName)?.options_id
+);
 
 definePageMeta({
   middleware: [
@@ -187,8 +189,8 @@ const streamerAndStreamingStatus = useState<Boolean>(
   () => false
 );
 
-if (!streamId.value) {
-  // Handle case where streamId is not found
+if (!streamID.value) {
+  // Handle case where streamID is not found
   console.error("Stream ID not found for display name:", displayName);
 }
 
@@ -302,6 +304,9 @@ const handleMessageAction = ({ action, message, index }) => {
 onBeforeUnmount(() => {
   console.log("Checking before - >", streamerAndStreamingStatus.value);
   streamerAndStreamingStatus.value = false;
+  if (streamID.value) {
+    ws.leaveStream(String(streamID.value));
+  }
   console.log("Checking after - >", streamerAndStreamingStatus.value);
 });
 
@@ -340,9 +345,7 @@ watch(
   { immediate: true }
 );
 
-const streamID = computed(
-  () => streamStore.getStreamByStreamerName(displayName)?.options_id
-);
+
 
 const updateStreamInfo = async () => {
   if (!editedTitle.value || !editedDescription.value) {
