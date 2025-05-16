@@ -9,32 +9,43 @@ import { useSubscriptionsStore } from "~/stores/subscriptions";
 import type { Subscription } from "~/types/Subscription";
 
 const store = useSubscriptionsStore();
-const subscriptions = computed(() => store.subscriptions);
+// const subscriptions = computed(() => store.subscriptions);
 
 const authStore = useAuthStore();
 const displayName = route.params.displayname;
 
 const { users, streamers } = useApi();
 
-const streamerName = displayName as string;
+const streamerName = String(displayName);
 
 // Check if user is already subscribed to this streamer
 const isSubscribed = computed(() => {
-  return subscriptions.value.some(
+  return store.subscriptions.some(
     (sub: Subscription) => sub.streamerUsername === displayName
   );
+});
+const onSubscribe = async () => {
+  try {
+    if (isSubscribed.value) {
+      await store.removeSubscription(streamerName);
+    } else {
+      await store.addSubscription(streamerName);
+    }
+  } catch (error) {
+    console.error("Error subscribing/unsubscribing:", error);
+  }
+};
+const isLoading = ref(true);
+onMounted(() => {
+  isLoading.value = !isLoading.value;
 });
 </script>
 
 <template>
   <button
-    v-if="authStore.userName !== displayName"
+    v-if="authStore.userName !== displayName && !isLoading"
     class="subscribe-button"
-    @click="
-      isSubscribed
-        ? streamers.unsubscribe(streamerName)
-        : streamers.subscribe(streamerName)
-    "
+    @click="onSubscribe"
   >
     <span class="button-text">{{ isSubscribed ? "Unsub" : "Sub" }}</span>
   </button>
