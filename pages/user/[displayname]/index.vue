@@ -26,9 +26,17 @@
         <div class="my-6"></div>
         <!-- Stream info section -->
         <div class="stream-info pa-4 bg-grey-darken-3 rounded">
+          <!-- Sekcja z tytułem i przyciskiem - skeleton lub dane -->
           <div class="d-flex align-center mb-2">
-            <h1 class="text-h4 mb-0">{{ stream.title || "" }}</h1>
+            <template v-if="!isLoading">
+              <h1 class="text-h4 mb-0">{{ stream.title || "" }}</h1>
+            </template>
+            <template v-else>
+              <div class="skeleton-text skeleton-bg" style="width: 70%; height: 38px;"></div>
+            </template>
+            
             <v-spacer></v-spacer>
+            
             <div class="d-flex flex-column">
               <!-- Dodajemy margin top do dialogu -->
               <v-dialog
@@ -93,27 +101,41 @@
               </v-dialog>
             </div>
           </div>
-          <p class="text-body-1 mb-4">{{ stream.stream_description }}</p>
+          
+          <!-- Opis streamu - skeleton lub dane -->
+          <template v-if="!isLoading">
+            <p class="text-body-1 mb-4">{{ stream.stream_description }}</p>
+          </template>
+          <template v-else>
+            <div class="skeleton-text skeleton-bg mb-2" style="width: 95%; height: 18px;"></div>
+            <div class="skeleton-text skeleton-bg mb-2" style="width: 88%; height: 18px;"></div>
+            <div class="skeleton-text skeleton-bg mb-4" style="width: 65%; height: 18px;"></div>
+          </template>
 
           <v-divider class="mb-3"></v-divider>
 
+          <!-- Informacje o streamerze - skeleton lub dane -->
           <div class="d-flex align-center">
-            <v-avatar
-              class="mr-3"
-              size="42"
-            >
-              <v-img
-                src="/Buddyshare.svg"
-                alt="Streamer avatar"
-              />
-            </v-avatar>
-            <div>
-              <span class="text-h6">{{ displayName }}</span>
-              <div class="text-caption">{{ stream.description }}</div>
-            </div>
+            <template v-if="!isLoading">
+              <v-avatar class="mr-3" size="42">
+                <v-img src="/Buddyshare.svg" alt="Streamer avatar" />
+              </v-avatar>
+              <div>
+                <span class="text-h6">{{ displayName }}</span>
+                <div class="text-caption">{{ stream.description }}</div>
+              </div>
+            </template>
+            <template v-else>
+              <v-avatar class="mr-3 skeleton-bg" size="42"></v-avatar>
+              <div>
+                <div class="skeleton-text skeleton-bg mb-1" style="width: 120px; height: 24px;"></div>
+                <div class="skeleton-text skeleton-bg" style="width: 180px; height: 16px;"></div>
+              </div>
+            </template>
+            
             <v-spacer></v-spacer>
-            <!-- <SubscribeButton /> -->
-            <!-- <UnsubscribeButton /> -->
+            
+            <!-- Przycisk profilu - pokazujemy nawet w trybie ładowania -->
             <v-btn
               color="white"
               variant="outlined"
@@ -121,6 +143,7 @@
               @click="navigateTo(`/user/${displayName}/profile`)"
               class="profile-button-styled font-weight-bold"
               rounded="pill"
+              :disabled="isLoading"
             >
               Profil
             </v-btn>
@@ -156,6 +179,9 @@ const displayName = route.params.displayname as string;
 const streamStore = useStreamsStore();
 const ws = usePublicWebSocket();
 
+// Stan ładowania danych
+const isLoading = ref(true);
+
 // onMounted(async() => {
 //   // Fetch stream data when the component is mounted
 //   await streamsStore.fetchStreams();
@@ -173,6 +199,20 @@ const stream = computed(() => {
 });
 const streamID = computed(
   () => streamStore.getStreamByStreamerName(displayName)?.options_id
+);
+
+// Aktualizacja stanu ładowania po pobraniu streamu
+watch(
+  () => stream.value,
+  (newValue) => {
+    if (newValue && newValue.title) {
+      // Dodajemy małe opóźnienie dla płynniejszego przejścia
+      setTimeout(() => {
+        isLoading.value = false;
+      }, 500);
+    }
+  },
+  { immediate: true }
 );
 
 definePageMeta({
@@ -252,6 +292,12 @@ const updateStreamInfo = async () => {
   }
   // streamsStore.fetchStreams();
 };
+
+// Funkcja obsługi akcji wiadomości z czatu
+const handleMessageAction = ({ action, message, index, moderator }) => {
+  console.log(`Message action: ${action}`, message, index, moderator);
+  // Tutaj można dodać funkcje moderowania czatu
+};
 </script>
 
 <style lang="scss">
@@ -295,6 +341,41 @@ const updateStreamInfo = async () => {
   &:active {
     transform: translateY(1px); /* Efekt wciśnięcia */
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1); /* Opcjonalny cień */
+  }
+}
+
+/* Style dla skeleton loadera */
+.skeleton-bg {
+  position: relative;
+  overflow: hidden;
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  
+  &::after {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    transform: translateX(-100%);
+    background-image: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0,
+      rgba(255, 255, 255, 0.1) 20%,
+      rgba(255, 255, 255, 0.2) 60%,
+      rgba(255, 255, 255, 0)
+    );
+    animation: shimmer 1.5s infinite;
+    content: '';
+  }
+}
+
+.skeleton-text {
+  border-radius: 4px;
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
   }
 }
 </style>
