@@ -107,6 +107,7 @@ export const useAuthWebSocket = () => {
             console.error("Nie podano wiadomości do wysłania");
             return;
         }
+
         emit("sendChatMessage", { streamId, message });
     };
 
@@ -122,15 +123,6 @@ export const useAuthWebSocket = () => {
         isRead: boolean;
     }) => void) => {
         on("streamNotification", handler);
-    };
-
-    const onChatMessage = (handler: (data: {
-        userId: string;
-        username: string;
-        message: string;
-        timestamp: string;
-    }) => void) => {
-        on("chatMessage", handler);
     };
 
     const onNotifyStreamer = (handler: (data: {
@@ -163,7 +155,6 @@ export const useAuthWebSocket = () => {
         // Stream event handlers
         onStreamNotification,
         onNotifyStreamer,
-        onChatMessage,
         // Stream stats handler
         onStreamStats,
     };

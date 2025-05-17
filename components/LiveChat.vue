@@ -1,10 +1,6 @@
 <!--components/LiveChat.vue-->
 <template>
-  <v-card
-    class="d-flex flex-column h-100"
-    :color="background"
-    flat
-  >
+  <v-card class="d-flex flex-column h-100" :color="background" flat>
     <!-- Nagłówek czatu -->
     <v-card-title class="chat-header py-2 px-4">
       <div class="d-flex align-center justify-space-between w-100">
@@ -17,43 +13,23 @@
     </v-card-title>
 
     <!-- Wiadomości czatu -->
-    <v-card-text
-      class="chat-messages pa-2 flex-grow-1"
-      ref="chatContainer"
-    >
-      <v-list
-        lines="two"
-        density="compact"
-        class="bg-transparent messages-list"
-      >
-        <template
-          v-for="(msg, index) in messages"
-          :key="index"
-        >
+    <v-card-text class="chat-messages pa-2 flex-grow-1" ref="chatContainer">
+      <v-list lines="two" density="compact" class="bg-transparent messages-list">
+        <template v-for="(msg, index) in messages" :key="index">
           <!-- Wiadomości użytkownika -->
-          <v-list-item
-            v-if="msg.type !== 'system'"
-            :class="{ 'message-highlight': msg.highlight }"
-            @click="onMessageClick(msg, index)"
-            @mouseover="onMessageHover(msg, index, true)"
-            @mouseleave="onMessageHover(msg, index, false)"
-          >
+          <v-list-item v-if="msg.type !== 'system'" :class="{ 'message-highlight': msg.highlight }"
+            @click="onMessageClick(msg, index)" @mouseover="onMessageHover(msg, index, true)"
+            @mouseleave="onMessageHover(msg, index, false)">
             <!-- Avatar użytkownika -->
             <template #prepend>
-              <v-avatar
-                size="32"
-                class="mr-2"
-              >
+              <v-avatar size="32" class="mr-2">
                 <v-img :src="msg.avatar || defaultAvatar" />
               </v-avatar>
             </template>
 
             <!-- Nagłówek wiadomości z nazwą użytkownika i czasem -->
             <v-list-item-subtitle class="d-flex justify-space-between">
-              <span
-                class="font-weight-medium"
-                :class="getRoleClass(msg.role)"
-              >
+              <span class="font-weight-medium" :class="getRoleClass(msg.role)">
                 {{ msg.username }}
               </span>
               <!-- <span class="text-caption text-medium-emphasis">
@@ -67,90 +43,39 @@
             </v-list-item-title>
 
             <!-- Akcje do wiadomości widoczne w trybie moderacji -->
-            <template
-              v-if="isUserModerator && isHovered === index"
-              #append
-            >
+            <template v-if="isUserModerator && isHovered === index" #append>
               <div class="d-flex">
                 <ClientOnly>
-                  <v-tooltip
-                    location="top"
-                    text="Usuń wiadomość"
-                  >
+                  <v-tooltip location="top" text="Usuń wiadomość">
                     <template v-slot:activator="{ props }">
-                      <v-btn
-                        v-bind="props"
-                        icon="mdi-delete"
-                        density="compact"
-                        variant="text"
-                        color="error"
-                        size="small"
-                        @click.stop="onMessageAction('delete', msg, index)"
-                      />
+                      <v-btn v-bind="props" icon="mdi-delete" density="compact" variant="text" color="error"
+                        size="small" @click.stop="onMessageAction('delete', msg, index)" />
                     </template>
                   </v-tooltip>
 
-                  <v-tooltip
-                    location="top"
-                    text="Timeout użytkownika"
-                  >
+                  <v-tooltip location="top" text="Timeout użytkownika">
                     <template v-slot:activator="{ props }">
-                      <v-btn
-                        v-bind="props"
-                        icon="mdi-timer-off"
-                        density="compact"
-                        variant="text"
-                        color="warning"
-                        size="small"
-                        @click.stop="onMessageAction('timeout', msg, index)"
-                      />
+                      <v-btn v-bind="props" icon="mdi-timer-off" density="compact" variant="text" color="warning"
+                        size="small" @click.stop="onMessageAction('timeout', msg, index)" />
                     </template>
                   </v-tooltip>
 
-                  <v-tooltip
-                    location="top"
-                    text="Zbanuj użytkownika"
-                  >
+                  <v-tooltip location="top" text="Zbanuj użytkownika">
                     <template v-slot:activator="{ props }">
-                      <v-btn
-                        v-bind="props"
-                        icon="mdi-account-cancel"
-                        density="compact"
-                        variant="text"
-                        color="error"
-                        size="small"
-                        @click.stop="onMessageAction('ban', msg, index)"
-                      />
+                      <v-btn v-bind="props" icon="mdi-account-cancel" density="compact" variant="text" color="error"
+                        size="small" @click.stop="onMessageAction('ban', msg, index)" />
                     </template>
                   </v-tooltip>
-                  
+
                   <!-- Fallback dla ClientOnly -->
                   <template #fallback>
                     <div class="d-flex">
-                      <v-btn
-                        icon="mdi-delete"
-                        density="compact"
-                        variant="text"
-                        color="error"
-                        size="small"
-                        @click.stop="onMessageAction('delete', msg, index)"
-                      />
-                      <v-btn
-                        icon="mdi-timer-off"
-                        density="compact"
-                        variant="text"
-                        color="warning"
-                        size="small"
-                        @click.stop="onMessageAction('timeout', msg, index)"
-                      />
-                      <v-btn
-                        icon="mdi-account-cancel"
-                        density="compact"
-                        variant="text"
-                        color="error"
-                        size="small"
-                        @click.stop="onMessageAction('ban', msg, index)"
-                      />
+                      <v-btn icon="mdi-delete" density="compact" variant="text" color="error" size="small"
+                        @click.stop="onMessageAction('delete', msg, index)" />
+                      <v-btn icon="mdi-timer-off" density="compact" variant="text" color="warning" size="small"
+                        @click.stop="onMessageAction('timeout', msg, index)" />
+                      <v-btn icon="mdi-account-cancel" density="compact" variant="text" color="error" size="small"
+                        @click.stop="onMessageAction('ban', msg, index)" />
                     </div>
                   </template>
                 </ClientOnly>
@@ -159,10 +84,7 @@
           </v-list-item>
 
           <!-- Wiadomości systemowe -->
-          <v-list-item
-            v-else
-            class="justify-center text-center"
-          >
+          <v-list-item v-else class="justify-center text-center">
             <span class="text-caption text-medium-emphasis">
               {{ msg.text }}
             </span>
@@ -172,29 +94,11 @@
     </v-card-text>
 
     <!-- Pole wprowadzania wiadomości -->
-    <v-card-actions
-      v-if="!readOnly"
-      class="chat-input pa-2 px-4"
-    >
-      <v-text-field
-        v-model="newMessage"
-        :placeholder="inputPlaceholder"
-        variant="outlined"
-        density="compact"
-        hide-details
-        rounded
-        bg-color="grey-darken-3"
-        class="mt-2"
-        @keyup.enter="sendMessage"
-      >
+    <v-card-actions v-if="!readOnly" class="chat-input pa-2 px-4">
+      <v-text-field v-model="newMessage" :placeholder="inputPlaceholder" variant="outlined" density="compact"
+        hide-details rounded bg-color="grey-darken-3" class="mt-2" @keyup.enter="sendMessage">
         <template #append-inner>
-          <v-btn
-            :icon="sendIcon"
-            variant="text"
-            color="primary"
-            size="small"
-            @click="sendMessage"
-          />
+          <v-btn :icon="sendIcon" variant="text" color="primary" size="small" @click="sendMessage" />
         </template>
         <slot name="input-actions"></slot>
       </v-text-field>
@@ -257,10 +161,10 @@ const props = defineProps({
     type: Number,
     required: true,
   },
-  messages: {
-    type: Array as () => ChatMessage[],
-    default: () => [],
-  },
+  // messages: {
+  //   type: Array as () => ChatMessage[],
+  //   default: () => [],
+  // },
   // onlineCount: {
   //   type: [String, Number],
   //   default: "0",
@@ -309,6 +213,7 @@ const emit = defineEmits([
 const newMessage = ref("");
 const isHovered = ref<number | null>(null);
 const chatContainer = ref<HTMLElement | null>(null);
+const messages = ref<ChatMessage[]>([]);
 
 const formatTime = (date: Date | string) => {
   try {
@@ -328,48 +233,34 @@ const formatTime = (date: Date | string) => {
 
 const sendMessage = () => {
   if (newMessage.value.trim()) {
-    // Wywołuję funkcję WebSocket do wysyłania wiadomości
-    authWS.sendChatMessage(props.streamId, newMessage.value.trim());
-
-    // Emitujemy również zdarzenie do komponentu rodzica
+    authWS.sendChatMessage(
+      String(props.streamId),
+      newMessage.value.trim()
+    );
+    // Dodajemy wiadomość lokalnie
+    // messages.value.push({
+    //   username: authStore.user?.userInfo?.username || "Me",
+    //   text: newMessage.value.trim(),
+    //   time: new Date(),
+    //   type: "user",
+    //   role: moderatorStatus.value ? "moderator" : (administratorStatus.value ? "admin" : (streamerAndStreamingStatus.value ? "streamer" : "user")),
+    //   avatar: authStore.user?.userInfo?.profilePicture || props.defaultAvatar,
+    // });
     emit("send-message", {
       text: newMessage.value.trim(),
       time: new Date(),
     });
-
     newMessage.value = "";
+    scrollToBottom();
   }
 };
 
 const scrollToBottom = async () => {
   if (!chatContainer.value || !props.autoScroll) return;
-
   await nextTick();
   const container = chatContainer.value;
   container.scrollTop = container.scrollHeight;
 };
-
-onMounted(() => {
-  publicWS.joinChatRoom(props.streamId);
-  publicWS.onChatMessage((data) => {
-    // Dodaj wiadomość do czatu
-    console.log("Received chat message:", data);
-    props.messages.push(data);
-    // Automatyczne przewijanie do dołu
-    scrollToBottom();
-  });
-
-  scrollToBottom();
-});
-
-// Auto-scroll when new messages arrive
-watch(
-  () => props.messages,
-  () => {
-    scrollToBottom();
-  },
-  { deep: true }
-);
 
 const onMessageClick = (message: ChatMessage, index: number) => {
   emit("message-click", { message, index });
@@ -389,7 +280,6 @@ const onMessageAction = (
   message: ChatMessage,
   index: number
 ) => {
-  // Dodanie informacji o moderatorze do emitowanego zdarzenia
   emit("message-action", {
     action,
     message,
@@ -400,16 +290,61 @@ const onMessageAction = (
 
 const getRoleClass = (role?: string) => {
   if (!role) return "";
-
   const roleClasses = {
     user: "",
     moderator: "text-success",
     admin: "text-error",
     streamer: "text-primary",
   };
-
   return roleClasses[role as keyof typeof roleClasses] || "";
 };
+
+defineExpose({
+  onMessageClick,
+  onMessageHover,
+  onMessageAction,
+  getRoleClass
+});
+
+// Auto-scroll when new messages arrive
+watch(
+  () => messages.value.length,
+  () => {
+    scrollToBottom();
+  }
+);
+
+watch(
+  () => props.streamId,
+  (newStreamId, oldStreamId) => {
+    if (oldStreamId) {
+      publicWS.leaveChatRoom(String(oldStreamId));
+    }
+    if (newStreamId) {
+      publicWS.joinChatRoom(String(newStreamId));
+      publicWS.onChatMessage((data) => {
+        // Mapowanie danych z backendu do lokalnego formatu ChatMessage
+        messages.value.push({
+          username: data.username,
+          text: data.message,
+          time: new Date(data.createdAt),
+          type: "user",
+          id: data.chatMessageId,
+          avatar: props.defaultAvatar,
+          // Możesz dodać inne mapowania jeśli backend je zwraca
+        });
+        emit("send-message", data);
+        console.log("[COMPONENT] Received message:", data);
+        scrollToBottom();
+      });
+    }
+  },
+  { immediate: true }
+);
+
+onMounted(() => {
+  scrollToBottom();
+});
 </script>
 
 <style lang="scss" scoped>

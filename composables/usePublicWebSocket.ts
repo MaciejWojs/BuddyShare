@@ -79,13 +79,16 @@ export const usePublicWebSocket = () => {
     };
 
     const onChatMessage = (handler: (data: {
+        chatMessageId: number;
+        streamId: number;
         userId: string;
         username: string;
-        text: string; // Zmieniono z 'message' na 'text' zgodnie z poprzednim kodem
-        timestamp: string;
+        message: string;
+        createdAt: string;
+        isDeleted: boolean;
     }) => void) => {
-        // Nasłuchuj na ogólny event 'chatMessage'
         on("chatMessage", handler);
+        console.log("chatMessage: ", handler);
     };
 
 
