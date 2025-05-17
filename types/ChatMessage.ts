@@ -6,4 +6,6 @@ export interface ChatMessage {
   createdAt: Date;
   isDeleted: boolean;
   username: string;
+  avatar: string | null;
+  type?: "user" | "system";
 }

@@ -1,4 +1,5 @@
 import type { Socket } from "socket.io-client";
+import type { ChatAction } from "~/types/ChatAction";
 import type { ChatMessage } from "~/types/ChatMessage";
 import type { Stream } from "~/types/Streams";
 
@@ -94,6 +95,16 @@ export const usePublicWebSocket = () => {
         console.log("allMessages: ", handler);
     };
 
+    const onPatchChatMessage = (handler: (data: ChatMessage) => void) => {
+        console.log("patchChatMessage: ", handler);
+        on("patchChatMessage", handler);
+    };
+
+    const patchChatMessage = (message: ChatMessage, action: ChatAction) => {
+        console.log("emitting patchChatMessage", message.chatMessageId);
+        emit("manageChat", message, action);
+    };
+
 
     return {
         // Nie zwracamy już connect/disconnect
@@ -117,5 +128,7 @@ export const usePublicWebSocket = () => {
         // Chat message handling
         getAllMessages,
         onAllMessages,
+        onPatchChatMessage,
+        patchChatMessage,
     };
 };

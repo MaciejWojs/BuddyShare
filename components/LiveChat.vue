@@ -17,7 +17,7 @@
       <v-list lines="two" density="compact" class="bg-transparent messages-list">
         <!-- Skeleton loading wiadomości -->
         <template v-if="messages.length === 0">
-          <v-list-item v-for="i in 8" :key="'skeleton-'+i">
+          <v-list-item v-for="i in 8" :key="'skeleton-' + i">
             <!-- Avatar placeholder -->
             <template #prepend>
               <v-avatar size="32" class="mr-2 skeleton-bg"></v-avatar>
@@ -35,7 +35,7 @@
             </v-list-item-title>
           </v-list-item>
         </template>
-      
+
         <template v-else v-for="(msg, index) in messages" :key="index">
           <!-- Wiadomości użytkownika -->
           <v-list-item v-if="msg.type !== 'system'" :class="{ 'message-highlight': msg.highlight }"
@@ -54,13 +54,13 @@
                 {{ msg.username }}
               </span>
               <!-- <span class="text-caption text-medium-emphasis">
-                {{ formatTime(msg.timestamp) }}
+                {{ formatTime(msg.createdAt) }}
               </span> -->
             </v-list-item-subtitle>
 
             <!-- Treść wiadomości -->
             <v-list-item-title class="text-caption">
-              {{ msg.text }}
+              {{ msg.message }}
             </v-list-item-title>
 
             <!-- Akcje do wiadomości widoczne w trybie moderacji -->
@@ -70,7 +70,7 @@
                   <v-tooltip location="top" text="Usuń wiadomość">
                     <template v-slot:activator="{ props }">
                       <v-btn v-bind="props" icon="mdi-delete" density="compact" variant="text" color="error"
-                        size="small" @click.stop="onMessageAction('delete', msg, index)" />
+                        size="small" @click.stop="onMessageAction(ChatAction.DELETE, msg, index)" />
                     </template>
                   </v-tooltip>
 
@@ -92,7 +92,7 @@
                   <template #fallback>
                     <div class="d-flex">
                       <v-btn icon="mdi-delete" density="compact" variant="text" color="error" size="small"
-                        @click.stop="onMessageAction('delete', msg, index)" />
+                        @click.stop="onMessageAction(ChatAction.DELETE, msg, index)" />
                       <v-btn icon="mdi-timer-off" density="compact" variant="text" color="warning" size="small"
                         @click.stop="onMessageAction('timeout', msg, index)" />
                       <v-btn icon="mdi-account-cancel" density="compact" variant="text" color="error" size="small"
@@ -107,7 +107,7 @@
           <!-- Wiadomości systemowe -->
           <v-list-item v-else class="justify-center text-center">
             <span class="text-caption text-medium-emphasis">
-              {{ msg.text }}
+              {{ msg.message }}
             </span>
           </v-list-item>
         </template>
@@ -132,21 +132,17 @@ import { ref, computed, watch, nextTick, onMounted, warn } from "vue";
 import { useState } from "#app"; // Import useState z Nuxt
 
 import type { Moderator } from "@/types/moderator"; // Import typu Moderator
+import type { ChatMessage } from "~/types/ChatMessage";
+import { ChatAction } from "~/types/ChatAction";
 
 const publicWS = usePublicWebSocket();
 const streamStore = useStreamsStore();
 const authStore = useAuthStore();
 const authWS = useAuthWebSocket();
 
-interface ChatMessage {
-  username: string;
-  text: string;
-  time: Date;
-  type?: "user" | "system" | "notification";
+interface ChatMessageNew extends ChatMessage {
   role?: "user" | "moderator" | "admin" | "streamer";
-  avatar?: string;
   highlight?: boolean;
-  id?: string | number;
   [key: string]: any; // Dla dodatkowych pól
 }
 
@@ -234,7 +230,7 @@ const emit = defineEmits([
 const newMessage = ref("");
 const isHovered = ref<number | null>(null);
 const chatContainer = ref<HTMLElement | null>(null);
-const messages = ref<ChatMessage[]>([]);
+const messages = ref<ChatMessageNew[]>([]);
 
 const formatTime = (date: Date | string) => {
   try {
@@ -283,12 +279,12 @@ const scrollToBottom = async () => {
   container.scrollTop = container.scrollHeight;
 };
 
-const onMessageClick = (message: ChatMessage, index: number) => {
+const onMessageClick = (message: ChatMessageNew, index: number) => {
   emit("message-click", { message, index });
 };
 
 const onMessageHover = (
-  message: ChatMessage,
+  message: ChatMessageNew,
   index: number,
   isHovering: boolean
 ) => {
@@ -298,9 +294,15 @@ const onMessageHover = (
 
 const onMessageAction = (
   action: string,
-  message: ChatMessage,
+  message: ChatMessageNew,
   index: number
 ) => {
+
+  if (!isUserModerator) {
+    warn("User is not a moderator or admin");
+    return;
+  }
+
   emit("message-action", {
     action,
     message,
@@ -346,12 +348,14 @@ watch(
       publicWS.getAllMessages(String(newStreamId));
       publicWS.onAllMessages((data) => {
         messages.value = data.map((msg: any) => ({
+          chatMessageId: msg.chatMessageId,
+          streamId: msg.streamId,
+          userId: msg.userId,
+          message: msg.message,
+          createdAt: msg.createdAt,
+          isDeleted: msg.isDeleted,
           username: msg.username,
-          text: msg.message,
-          time: new Date(msg.createdAt),
-          type: "user",
-          id: msg.chatMessageId,
-          avatar: props.defaultAvatar,
+          avatar: msg.avatar,
         }));
         console.log("[COMPONENT] Received all messages:", data);
         scrollToBottom();
@@ -359,17 +363,28 @@ watch(
       publicWS.onChatMessage((data) => {
         // Mapowanie danych z backendu do lokalnego formatu ChatMessage
         messages.value.push({
+          chatMessageId: data.chatMessageId,
+          streamId: data.streamId,
+          userId: data.userId,
+          message: data.message,
+          createdAt: data.createdAt,
+          isDeleted: data.isDeleted,
           username: data.username,
-          text: data.message,
-          time: new Date(data.createdAt),
-          type: "user",
-          id: data.chatMessageId,
-          avatar: props.defaultAvatar,
-          // Możesz dodać inne mapowania jeśli backend je zwraca
+          avatar: data.avatar,
         });
         emit("send-message", data);
         console.log("[COMPONENT] Received message:", data);
         scrollToBottom();
+      });
+
+      publicWS.onPatchChatMessage((data) => {
+        console.log("[COMPONENT] Received patch message:", data);
+        const index = messages.value.findIndex(
+          (msg) => msg.chatMessageId === data.chatMessageId
+        );
+        if (index !== -1) {
+          messages.value[index] = data;
+        }
       });
     }
   },
@@ -418,7 +433,7 @@ onMounted(() => {
   position: relative;
   overflow: hidden;
   background-color: rgba(255, 255, 255, 0.1) !important;
-  
+
   &::after {
     position: absolute;
     top: 0;
@@ -426,13 +441,11 @@ onMounted(() => {
     bottom: 0;
     left: 0;
     transform: translateX(-100%);
-    background-image: linear-gradient(
-      90deg,
-      rgba(255, 255, 255, 0) 0,
-      rgba(255, 255, 255, 0.1) 20%,
-      rgba(255, 255, 255, 0.2) 60%,
-      rgba(255, 255, 255, 0)
-    );
+    background-image: linear-gradient(90deg,
+        rgba(255, 255, 255, 0) 0,
+        rgba(255, 255, 255, 0.1) 20%,
+        rgba(255, 255, 255, 0.2) 60%,
+        rgba(255, 255, 255, 0));
     animation: shimmer 1.5s infinite;
     content: '';
   }

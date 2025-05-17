@@ -1,23 +1,10 @@
 <!-- pages/[displayname]/index.vue -->
 <template>
-  <v-container
-    fluid
-    class="stream-layout pa-0 fill-height"
-  >
-    <v-row
-      no-gutters
-      class="fill-height"
-    >
+  <v-container fluid class="stream-layout pa-0 fill-height">
+    <v-row no-gutters class="fill-height">
       <!-- Main Content Column -->
-      <v-col
-        cols="12"
-        lg="9"
-        class="h-100"
-      >
-        <v-responsive
-          :aspect-ratio="16 / 9"
-          class="h-100"
-        >
+      <v-col cols="12" lg="9" class="h-100">
+        <v-responsive :aspect-ratio="16 / 9" class="h-100">
           <!-- Poprawione przekazywanie jakości do VideoPlayer -->
           <LazyStreamVideoPlayer :display-name="displayName" />
         </v-responsive>
@@ -34,26 +21,15 @@
             <template v-else>
               <div class="skeleton-text skeleton-bg" style="width: 70%; height: 38px;"></div>
             </template>
-            
+
             <v-spacer></v-spacer>
-            
+
             <div class="d-flex flex-column">
               <!-- Dodajemy margin top do dialogu -->
-              <v-dialog
-                v-model="editDialog"
-                max-width="600px"
-                class="mt-6"
-              >
+              <v-dialog v-model="editDialog" max-width="600px" class="mt-6">
                 <template v-slot:activator="{ props }">
-                  <v-btn
-                    v-if="streamStore.isStreamOwner()"
-                    color="pink-darken-1"
-                    variant="elevated"
-                    prepend-icon="mdi-video"
-                    v-bind="props"
-                    class="text-uppercase font-weight-bold py-2"
-                    block
-                  >
+                  <v-btn v-if="streamStore.isStreamOwner()" color="pink-darken-1" variant="elevated"
+                    prepend-icon="mdi-video" v-bind="props" class="text-uppercase font-weight-bold py-2" block>
                     GO LIVE
                   </v-btn>
                 </template>
@@ -61,47 +37,23 @@
                   <v-card-title>Edytuj informacje o streamie</v-card-title>
                   <v-card-text>
                     <v-form @submit.prevent="updateStreamInfo">
-                      <v-text-field
-                        v-model="editedTitle"
-                        label="Tytuł streamu"
-                        variant="outlined"
-                        class="mb-4"
-                        required
-                      ></v-text-field>
-                      <v-textarea
-                        v-model="editedDescription"
-                        label="Opis streamu"
-                        variant="outlined"
-                        rows="4"
-                        class="mb-4"
-                        required
-                      ></v-textarea>
-                      <v-switch
-                        v-model="isPublic"
-                        label="Stream publiczny"
-                        color="primary"
-                      ></v-switch>
+                      <v-text-field v-model="editedTitle" label="Tytuł streamu" variant="outlined" class="mb-4"
+                        required></v-text-field>
+                      <v-textarea v-model="editedDescription" label="Opis streamu" variant="outlined" rows="4"
+                        class="mb-4" required></v-textarea>
+                      <v-switch v-model="isPublic" label="Stream publiczny" color="primary"></v-switch>
                     </v-form>
                   </v-card-text>
                   <v-card-actions>
                     <v-spacer></v-spacer>
-                    <v-btn
-                      color="error"
-                      variant="text"
-                      @click="editDialog = false"
-                      >Anuluj</v-btn
-                    >
-                    <v-btn
-                      color="primary"
-                      @click="updateStreamInfo"
-                      >Zapisz zmiany</v-btn
-                    >
+                    <v-btn color="error" variant="text" @click="editDialog = false">Anuluj</v-btn>
+                    <v-btn color="primary" @click="updateStreamInfo">Zapisz zmiany</v-btn>
                   </v-card-actions>
                 </v-card>
               </v-dialog>
             </div>
           </div>
-          
+
           <!-- Opis streamu - skeleton lub dane -->
           <template v-if="!isLoading">
             <p class="text-body-1 mb-4">{{ stream.stream_description }}</p>
@@ -132,19 +84,13 @@
                 <div class="skeleton-text skeleton-bg" style="width: 180px; height: 16px;"></div>
               </div>
             </template>
-            
+
             <v-spacer></v-spacer>
-            
+
             <!-- Przycisk profilu - pokazujemy nawet w trybie ładowania -->
-            <v-btn
-              color="white"
-              variant="outlined"
-              prepend-icon="mdi-account"
-              @click="navigateTo(`/user/${displayName}/profile`)"
-              class="profile-button-styled font-weight-bold"
-              rounded="pill"
-              :disabled="isLoading"
-            >
+            <v-btn color="white" variant="outlined" prepend-icon="mdi-account"
+              @click="navigateTo(`/user/${displayName}/profile`)" class="profile-button-styled font-weight-bold"
+              rounded="pill" :disabled="isLoading">
               Profil
             </v-btn>
           </div>
@@ -152,17 +98,8 @@
       </v-col>
 
       <!-- Chat Column -->
-      <v-col
-        v-if="streamID"
-        cols="12"
-        lg="3"
-        class="h-100 bg-grey-darken-4"
-      >
-        <LazyLiveChat
-          :stream-id="streamID"
-          title="Live Chat"
-          @message-action="handleMessageAction"
-        />
+      <v-col v-if="streamID" cols="12" lg="3" class="h-100 bg-grey-darken-4">
+        <LazyLiveChat :stream-id="streamID" title="Live Chat" @message-action="handleMessageAction" />
       </v-col>
     </v-row>
   </v-container>
@@ -170,6 +107,7 @@
 
 <script setup lang="ts">
 import { LazyLiveChat } from '#components';
+import { ChatAction } from '~/types/ChatAction';
 
 const streamsStore = useStreamsStore();
 const route = useRoute();
@@ -219,7 +157,7 @@ definePageMeta({
   middleware: [
     "user-exists",
     "is-banned",
-    "test-middleware",
+    // "test-middleware",
     "is-moderator",
     "is-streamer-and-streaming",
   ],
@@ -296,7 +234,27 @@ const updateStreamInfo = async () => {
 // Funkcja obsługi akcji wiadomości z czatu
 const handleMessageAction = ({ action, message, index, moderator }) => {
   console.log(`Message action: ${action}`, message, index, moderator);
-  // Tutaj można dodać funkcje moderowania czatu
+  switch (action) {
+    case ChatAction.DELETE:
+      // Emitowanie zdarzenia do backendu przez WebSocket
+      if (message && message.chatMessageId) {
+        ws.patchChatMessage(message, ChatAction.DELETE)
+      }
+      // Przykład lokalnego usuwania z listy (jeśli masz dostęp do listy wiadomości):
+      // if (typeof index === 'number' && index > -1 && messages.value) {
+      //   messages.value.splice(index, 1);
+      // }
+      break;
+    case ChatAction.TIMEOUT:
+      // Przykład: ws.emit("timeoutUser", { userId: message.userId })
+      break;
+    case ChatAction.BAN:
+      // Przykład: ws.emit("banUser", { userId: message.userId })
+      break;
+    default:
+      console.log("Unknown action");
+      break;
+  }
 };
 </script>
 
@@ -318,29 +276,39 @@ const handleMessageAction = ({ action, message, index, moderator }) => {
 .profile-button-styled {
   border-width: 2px !important;
   height: 40px !important;
-  min-width: 100px; /* Można dostosować lub usunąć dla automatycznej szerokości */
-  padding-left: 18px !important; /* Dostosowany padding dla ikony i tekstu */
+  min-width: 100px;
+  /* Można dostosować lub usunąć dla automatycznej szerokości */
+  padding-left: 18px !important;
+  /* Dostosowany padding dla ikony i tekstu */
   padding-right: 18px !important;
   font-size: 14px !important;
-  text-transform: none !important; /* Usuwa domyślne wielkie litery Vuetify */
-  letter-spacing: normal !important; /* Przywraca normalne odstępy między literami */
-  transition: all 0.3s ease; /* Dodajemy transition dla płynnego efektu */
+  text-transform: none !important;
+  /* Usuwa domyślne wielkie litery Vuetify */
+  letter-spacing: normal !important;
+  /* Przywraca normalne odstępy między literami */
+  transition: all 0.3s ease;
+  /* Dodajemy transition dla płynnego efektu */
 
   .v-btn__prepend .v-icon {
-    margin-inline-end: 6px; /* Zmniejsza margines ikony */
+    margin-inline-end: 6px;
+    /* Zmniejsza margines ikony */
   }
 
   &:hover {
     background-color: #7d5bbe !important;
     border-color: #7d5bbe !important;
     color: white !important;
-    transform: translateY(-1px); /* Efekt uniesienia */
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15); /* Opcjonalny cień */
+    transform: translateY(-1px);
+    /* Efekt uniesienia */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    /* Opcjonalny cień */
   }
 
   &:active {
-    transform: translateY(1px); /* Efekt wciśnięcia */
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1); /* Opcjonalny cień */
+    transform: translateY(1px);
+    /* Efekt wciśnięcia */
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    /* Opcjonalny cień */
   }
 }
 
@@ -349,7 +317,7 @@ const handleMessageAction = ({ action, message, index, moderator }) => {
   position: relative;
   overflow: hidden;
   background-color: rgba(255, 255, 255, 0.1) !important;
-  
+
   &::after {
     position: absolute;
     top: 0;
@@ -357,13 +325,11 @@ const handleMessageAction = ({ action, message, index, moderator }) => {
     bottom: 0;
     left: 0;
     transform: translateX(-100%);
-    background-image: linear-gradient(
-      90deg,
-      rgba(255, 255, 255, 0) 0,
-      rgba(255, 255, 255, 0.1) 20%,
-      rgba(255, 255, 255, 0.2) 60%,
-      rgba(255, 255, 255, 0)
-    );
+    background-image: linear-gradient(90deg,
+        rgba(255, 255, 255, 0) 0,
+        rgba(255, 255, 255, 0.1) 20%,
+        rgba(255, 255, 255, 0.2) 60%,
+        rgba(255, 255, 255, 0));
     animation: shimmer 1.5s infinite;
     content: '';
   }
