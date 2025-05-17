@@ -91,6 +91,24 @@ export const usePublicWebSocket = () => {
         console.log("chatMessage: ", handler);
     };
 
+    const getAllMessages = (streamnId: string) => {
+        console.log("emitting getAllMessages", streamnId);
+        emit("getAllMessages", streamnId);
+    };
+
+    const onAllMessages = (handler: (data: {
+        chatMessageId: number;
+        streamId: number;
+        userId: string;
+        username: string;
+        message: string;
+        createdAt: string;
+        isDeleted: boolean;
+    }) => void) => {
+        on("allMessages", handler);
+        console.log("allMessages: ", handler);
+    };
+
 
     return {
         // Nie zwracamy już connect/disconnect
@@ -111,5 +129,8 @@ export const usePublicWebSocket = () => {
         onPatchStream,
         // Stream stats handler
         onStreamStats,
+        // Chat message handling
+        getAllMessages,
+        onAllMessages,
     };
 };

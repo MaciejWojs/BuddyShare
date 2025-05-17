@@ -322,6 +322,19 @@ watch(
     }
     if (newStreamId) {
       publicWS.joinChatRoom(String(newStreamId));
+      publicWS.getAllMessages(String(newStreamId));
+      publicWS.onAllMessages((data) => {
+        messages.value = data.map((msg: any) => ({
+          username: msg.username,
+          text: msg.message,
+          time: new Date(msg.createdAt),
+          type: "user",
+          id: msg.chatMessageId,
+          avatar: props.defaultAvatar,
+        }));
+        console.log("[COMPONENT] Received all messages:", data);
+        scrollToBottom();
+      });
       publicWS.onChatMessage((data) => {
         // Mapowanie danych z backendu do lokalnego formatu ChatMessage
         messages.value.push({
