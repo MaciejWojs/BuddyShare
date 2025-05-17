@@ -135,7 +135,7 @@
         lg="3"
         class="h-100 bg-grey-darken-4"
       >
-        <LiveChat
+        <LazyLiveChat
           :stream-id="streamID"
           title="Live Chat"
           @message-action="handleMessageAction"
@@ -146,6 +146,8 @@
 </template>
 
 <script setup lang="ts">
+import { LazyLiveChat } from '#components';
+
 const streamsStore = useStreamsStore();
 const route = useRoute();
 const api = useApi();
