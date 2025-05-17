@@ -15,7 +15,28 @@
     <!-- Wiadomości czatu -->
     <v-card-text class="chat-messages pa-2 flex-grow-1" ref="chatContainer">
       <v-list lines="two" density="compact" class="bg-transparent messages-list">
-        <template v-for="(msg, index) in messages" :key="index">
+        <!-- Skeleton loading wiadomości -->
+        <template v-if="messages.length === 0">
+          <v-list-item v-for="i in 8" :key="'skeleton-'+i">
+            <!-- Avatar placeholder -->
+            <template #prepend>
+              <v-avatar size="32" class="mr-2 skeleton-bg"></v-avatar>
+            </template>
+
+            <!-- Username placeholder -->
+            <v-list-item-subtitle class="d-flex justify-space-between mb-1">
+              <div class="skeleton-text skeleton-bg" style="width: 80px; height: 16px;"></div>
+            </v-list-item-subtitle>
+
+            <!-- Message text placeholder -->
+            <v-list-item-title class="text-caption">
+              <div class="skeleton-text skeleton-bg mb-1" style="width: 95%; height: 14px;"></div>
+              <div class="skeleton-text skeleton-bg" style="width: 70%; height: 14px;"></div>
+            </v-list-item-title>
+          </v-list-item>
+        </template>
+      
+        <template v-else v-for="(msg, index) in messages" :key="index">
           <!-- Wiadomości użytkownika -->
           <v-list-item v-if="msg.type !== 'system'" :class="{ 'message-highlight': msg.highlight }"
             @click="onMessageClick(msg, index)" @mouseover="onMessageHover(msg, index, true)"
@@ -391,5 +412,39 @@ onMounted(() => {
 .message-highlight {
   background: rgba(var(--v-theme-primary), 0.08);
   transition: background-color 0.2s ease;
+}
+
+.skeleton-bg {
+  position: relative;
+  overflow: hidden;
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  
+  &::after {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    transform: translateX(-100%);
+    background-image: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0,
+      rgba(255, 255, 255, 0.1) 20%,
+      rgba(255, 255, 255, 0.2) 60%,
+      rgba(255, 255, 255, 0)
+    );
+    animation: shimmer 1.5s infinite;
+    content: '';
+  }
+}
+
+.skeleton-text {
+  border-radius: 4px;
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
 }
 </style>
