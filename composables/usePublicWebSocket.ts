@@ -1,4 +1,5 @@
 import type { Socket } from "socket.io-client";
+import type { ChatMessage } from "~/types/ChatMessage";
 import type { Stream } from "~/types/Streams";
 
 type EventHandler = (data: any) => void;
@@ -78,15 +79,7 @@ export const usePublicWebSocket = () => {
         on('streamStats', handler);
     };
 
-    const onChatMessage = (handler: (data: {
-        chatMessageId: number;
-        streamId: number;
-        userId: string;
-        username: string;
-        message: string;
-        createdAt: string;
-        isDeleted: boolean;
-    }) => void) => {
+    const onChatMessage = (handler: (data: ChatMessage) => void) => {
         on("chatMessage", handler);
         console.log("chatMessage: ", handler);
     };
@@ -96,15 +89,7 @@ export const usePublicWebSocket = () => {
         emit("getAllMessages", streamnId);
     };
 
-    const onAllMessages = (handler: (data: {
-        chatMessageId: number;
-        streamId: number;
-        userId: string;
-        username: string;
-        message: string;
-        createdAt: string;
-        isDeleted: boolean;
-    }) => void) => {
+    const onAllMessages = (handler: (data: ChatMessage) => void) => {
         on("allMessages", handler);
         console.log("allMessages: ", handler);
     };
