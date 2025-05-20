@@ -356,6 +356,7 @@ watch(
           isDeleted: msg.isDeleted,
           username: msg.username,
           avatar: msg.avatar,
+          type: msg.type,
         }));
         console.log("[COMPONENT] Received all messages:", data);
         scrollToBottom();
@@ -371,6 +372,7 @@ watch(
           isDeleted: data.isDeleted,
           username: data.username,
           avatar: data.avatar,
+          type: data.type,
         });
         emit("send-message", data);
         console.log("[COMPONENT] Received message:", data);
