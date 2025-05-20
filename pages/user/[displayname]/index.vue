@@ -116,6 +116,7 @@ const api = useApi();
 const displayName = route.params.displayname as string;
 const streamStore = useStreamsStore();
 const ws = usePublicWebSocket();
+const authStore = useAuthStore();
 
 // Stan ładowania danych
 const isLoading = ref(true);
@@ -238,7 +239,7 @@ const handleMessageAction = ({ action, message, index, moderator }) => {
     case ChatAction.DELETE:
       // Emitowanie zdarzenia do backendu przez WebSocket
       if (message && message.chatMessageId) {
-        ws.patchChatMessage(message, ChatAction.DELETE)
+        ws.patchChatMessage(message, action)
       }
       // Przykład lokalnego usuwania z listy (jeśli masz dostęp do listy wiadomości):
       // if (typeof index === 'number' && index > -1 && messages.value) {
@@ -248,7 +249,13 @@ const handleMessageAction = ({ action, message, index, moderator }) => {
     case ChatAction.TIMEOUT:
       // Przykład: ws.emit("timeoutUser", { userId: message.userId })
       break;
-    case ChatAction.BAN:
+      case ChatAction.BAN:
+        if (message && message.chatMessageId) {
+        const options = {
+            bannedBy: authStore.currentUser?.userId,
+        };
+        ws.banUserInChat(message, action, options)
+      }
       // Przykład: ws.emit("banUser", { userId: message.userId })
       break;
     default:

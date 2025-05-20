@@ -1,4 +1,5 @@
 import type { Socket } from "socket.io-client";
+import type { BanOptions } from "~/types/BanOptions";
 import type { ChatAction } from "~/types/ChatAction";
 import type { ChatMessage } from "~/types/ChatMessage";
 import type { Stream } from "~/types/Streams";
@@ -105,6 +106,10 @@ export const usePublicWebSocket = () => {
         emit("manageChat", message, action);
     };
 
+    const banUserInChat = (message: ChatMessage, action: ChatAction, options?: BanOptions) => {
+        emit("manageChat", message, action, options);
+    }
+
 
     return {
         // Nie zwracamy już connect/disconnect
@@ -130,5 +135,6 @@ export const usePublicWebSocket = () => {
         onAllMessages,
         onPatchChatMessage,
         patchChatMessage,
+        banUserInChat,
     };
 };
