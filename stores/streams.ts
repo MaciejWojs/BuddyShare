@@ -11,7 +11,7 @@ export const useStreamsStore = defineStore("Streams", () => {
   const headers = useRequestHeaders(["cookie"]);
   const ws = usePublicWebSocket();
   const streams = ref<Stream[]>([]);
-  const streamHistory = ref<{ id: number, viewers: any[], followers: any[], subscribers: any[] }[]>([]);
+  const streamHistory = ref<{ id: number, viewers: any[], followers: any[], subscribers: any[], chatMessages?: any[], topChatters?: any[] }[]>([]);
   const authStore = useAuthStore();
 
   const fetchStreams = async () => {

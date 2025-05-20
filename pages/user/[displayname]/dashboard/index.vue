@@ -14,17 +14,22 @@
 
           <section class="mb-8">
             <v-card-title class="text-h5 mb-4">Statystyki streama</v-card-title>
-            <ChartViewers :streamerName="displayName" />
+            <LazyChartViewers :streamerName="displayName" />
           </section>
 
           <v-divider class="my-4"></v-divider>
           <section class="mb-8">
-            <ChartSubsribers :streamerName="displayName" />
+            <LazyChartSubsribers :streamerName="displayName" />
           </section>
 
           <v-divider class="my-4"></v-divider>
           <section class="mb-8">
-            <ChartFollowers :streamerName="displayName" />
+            <LazyChartFollowers :streamerName="displayName" />
+          </section>
+          
+          <v-divider class="my-4"></v-divider>
+          <section class="mb-8">
+            <LazyChartMessages :streamerName="displayName" />
           </section>
 
           <v-divider class="my-4"></v-divider>
@@ -91,6 +96,7 @@
 <script setup lang="ts">
 import { ChartViewers } from '#components';
 import { useRoute } from 'vue-router';
+import Messages from '~/components/Chart/Messages.vue';
 import { useStreamsStore } from '~/stores/streams';
 
 const route = useRoute();
@@ -109,7 +115,7 @@ watch(streamData, (newStreamData) => {
     ws.leaveStream(previousOptionsId);
   }
   if (newStreamData && newStreamData.isLive && newId) {
-    ws.joinStream(newId);
+    ws.joinStream(newId, true);
   }
   previousOptionsId = newId;
 }, { immediate: true });

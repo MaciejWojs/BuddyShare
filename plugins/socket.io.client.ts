@@ -52,6 +52,7 @@ export default defineNuxtPlugin(nuxtApp => {
     });
 
     publicSocket.on("streamEnded", (data: Stream) => {
+        console.log("Stream ended from Public WebSocket (Plugin):", data);
         streamsStore.removeStream(data.options_id);
     });
 
@@ -71,6 +72,8 @@ export default defineNuxtPlugin(nuxtApp => {
                 viewerCount: data.stats.viewers,
                 followerCount: data.stats.followers,
                 subscriberCount: data.stats.subscribers,
+                chatMessages: data.stats.chatMessages,
+                topChatters: data.stats.topChatters
             };
             streamsStore.updateStream(updatedStream);
         }
@@ -81,6 +84,8 @@ export default defineNuxtPlugin(nuxtApp => {
             history.viewers = data.history.viewers;
             history.followers = data.history.followers;
             history.subscribers = data.history.subscribers;
+            history.chatMessages = data.history.chatMessages;
+            history.topChatters = data.history.topChatters;
         }
 
         console.log('(Plugin) 🔥 Nowa historia widzów dla streamId', data.streamId, data.history.viewers);

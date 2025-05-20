@@ -1,4 +1,7 @@
 import type { Socket } from "socket.io-client";
+import type { BanOptions } from "~/types/BanOptions";
+import type { ChatAction } from "~/types/ChatAction";
+import type { ChatMessage } from "~/types/ChatMessage";
 import type { Stream } from "~/types/Streams";
 
 type EventHandler = (data: any) => void;
@@ -78,15 +81,34 @@ export const usePublicWebSocket = () => {
         on('streamStats', handler);
     };
 
-    const onChatMessage = (handler: (data: {
-        userId: string;
-        username: string;
-        text: string; // Zmieniono z 'message' na 'text' zgodnie z poprzednim kodem
-        timestamp: string;
-    }) => void) => {
-        // Nasłuchuj na ogólny event 'chatMessage'
+    const onChatMessage = (handler: (data: ChatMessage) => void) => {
         on("chatMessage", handler);
+        console.log("chatMessage: ", handler);
     };
+
+    const getAllMessages = (streamnId: string) => {
+        console.log("emitting getAllMessages", streamnId);
+        emit("getAllMessages", streamnId);
+    };
+
+    const onAllMessages = (handler: (data: ChatMessage) => void) => {
+        on("allMessages", handler);
+        console.log("allMessages: ", handler);
+    };
+
+    const onPatchChatMessage = (handler: (data: ChatMessage) => void) => {
+        console.log("patchChatMessage: ", handler);
+        on("patchChatMessage", handler);
+    };
+
+    const patchChatMessage = (message: ChatMessage, action: ChatAction) => {
+        console.log("emitting patchChatMessage", message.chatMessageId);
+        emit("manageChat", message, action);
+    };
+
+    const banUserInChat = (message: ChatMessage, action: ChatAction, options?: BanOptions) => {
+        emit("manageChat", message, action, options);
+    }
 
 
     return {
@@ -108,5 +130,11 @@ export const usePublicWebSocket = () => {
         onPatchStream,
         // Stream stats handler
         onStreamStats,
+        // Chat message handling
+        getAllMessages,
+        onAllMessages,
+        onPatchChatMessage,
+        patchChatMessage,
+        banUserInChat,
     };
 };
