@@ -31,6 +31,11 @@
           <section class="mb-8">
             <LazyChartMessages :streamerName="displayName" />
           </section>
+        
+          <v-divider class="my-4"></v-divider>
+          <section class="mb-8">
+            <LazyChartTopChatters :streamerName="displayName" />
+          </section>
 
           <v-divider class="my-4"></v-divider>
 

@@ -31,6 +31,8 @@ export const useStreamsStore = defineStore("Streams", () => {
       viewers: [],
       followers: [],
       subscribers: [],
+      chatMessages: [],
+      topChatters: []
     }));
     console.log("Fetched streams:", streams.value);
     if (data.length > 0) {
@@ -48,6 +50,8 @@ export const useStreamsStore = defineStore("Streams", () => {
         viewers: [],
         followers: [],
         subscribers: [],
+        chatMessages: [],
+        topChatters: []
       });
     }
   }
