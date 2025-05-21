@@ -117,6 +117,7 @@ const displayName = route.params.displayname as string;
 const streamStore = useStreamsStore();
 const ws = usePublicWebSocket();
 const authStore = useAuthStore();
+const authWS = useAuthWebSocket();
 
 // Stan ładowania danych
 const isLoading = ref(true);
@@ -234,12 +235,17 @@ const updateStreamInfo = async () => {
 
 // Funkcja obsługi akcji wiadomości z czatu
 const handleMessageAction = ({ action, message, index, moderator }) => {
+  if (!authStore.currentUser) {
+    console.error("Brak zalogowanego użytkownika.");
+    return;
+  }
+  
   console.log(`Message action: ${action}`, message, index, moderator);
   switch (action) {
     case ChatAction.DELETE:
       // Emitowanie zdarzenia do backendu przez WebSocket
       if (message && message.chatMessageId) {
-        ws.patchChatMessage(message, action)
+        authWS.patchChatMessage(message, action)
       }
       // Przykład lokalnego usuwania z listy (jeśli masz dostęp do listy wiadomości):
       // if (typeof index === 'number' && index > -1 && messages.value) {
@@ -254,7 +260,7 @@ const handleMessageAction = ({ action, message, index, moderator }) => {
         const options = {
             bannedBy: authStore.currentUser?.userId,
         };
-        ws.banUserInChat(message, action, options)
+        authWS.banUserInChat(message, action, options)
       }
       // Przykład: ws.emit("banUser", { userId: message.userId })
       break;

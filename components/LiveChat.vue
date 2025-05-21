@@ -124,6 +124,10 @@
         <slot name="input-actions"></slot>
       </v-text-field>
     </v-card-actions>
+
+    <v-snackbar v-model="snackbar" :color="snackbarColor" :timeout="snackbarTimeout" location="bottom right">
+      {{ snackbarMessage }}
+    </v-snackbar>
   </v-card>
 </template>
 
@@ -134,6 +138,8 @@ import { useState } from "#app"; // Import useState z Nuxt
 import type { Moderator } from "@/types/moderator"; // Import typu Moderator
 import type { ChatMessage } from "~/types/ChatMessage";
 import { ChatAction } from "~/types/ChatAction";
+// Dodajemy obsługę snackbara Vuetify
+import { useDisplay } from 'vuetify';
 
 const publicWS = usePublicWebSocket();
 const streamStore = useStreamsStore();
@@ -231,6 +237,19 @@ const newMessage = ref("");
 const isHovered = ref<number | null>(null);
 const chatContainer = ref<HTMLElement | null>(null);
 const messages = ref<ChatMessageNew[]>([]);
+
+// Snackbar state
+const snackbar = ref(false);
+const snackbarMessage = ref('');
+const snackbarColor = ref('error');
+const snackbarTimeout = ref(4000);
+
+function showSnackbar(message: string, color = 'error', timeout = 4000) {
+  snackbarMessage.value = message;
+  snackbarColor.value = color;
+  snackbarTimeout.value = timeout;
+  snackbar.value = true;
+}
 
 const formatTime = (date: Date | string) => {
   try {
@@ -377,6 +396,20 @@ watch(
         emit("send-message", data);
         console.log("[COMPONENT] Received message:", data);
         scrollToBottom();
+      });
+
+      authWS.onChatMessageError((data) => {
+        console.error("[COMPONENT] Error receiving message:", data);
+        showSnackbar(data?.message || 'Błąd podczas wysyłania wiadomości', 'error', 4000);
+      });
+
+      authWS.onBanUserStatus((data) => {
+        console.log("[COMPONENT] Ban user status:", data);
+        if (data.success) {
+          showSnackbar(data.message, "success", 4000);
+        } else {
+          showSnackbar(data.message, "error", 4000);
+        }
       });
 
       publicWS.onPatchChatMessage((data) => {

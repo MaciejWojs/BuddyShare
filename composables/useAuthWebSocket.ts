@@ -1,4 +1,6 @@
-import type { Socket } from "socket.io-client";
+import type { BanOptions } from "~/types/BanOptions";
+import type { ChatAction } from "~/types/ChatAction";
+import type { ChatMessage } from "~/types/ChatMessage";
 
 type EventHandler = (data: any) => void;
 type StreamData = {
@@ -30,7 +32,7 @@ type StreamStats = {
 
 export const useAuthWebSocket = () => {
     const nuxtApp = useNuxtApp();
-    
+
     // Pobierz instancję socketu z wtyczki
     // $authSocket jest teraz computed ref zwracającym Socket | null
     const socket = nuxtApp.$authSocket;
@@ -78,8 +80,6 @@ export const useAuthWebSocket = () => {
     };
 
     const emit = (event: string, ...data: any[]) => {
-        if (!import.meta.client) return;
-
         const currentSocket = socket?.value;
         if (currentSocket?.connected) {
             currentSocket.emit(event, ...data);
@@ -141,6 +141,26 @@ export const useAuthWebSocket = () => {
         console.log("Registered handler for stream stats:", handler);
     };
 
+    const onChatMessageError = (handler: (data: { message: string }) => void) => {
+        on("chatMessageError", handler);
+        console.log("chatMessageError: ", handler);
+    };
+
+    const banUserInChat = (message: ChatMessage, action: ChatAction, options?: BanOptions) => {
+        emit("manageChat", message, action, options);
+    }
+
+    const onBanUserStatus = (handler: (data: { message: string, success: boolean }) => void) => {
+        on("banUserStatus", handler);
+        console.log("banUserStatus: ", handler);
+    };
+
+    const patchChatMessage = (message: ChatMessage, action: ChatAction) => {
+        console.log("emitting patchChatMessage", message.chatMessageId);
+        emit("manageChat", message, action);
+    };
+
+
     return {
         on,
         off,
@@ -157,5 +177,10 @@ export const useAuthWebSocket = () => {
         onNotifyStreamer,
         // Stream stats handler
         onStreamStats,
+        // Chat message handling
+        onChatMessageError,
+        banUserInChat,
+        onBanUserStatus,
+        patchChatMessage,
     };
 };

@@ -8,4 +8,5 @@ export interface ChatMessage {
   username: string;
   avatar: string | null;
   type?: "user" | "system";
+  originalMessage?: string;
 }
