@@ -16,7 +16,7 @@
     <v-card-text class="chat-messages pa-2 flex-grow-1" ref="chatContainer">
       <v-list lines="two" density="compact" class="bg-transparent messages-list">
         <!-- Skeleton loading wiadomości -->
-        <template v-if="messages.length === 0">
+        <template v-if="isLoading">
           <v-list-item v-for="i in 8" :key="'skeleton-' + i">
             <!-- Avatar placeholder -->
             <template #prepend>
@@ -145,6 +145,8 @@ const publicWS = usePublicWebSocket();
 const streamStore = useStreamsStore();
 const authStore = useAuthStore();
 const authWS = useAuthWebSocket();
+
+const isLoading = ref(true);
 
 interface ChatMessageNew extends ChatMessage {
   role?: "user" | "moderator" | "admin" | "streamer";
@@ -359,6 +361,9 @@ watch(
 watch(
   () => props.streamId,
   (newStreamId, oldStreamId) => {
+    setTimeout(() => {
+      isLoading.value = false;
+    }, 500);
     if (oldStreamId) {
       publicWS.leaveChatRoom(String(oldStreamId));
     }

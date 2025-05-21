@@ -10,6 +10,13 @@ declare module '#app' {
     }
 }
 
+type StreamEnded = {
+    streamId: number;
+    streamerId: number;
+    streamerName: string;
+    finalViewerCount: number;
+}
+
 export default defineNuxtPlugin(nuxtApp => {
     const config = useRuntimeConfig();
     const authStore = useAuthStore();
@@ -51,9 +58,9 @@ export default defineNuxtPlugin(nuxtApp => {
         console.log("Stream updated from Auth WebSocket (Plugin):", data);
     });
 
-    publicSocket.on("streamEnded", (data: Stream) => {
+    publicSocket.on("streamEnded", (data: StreamEnded) => {
         console.log("Stream ended from Public WebSocket (Plugin):", data);
-        streamsStore.removeStream(data.options_id);
+        streamsStore.removeStream(data.streamId);
     });
 
     publicSocket.on("streamStarted", (data: Stream) => {

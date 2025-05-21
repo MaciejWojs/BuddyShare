@@ -70,10 +70,19 @@ export const useStreamsStore = defineStore("Streams", () => {
   }
 
   function removeStream(streamId: number) {
-    const index = streams.value.findIndex((s) => s.options_id === streamId);
+    if (!streamId) {
+      throw new Error("Stream ID is required to remove a stream.");
+    }
+    console.log("Removing stream with ID:", streamId);
+    const index = streams.value.findIndex((s) => {
+      console.log("Checking stream:", s.options_id, "against", streamId);
+      return s.options_id === streamId
+    });
+    console.log("Index to remove stream:", index);
     if (index !== -1) {
       streams.value.splice(index, 1);
       const histIdx = streamHistory.value.findIndex((h) => h.id === streamId);
+      console.log('Removing stream:', streamId);
       if (histIdx !== -1) streamHistory.value.splice(histIdx, 1);
     }
   }
