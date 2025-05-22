@@ -211,15 +211,29 @@ export const useApi = () => {
   const media = {
     getAllStreams: () => request("/media"),
 
-    uploadImage: (image: any) => {
+    uploadImage: (image: File) => { 
       const formData = new FormData();
-      formData.append("file", image);
+      const fileName = image.name;
+      const fileExtension = fileName.split('.').pop()?.toLowerCase();
+
+      let finalMimeType = image.type;
+
+      if (fileExtension === 'jpg' || fileExtension === 'jpeg') {
+        finalMimeType = 'image/jpeg';
+      } else if (fileExtension === 'png') {
+        finalMimeType = 'image/png';
+      } 
+
+      let fileToUpload: Blob = image;
+      if (finalMimeType && (finalMimeType !== image.type || !image.type)) {
+        fileToUpload = image.slice(0, image.size, finalMimeType);
+      }
+      
+      formData.append('file', fileToUpload, fileName);
+
       return request("/media/", {
         method: "POST",
         body: formData,
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
       });
     },
 
