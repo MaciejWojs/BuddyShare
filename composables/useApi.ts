@@ -211,6 +211,18 @@ export const useApi = () => {
   const media = {
     getAllStreams: () => request("/media"),
 
+    uploadImage: (image: any) => {
+      const formData = new FormData();
+      formData.append("file", image);
+      return request("/media/", {
+        method: "POST",
+        body: formData,
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+    },
+
     getStream: (id: string) => request(`/media/${id}`),
 
     createStream: (streamData: {
