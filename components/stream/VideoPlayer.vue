@@ -22,6 +22,15 @@
           <v-chip :color="isLiveRef ? 'red' : 'grey'" variant="tonal" size="small" prepend-icon="mdi-circle">
             {{ isLiveRef ? "LIVE" : "OFFLINE" }}
           </v-chip>
+          <v-chip
+            v-if="isLiveRef" 
+            :color="isPublicStream ? 'green' : 'orange'" 
+            variant="tonal" 
+            size="small" 
+            :prepend-icon="isPublicStream ? 'mdi-earth' : 'mdi-lock'"
+          >
+            {{ isPublicStream ? "PUBLIC" : "PRIVATE" }}
+          </v-chip>
           <v-chip variant="outlined" size="small">
             <v-icon start size="small">mdi-account</v-icon>
             {{ viewerCount }}
@@ -29,7 +38,10 @@
         </template>
         <template v-else>
           <v-chip color="grey" variant="tonal" size="small" class="skeleton-bg">
-            LIVE
+            OFFLINE
+          </v-chip>
+          <v-chip v-if="isLiveRef" color="grey" variant="tonal" size="small" class="skeleton-bg">
+            PUBLIC
           </v-chip>
           <v-chip variant="outlined" size="small" class="skeleton-bg">
             <v-icon start size="small">mdi-account</v-icon>
@@ -152,6 +164,10 @@ const streamData = computed(() =>
 
 // Referencje do danych streamu
 const isLiveRef = computed(() => !!streamData.value?.isLive);
+const isPublicStream = computed(() => {
+  // Sprawdzamy czy stream jest publiczny - domyślnie true jeśli nie ma informacji
+  return streamData.value?.isPublic !== undefined ? streamData.value.isPublic : true;
+});
 const streamUrlRef = computed(() => {
   if (
     streamData.value?.stream_urls &&
