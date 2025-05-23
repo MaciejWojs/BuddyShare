@@ -1,84 +1,99 @@
 <script lang="ts" setup>
-import { ref, computed } from "vue";
+import { ref, computed, watchEffect, onMounted } from "vue";
 
 definePageMeta({
   middleware: ["user-exists", "is-banned"],
 });
 
-const config = useRuntimeConfig();
-const { media } = useApi();
-const authStore = useAuthStore();
-
-const BACK_HOST = config.public.BACK_HOST;
-
 const route = useRoute();
-const endpoint = `http://${BACK_HOST}/users`;
+const displayName = route.params.displayname as string;
 
-const displayName = route.params.displayname;
+const api = useApi();
+const authStore = useAuthStore(); // Zachowane, jeśli jest używane gdzie indziej (np. canEditProfile)
 
+// Pobieranie danych za pomocą useApi
 const {
   data: userProfileInfo,
-  status: userProfilestatus,
   error: userProfileError,
-} = await useFetch(`${endpoint}/${displayName}/profile`, {
-  method: "GET",
-  headers: {
-    "Content-Type": "application/json",
-  },
-  credentials: "include",
-});
+} = await api.users.getProfile(displayName);
 
 console.log("Dane użytkownika", userProfileInfo.value);
-console.log("Status zapytania:", userProfilestatus.value);
 if (userProfileError.value) {
   console.error("Błąd zapytania:", userProfileError.value);
 }
 
 const {
   data: userFollowersCount,
-  status: followersStatus,
   error: followersError,
-} = await useFetch(`${endpoint}/${displayName}/followers/count`, {
-  method: "GET",
-  headers: {
-    "Content-Type": "application/json",
-  },
-  credentials: "include",
-});
+} = await api.users.getFollowersCount(displayName);
 
 console.log("Liczba obserwujących", userFollowersCount.value);
-console.log("Status zapytania:", followersStatus.value);
 if (followersError.value) {
   console.error("Błąd zapytania:", followersError.value);
 }
 
 const {
   data: userFollowingCount,
-  status: followingStatus,
   error: followingError,
-} = await useFetch(`${endpoint}/${displayName}/following/count`, {
-  method: "GET",
-  headers: {
-    "Content-Type": "application/json",
-  },
-  credentials: "include",
-});
+} = await api.users.getFollowingCount(displayName);
 
-console.log("Liczba obserwujących", userFollowingCount.value);
-console.log("Status zapytania:", followingStatus.value);
+console.log("Liczba obserwowanych", userFollowingCount.value);
 if (followingError.value) {
   console.error("Błąd zapytania:", followingError.value);
 }
 
-const userFollowers = userFollowersCount.value.count || 0;
+// Reaktywne referencje dla obrazów
+const userAvatar = ref("/Buddyshare.svg");
+const userCoverImage = ref("/Buddyshare.svg");
 
-const userFollowing = userFollowingCount.value.count || 0;
+// Computed properties dla danych użytkownika
+const userFollowers = computed(() => (userFollowersCount.value as any)?.count || 0);
+const userFollowing = computed(() => (userFollowingCount.value as any)?.count || 0);
+const userDescription = computed(() => (userProfileInfo.value as any)?.description || "No description");
 
-const userDescription = userProfileInfo.value.description || "No description";
-
-const userAvatar = userProfileInfo.value.profilePicture || "/Buddyshare.svg";
-
-const userCoverImage = userProfileInfo.value.coverImage || "/Buddyshare.svg";
+// Pobieranie obrazów za pomocą api.media.getImage (tylko po stronie klienta)
+onMounted(async () => {
+  console.log("onMounted - userProfileInfo:", userProfileInfo.value);
+  
+  if (userProfileInfo.value) {
+    const profileDataVal = userProfileInfo.value as any; // Zmieniona nazwa, aby uniknąć konfliktu
+    console.log("Profile data:", profileDataVal);
+    
+    // Pobieranie awatara
+    if (profileDataVal.profilePicture) {
+      console.log("Próba pobrania awatara:", profileDataVal.profilePicture);
+      try {
+        const avatarUrl = await api.media.getImage(profileDataVal.profilePicture, 'avatar' as any);
+        console.log("Avatar URL otrzymany:", avatarUrl);
+        userAvatar.value = avatarUrl;
+      } catch (e) {
+        console.error("Nie udało się załadować awatara:", e);
+        console.error("Szczegóły błędu:", JSON.stringify(e, null, 2));
+        userAvatar.value = "/Buddyshare.svg";
+      }
+    } else {
+      console.log("Brak profilePicture w danych użytkownika");
+    }
+    
+    // Pobieranie obrazu okładki
+    if (profileDataVal.coverImage) {
+      console.log("Próba pobrania okładki:", profileDataVal.coverImage);
+      try {
+        const coverUrl = await api.media.getImage(profileDataVal.coverImage, 'cover' as any);
+        console.log("Cover URL otrzymany:", coverUrl);
+        userCoverImage.value = coverUrl;
+      } catch (e) {
+        console.error("Nie udało się załadować obrazu okładki:", e);
+        console.error("Szczegóły błędu:", JSON.stringify(e, null, 2));
+        userCoverImage.value = "/Buddyshare.svg";
+      }
+    } else {
+      console.log("Brak coverImage w danych użytkownika");
+    }
+  } else {
+    console.log("Brak danych użytkownika w onMounted");
+  }
+});
 
 // Funkcja do formatowania daty na czytelny dla człowieka format
 const formatDate = (dateString: string) => {
@@ -97,44 +112,45 @@ const formatDate = (dateString: string) => {
   return new Intl.DateTimeFormat("en-US", options).format(date);
 };
 
-// Używamy formatowanej daty
-const userJoinDate = userProfileInfo.value.createdAt
-  ? formatDate(userProfileInfo.value.createdAt)
-  : "Nieznana data";
+// Używamy formatowanej daty jako computed property
+const userJoinDate = computed(() => 
+  (userProfileInfo.value as any)?.createdAt
+    ? formatDate((userProfileInfo.value as any).createdAt)
+    : "Nieznana data"
+);
 
-// Dane profilu (na sztywno)
-const profileData = ref({
+// Dane profilu jako computed property dla reaktywności
+const profileData = computed(() => ({
   username: displayName,
   displayName: displayName,
-  avatar: userAvatar,
-  coverImage: userCoverImage,
-  description: userDescription,
-  followers: userFollowers,
-  following: userFollowing,
-  joinDate: userJoinDate,
-});
+  avatar: userAvatar.value,
+  coverImage: userCoverImage.value,
+  description: userDescription.value,
+  followers: userFollowers.value,
+  following: userFollowing.value,
+  joinDate: userJoinDate.value,
+}));
 
 const streamsStore = useStreamsStore();
+const router = useRouter();
 
-// Dodaj zmienne dla edycji profilu
+// Dodaj zmienne dla edycji profilu - zachowane z oryginalnego kodu, jeśli potrzebne
 const editProfileDialog = ref(false);
 const editedDescription = ref("");
-const editedProfilePicture = ref("");
+const editedProfilePicture = ref(""); // Ta zmienna jest używana w szablonie
 const selectedFile = ref<File | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
 const isUploading = ref(false);
 
-// Inicjalizuj wartości edycji
+// Inicjalizuj wartości edycji - zachowane
 const initEditValues = () => {
-  editedDescription.value = userDescription;
-  editedProfilePicture.value = userAvatar;
+  editedDescription.value = userDescription.value; // Użyj .value dla computed
+  editedProfilePicture.value = userAvatar.value; // Użyj .value dla ref
   selectedFile.value = null;
   isUploading.value = false;
 };
 
-// Funkcja upload obrazu
-
-// Funkcja obsługi wyboru pliku
+// Funkcja upload obrazu - zachowane
 const handleFileSelect = async (event: Event) => {
   const target = event.target as HTMLInputElement;
   const file = target.files?.[0];
@@ -144,7 +160,6 @@ const handleFileSelect = async (event: Event) => {
     return;
   }
 
-  // Sprawdź typ pliku
   if (!file.type.startsWith("image/")) {
     alert("Proszę wybrać plik obrazu (JPG, PNG, GIF, etc.)");
     target.value = "";
@@ -152,7 +167,6 @@ const handleFileSelect = async (event: Event) => {
     return;
   }
 
-  // Sprawdź rozmiar pliku (10 MB = 10 * 1024 * 1024 bytes)
   const maxSize = 10 * 1024 * 1024;
   if (file.size > maxSize) {
     alert("Rozmiar pliku nie może przekraczać 10 MB");
@@ -162,48 +176,34 @@ const handleFileSelect = async (event: Event) => {
   }
 
   selectedFile.value = file;
-  isUploading.value = true;
+  isUploading.value = false;
 
-  try {
-    // Upload pliku
-    const uploadedUrl = await media.uploadImage(file);
-    console.log("Wysłano!", uploadedUrl);
-
-    // Ustaw URL zauploadowanego obrazu
-    editedProfilePicture.value = uploadedUrl;
-
-    // Stwórz podgląd obrazu (lokalny)
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      // Opcjonalnie można użyć lokalnego podglądu
-    };
-    reader.readAsDataURL(file);
-  } catch (error) {
-    console.error("Błąd podczas uploadowania pliku:", error);
-    alert("Błąd podczas uploadowania pliku. Spróbuj ponownie.");
-    selectedFile.value = null;
-    target.value = "";
-  } finally {
-    isUploading.value = false;
-  }
+  // Stwórz lokalny podgląd pliku
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    if (e.target?.result) {
+      editedProfilePicture.value = e.target.result as string;
+    }
+  };
+  reader.readAsDataURL(file);
 };
 
-// Funkcja czyszczenia wyboru pliku
+// Funkcja czyszczenia wyboru pliku - zachowane
 const clearFileSelection = () => {
   selectedFile.value = null;
-  editedProfilePicture.value = userAvatar;
+  editedProfilePicture.value = userAvatar.value; // Użyj .value dla ref
   isUploading.value = false;
   if (fileInput.value) {
     fileInput.value.value = "";
   }
 };
 
-// Sprawdź czy użytkownik może edytować profil
+// Sprawdź czy użytkownik może edytować profil - zachowane
 const canEditProfile = computed(() => {
   return authStore.userName === displayName;
 });
 
-// Funkcja aktualizacji profilu
+// Funkcja aktualizacji profilu - zachowane
 const updateProfile = async () => {
   if (!editedDescription.value.trim()) {
     console.error("Opis jest wymagany.");
@@ -211,10 +211,24 @@ const updateProfile = async () => {
     return;
   }
 
-  const { error } = await api.users.updateProfile(displayName as string, {
+  // Przygotuj dane do wysłania
+  const profileData: {
+    description: string;
+    profilePicture?: string;
+    file?: File;
+  } = {
     description: editedDescription.value,
-    profilePicture: editedProfilePicture.value,
-  });
+  };
+
+  // Jeśli wybrano nowy plik, dodaj go do danych
+  if (selectedFile.value) {
+    profileData.file = selectedFile.value;
+  } else if (editedProfilePicture.value && !editedProfilePicture.value.startsWith('blob:')) {
+    // Jeśli nie ma pliku, ale jest URL/hash, dodaj go
+    profileData.profilePicture = editedProfilePicture.value;
+  }
+
+  const { error, data } = await api.users.updateProfile(displayName as string, profileData);
 
   if (error.value) {
     console.error("Błąd aktualizacji profilu:", error.value);
@@ -223,10 +237,23 @@ const updateProfile = async () => {
   }
 
   // Aktualizuj lokalne dane
-  profileData.value.description = editedDescription.value;
-  profileData.value.avatar = editedProfilePicture.value;
-
+  if (userProfileInfo.value && data.value) {
+    const updatedUser = (data.value as any).user;
+    (userProfileInfo.value as any).description = updatedUser.description;
+    
+    // Jeśli serwer zwrócił nowy hash obrazu, zaktualizuj awatar
+    if (updatedUser.profilePicture) {
+      try {
+        const avatarUrl = api.media.getImage(updatedUser.profilePicture, 'avatar' as any);
+        userAvatar.value = avatarUrl;
+      } catch (e) {
+        console.error("Nie udało się załadować nowego awatara po aktualizacji:", e);
+      }
+    }
+  }
+  
   editProfileDialog.value = false;
+  selectedFile.value = null;
   console.log("Profil zaktualizowany pomyślnie");
 };
 </script>
@@ -322,7 +349,7 @@ const updateProfile = async () => {
                             class="mr-4"
                           >
                             <v-img
-                              :src="editedProfilePicture"
+                              :src="editedProfilePicture" 
                               alt="Podgląd"
                             ></v-img>
                           </v-avatar>
@@ -447,7 +474,7 @@ const updateProfile = async () => {
                 color="secondary"
                 class="mt-2"
                 prepend-icon="mdi-video"
-                @click="navigateTo(`/user/${displayName}`)"
+                @click="router.push(`/user/${displayName}`)"
                 >view Stream</v-btn
               >
             </div>
@@ -484,7 +511,7 @@ const updateProfile = async () => {
                   </div>
                   <NuxtLink
                     @click="
-                      navigateTo(`/user/${displayName}/profile/followers`)
+                      router.push(`/user/${displayName}/profile/followers`)
                     "
                     class="profile-link"
                   >
@@ -501,7 +528,7 @@ const updateProfile = async () => {
                   </div>
                   <NuxtLink
                     @click="
-                      navigateTo(`/user/${displayName}/profile/following`)
+                      router.push(`/user/${displayName}/profile/following`)
                     "
                     class="profile-link"
                   >

@@ -1,4 +1,5 @@
 import type { UseFetchOptions } from "#app";
+import type { ImageTypes } from "~/types/ImageTypes";
 
 export const useApi = () => {
   const config = useRuntimeConfig();
@@ -10,19 +11,42 @@ export const useApi = () => {
   const baseURL = formattedHost || "http://localhost:5000";
 
   /**
-   * Wykonuje żądanie HTTP
+   * Wykonuje żądanie HTTP - automatycznie wykrywa kontekst (SSR vs client-side)
    */
   const request = async <T = any>(
     endpoint: string,
-    options: UseFetchOptions<T> = {}
+    options: any = {}
   ) => {
-    const { data, error, pending } = await useFetch<T>(endpoint, {
-      baseURL,
-      credentials: "include",
-      ...options,
-    });
-
-    return { data, error, pending };
+    // Sprawdź czy jesteśmy po stronie klienta i czy komponent jest już zamontowany
+    if (import.meta.client && getCurrentInstance()?.isMounted) {
+      // Użyj $fetch dla wywołań po stronie klienta po mounted
+      try {
+        const data = await $fetch<T>(endpoint, {
+          baseURL,
+          credentials: "include" as RequestCredentials,
+          ...options,
+        });
+        return {
+          data: ref(data),
+          error: ref(null),
+          pending: ref(false)
+        };
+      } catch (error) {
+        return {
+          data: ref(null),
+          error: ref(error),
+          pending: ref(false)
+        };
+      }
+    } else {
+      // Użyj useFetch dla SSR lub przed mounted
+      const { data, error, pending } = await useFetch<T>(endpoint, {
+        baseURL,
+        credentials: "include" as RequestCredentials,
+        ...options,
+      });
+      return { data, error, pending };
+    }
   };
 
   /**
@@ -62,12 +86,37 @@ export const useApi = () => {
 
     updateProfile: (
       username: string,
-      profileData: { description?: string; profilePicture?: string }
-    ) =>
-      request(`/users/${username}/profile`, {
-        method: "PATCH",
-        body: profileData,
-      }),
+      profileData: {
+        description?: string;
+        profilePicture?: string;
+        profileBanner?: string;
+        file?: File;
+      }
+    ) => {
+      const { file, ...otherData } = profileData;
+
+      if (file) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        // Dodaj pozostałe dane do FormData
+        Object.entries(otherData).forEach(([key, value]) => {
+          if (value !== undefined) {
+            formData.append(key, value);
+          }
+        });
+
+        return request(`/users/${username}/profile`, {
+          method: "PATCH",
+          body: formData,
+        });
+      } else {
+        return request(`/users/${username}/profile`, {
+          method: "PATCH",
+          body: otherData,
+        });
+      }
+    },
 
     getSettings: (username: string) => request(`/users/${username}/settings`),
 
@@ -211,7 +260,7 @@ export const useApi = () => {
   const media = {
     getAllStreams: () => request("/media"),
 
-    uploadImage: (image: File) => { 
+    uploadImage: (image: File) => {
       const formData = new FormData();
       const fileName = image.name;
       const fileExtension = fileName.split('.').pop()?.toLowerCase();
@@ -222,19 +271,42 @@ export const useApi = () => {
         finalMimeType = 'image/jpeg';
       } else if (fileExtension === 'png') {
         finalMimeType = 'image/png';
-      } 
+      }
 
       let fileToUpload: Blob = image;
       if (finalMimeType && (finalMimeType !== image.type || !image.type)) {
         fileToUpload = image.slice(0, image.size, finalMimeType);
       }
-      
+
       formData.append('file', fileToUpload, fileName);
 
       return request("/media/", {
         method: "POST",
         body: formData,
       });
+    },
+
+    getImage: async (hash: string, type: ImageTypes) => {
+      console.log("API getImage wywołane z:", { hash, type });
+
+      try {
+        const { data } = await request<Blob>(`/media`, {
+          params: { hash, type },
+          responseType: 'blob',
+
+        });
+        
+        if (!data.value) {
+          throw new Error("Nie udało się pobrać danych obrazu");
+        }
+        
+        const url = URL.createObjectURL(data.value);
+        console.log("API getImage zwraca URL:", url);
+        return url;
+      } catch (error) {
+        console.error("Błąd podczas pobierania obrazu:", error);
+        throw error;
+      }
     },
 
     getStream: (id: string) => request(`/media/${id}`),
