@@ -90,32 +90,47 @@ export const useApi = () => {
         description?: string;
         profilePicture?: string;
         profileBanner?: string;
-        file?: File;
+        avatarFile?: File;
+        bannerFile?: File;
       }
     ) => {
-      const { file, ...otherData } = profileData;
+      const { avatarFile, bannerFile, ...otherData } = profileData;
 
-      if (file) {
-        const formData = new FormData();
-        formData.append('file', file);
+      const formData = new FormData();
 
-        // Dodaj pozostałe dane do FormData
-        Object.entries(otherData).forEach(([key, value]) => {
-          if (value !== undefined) {
-            formData.append(key, value);
-          }
-        });
+      // Dodaj podstawowe dane tekstowe
+      Object.entries(otherData).forEach(([key, value]) => {
+        if (value !== undefined) {
+          formData.append(key, value);
+        }
+      });
+      
+      // Zbierz pliki do tablicy
+      const files: File[] = [];
+      if (avatarFile) {
+        const fileExtension = avatarFile.name.split(".").pop();
+        const newFileName = `avatar.${fileExtension}`;
+        const newAvatarFile = new File([avatarFile], newFileName, { type: avatarFile.type });
+        files.push(newAvatarFile);
+      }
+      if (bannerFile) {
+        const bannerExtension = bannerFile.name.split(".").pop();
+        const newBannerFileName = `banner.${bannerExtension}`;
+        const newBannerFile = new File([bannerFile], newBannerFileName, { type: bannerFile.type });
+        files.push(newBannerFile);
+      }
 
-        return request(`/users/${username}/profile`, {
-          method: "PATCH",
-          body: formData,
-        });
-      } else {
-        return request(`/users/${username}/profile`, {
-          method: "PATCH",
-          body: otherData,
+      // Dodaj tablicę plików jeśli są jakieś pliki
+      if (files.length > 0) {
+        files.forEach(file => {
+          formData.append('files', file);
         });
       }
+
+      return request(`/users/${username}/profile`, {
+        method: "PATCH",
+        body: formData,
+      });
     },
 
     getSettings: (username: string) => request(`/users/${username}/settings`),
