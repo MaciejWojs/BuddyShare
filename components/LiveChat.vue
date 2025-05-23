@@ -145,6 +145,7 @@ const publicWS = usePublicWebSocket();
 const streamStore = useStreamsStore();
 const authStore = useAuthStore();
 const authWS = useAuthWebSocket();
+const api = useApi(); // Dodaj to
 
 const isLoading = ref(true);
 
@@ -350,6 +351,35 @@ defineExpose({
   getRoleClass
 });
 
+// Dodaj funkcję do pobierania awatara
+const getAvatarUrl = async (username: string, currentAvatar?: string) => {
+  if (currentAvatar && currentAvatar !== props.defaultAvatar) {
+    return currentAvatar;
+  }
+  
+  try {
+    const avatarUrl = await api.users.getUserAvatar(username);
+    return avatarUrl;
+  } catch (error) {
+    console.warn(`Nie udało się pobrać awatara dla ${username}:`, error);
+    return props.defaultAvatar;
+  }
+};
+
+// Dodaj reactive mapę awatarów
+const avatarCache = ref<Map<string, string>>(new Map());
+
+// Funkcja do pobierania i cache'owania awatara
+const getCachedAvatar = async (username: string, currentAvatar?: string) => {
+  if (avatarCache.value.has(username)) {
+    return avatarCache.value.get(username)!;
+  }
+  
+  const avatarUrl = await getAvatarUrl(username, currentAvatar);
+  avatarCache.value.set(username, avatarUrl);
+  return avatarUrl;
+};
+
 // Auto-scroll when new messages arrive
 watch(
   () => messages.value.length,
@@ -370,22 +400,32 @@ watch(
     if (newStreamId) {
       publicWS.joinChatRoom(String(newStreamId));
       publicWS.getAllMessages(String(newStreamId));
-      publicWS.onAllMessages((data) => {
-        messages.value = data.map((msg: any) => ({
-          chatMessageId: msg.chatMessageId,
-          streamId: msg.streamId,
-          userId: msg.userId,
-          message: msg.message,
-          createdAt: msg.createdAt,
-          isDeleted: msg.isDeleted,
-          username: msg.username,
-          avatar: msg.avatar,
-          type: msg.type,
-        }));
+      publicWS.onAllMessages(async (data) => {
+        // Pobierz awatary dla wszystkich wiadomości
+        const messagesWithAvatars = await Promise.all(
+          data.map(async (msg: any) => {
+            const avatarUrl = await getCachedAvatar(msg.username, msg.avatar);
+            return {
+              chatMessageId: msg.chatMessageId,
+              streamId: msg.streamId,
+              userId: msg.userId,
+              message: msg.message,
+              createdAt: msg.createdAt,
+              isDeleted: msg.isDeleted,
+              username: msg.username,
+              avatar: avatarUrl,
+              type: msg.type,
+            };
+          })
+        );
+        messages.value = messagesWithAvatars;
         console.log("[COMPONENT] Received all messages:", data);
         scrollToBottom();
       });
-      publicWS.onChatMessage((data) => {
+      publicWS.onChatMessage(async (data) => {
+        // Pobierz awatar dla nowej wiadomości
+        const avatarUrl = await getCachedAvatar(data.username, data.avatar);
+        
         // Mapowanie danych z backendu do lokalnego formatu ChatMessage
         messages.value.push({
           chatMessageId: data.chatMessageId,
@@ -395,7 +435,7 @@ watch(
           createdAt: data.createdAt,
           isDeleted: data.isDeleted,
           username: data.username,
-          avatar: data.avatar,
+          avatar: avatarUrl,
           type: data.type,
         });
         emit("send-message", data);

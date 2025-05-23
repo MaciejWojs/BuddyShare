@@ -70,7 +70,7 @@
           <div class="d-flex align-center">
             <template v-if="!isLoading">
               <v-avatar class="mr-3" size="42">
-                <v-img src="/Buddyshare.svg" alt="Streamer avatar" />
+                <v-img :src="avatarUrl || '/Buddyshare.svg'" alt="Streamer avatar" />
               </v-avatar>
               <div>
                 <span class="text-h6">{{ displayName }}</span>
@@ -108,10 +108,11 @@
 <script setup lang="ts">
 import { LazyLiveChat } from '#components';
 import { ChatAction } from '~/types/ChatAction';
+import { ref, onMounted } from 'vue'; // Dodano import ref i onMounted
 
 const streamsStore = useStreamsStore();
 const route = useRoute();
-const api = useApi();
+const api = useApi(); // api już jest zdefiniowane
 
 const displayName = route.params.displayname as string;
 const streamStore = useStreamsStore();
@@ -121,11 +122,21 @@ const authWS = useAuthWebSocket();
 
 // Stan ładowania danych
 const isLoading = ref(true);
+const avatarUrl = ref<string | null>(null); // Dodano ref dla URL awatara
 
-// onMounted(async() => {
-//   // Fetch stream data when the component is mounted
-//   await streamsStore.fetchStreams();
-// });
+onMounted(async() => {
+  // Fetch stream data when the component is mounted
+  // await streamsStore.fetchStreams(); // Zakomentowane, jeśli nie jest już potrzebne
+  if (displayName) {
+    try {
+      const url = await api.users.getUserAvatar(displayName);
+      avatarUrl.value = url;
+    } catch (error) {
+      console.error("Nie udało się załadować awatara:", error);
+      avatarUrl.value = "/Buddyshare.svg"; // Fallback na domyślny awatar w przypadku błędu
+    }
+  }
+});
 
 const stream = computed(() => {
   return (

@@ -1,5 +1,6 @@
 import type { UseFetchOptions } from "#app";
-import type { ImageTypes } from "~/types/ImageTypes";
+import { useMemoize, useObjectUrl } from "@vueuse/core";
+import { ImageTypes } from "~/types/ImageTypes";
 
 export const useApi = () => {
   const config = useRuntimeConfig();
@@ -78,6 +79,38 @@ export const useApi = () => {
   const users = {
     checkIfExists: (username: string) => request(`/users/${username}`),
 
+    getUserAvatar: useMemoize(async (username: string) => {
+      try {
+        const data = await $fetch<Blob>(`/users/${username}/avatar`, {
+          responseType: 'blob',
+          credentials: "include" as RequestCredentials,
+          baseURL,
+        });
+
+        if (!data) {
+          throw new Error("Nie udało się pobrać danych obrazu");
+        }
+
+        const objectUrl = useObjectUrl(data);
+        console.log("API getUserAvatar zwraca URL:", objectUrl.value);
+        return objectUrl.value;
+      } catch (error) {
+        console.error("Błąd podczas pobierania obrazu:", error);
+        throw error;
+      }
+    }, {
+      getKey: (username: string) => `avatar:${username}`,
+    }),
+
+    // Funkcja do czyszczenia cache awatara
+    clearAvatarCache: (username?: string) => {
+      if (username) {
+        users.getUserAvatar.delete(`avatar:${username}`);
+      } else {
+        users.getUserAvatar.clear();
+      }
+    },
+
     getAll: () => request("/users/"),
 
     getBriefInfo: () => request("/users/brief"),
@@ -104,7 +137,7 @@ export const useApi = () => {
           formData.append(key, value);
         }
       });
-      
+
       // Zbierz pliki do tablicy
       const files: File[] = [];
       if (avatarFile) {
@@ -301,28 +334,29 @@ export const useApi = () => {
       });
     },
 
-    getImage: async (hash: string, type: ImageTypes) => {
+    getImage: useMemoize(async (hash: string, type: ImageTypes) => {
       console.log("API getImage wywołane z:", { hash, type });
 
       try {
         const { data } = await request<Blob>(`/media`, {
           params: { hash, type },
           responseType: 'blob',
-
         });
-        
+
         if (!data.value) {
           throw new Error("Nie udało się pobrać danych obrazu");
         }
-        
-        const url = URL.createObjectURL(data.value);
-        console.log("API getImage zwraca URL:", url);
-        return url;
+
+        const objectUrl = useObjectUrl(data.value);
+        console.log("API getImage zwraca URL:", objectUrl.value);
+        return objectUrl.value;
       } catch (error) {
         console.error("Błąd podczas pobierania obrazu:", error);
         throw error;
       }
-    },
+    }, {
+      getKey: (hash: string, type: ImageTypes) => `image:${hash}:${type}`,
+    }),
 
     getStream: (id: string) => request(`/media/${id}`),
 

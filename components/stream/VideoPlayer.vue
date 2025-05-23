@@ -22,13 +22,8 @@
           <v-chip :color="isLiveRef ? 'red' : 'grey'" variant="tonal" size="small" prepend-icon="mdi-circle">
             {{ isLiveRef ? "LIVE" : "OFFLINE" }}
           </v-chip>
-          <v-chip
-            v-if="isLiveRef" 
-            :color="isPublicStream ? 'green' : 'orange'" 
-            variant="tonal" 
-            size="small" 
-            :prepend-icon="isPublicStream ? 'mdi-earth' : 'mdi-lock'"
-          >
+          <v-chip v-if="isLiveRef" :color="isPublicStream ? 'green' : 'orange'" variant="tonal" size="small"
+            :prepend-icon="isPublicStream ? 'mdi-earth' : 'mdi-lock'">
             {{ isPublicStream ? "PUBLIC" : "PRIVATE" }}
           </v-chip>
           <v-chip variant="outlined" size="small">
@@ -55,7 +50,7 @@
     <div class="video-wrapper flex-grow-1">
       <template v-if="isLoaded">
         <video ref="videoElement" controls autoplay muted class="video-player" v-if="isLiveRef && streamUrlRef"></video>
-        
+
         <!-- Offline State -->
         <div v-else class="offline-state d-flex flex-column align-center justify-center">
           <v-icon size="64" color="grey-lighten-1" class="mb-4">mdi-television-off</v-icon>
@@ -68,17 +63,11 @@
       </template>
       <template v-else>
         <!-- Ulepszona wersja skeleton loadera dla obszaru wideo -->
-        <div class="video-area-skeleton d-flex flex-column align-center justify-center" style="width: 100%; height: 100%;">
+        <div class="video-area-skeleton d-flex flex-column align-center justify-center"
+          style="width: 100%; height: 100%;">
           <div class="position-relative" style="width: 100px; height: 100px;">
-            <v-progress-circular 
-              indeterminate 
-              color="grey-lighten-1" 
-              size="64" 
-              width="4" 
-              class="mb-2 infinite-spinner" 
-              aria-label="Loading stream"
-              :active="true"
-            />
+            <v-progress-circular indeterminate color="grey-lighten-1" size="64" width="4" class="mb-2 infinite-spinner"
+              aria-label="Loading stream" :active="true" />
           </div>
         </div>
       </template>
@@ -113,7 +102,8 @@
         </div>
       </template>
       <template v-else>
-        <span class="text-caption text-medium-emphasis skeleton-text skeleton-bg" style="width: 60px; height: 16px;"></span>
+        <span class="text-caption text-medium-emphasis skeleton-text skeleton-bg"
+          style="width: 60px; height: 16px;"></span>
         <v-spacer />
         <v-btn disabled variant="text" size="small" class="skeleton-bg mr-2">
           Subscribe
@@ -129,7 +119,7 @@
         </div>
       </template>
     </v-card-actions>
-    
+
     <!-- Snackbar dla powiadomień - zawsze widoczny, niezależnie od stanu ładowania -->
     <v-snackbar v-model="showCopyNotification" timeout="1000" color="success" location="bottom">
       Copied to clipboard
@@ -141,7 +131,7 @@
 import { ref, onMounted, watch, computed } from "vue";
 import { useDashPlayer, type Quality } from "@/composables/useDashPlayer";
 import { useStreamsStore } from "~/stores/streams";
-import { useWindowScroll } from "@vueuse/core";
+import { tryOnMounted, useWindowScroll } from "@vueuse/core";
 import SubscribeButton from "../SubscribeButton.vue";
 
 interface Props {
@@ -205,10 +195,14 @@ const initialQualityRef = computed(() => {
 });
 const viewerCount = computed(() => streamData.value?.viewer_count || 0);
 const currentTime = ref("");
-const avatar = computed(
-  () => streamData.value?.profile_picture || "/Buddyshare.svg"
-);
+const avatar = ref("/Buddyshare.svg");
 
+tryOnMounted(async () => {
+  // Ustawiamy avatar na podstawie nazwy streamera
+  
+  const { users } = useApi();
+  avatar.value = await users.getUserAvatar(props.displayName);
+});
 // Ustawienia dla video playera
 const videoElement = ref<HTMLVideoElement | null>(null);
 
@@ -338,7 +332,7 @@ export default {
   position: relative;
   overflow: hidden;
   background-color: rgba(255, 255, 255, 0.1) !important;
-  
+
   &::after {
     position: absolute;
     top: 0;
@@ -346,13 +340,11 @@ export default {
     bottom: 0;
     left: 0;
     transform: translateX(-100%);
-    background-image: linear-gradient(
-      90deg,
-      rgba(255, 255, 255, 0) 0,
-      rgba(255, 255, 255, 0.1) 20%,
-      rgba(255, 255, 255, 0.2) 60%,
-      rgba(255, 255, 255, 0)
-    );
+    background-image: linear-gradient(90deg,
+        rgba(255, 255, 255, 0) 0,
+        rgba(255, 255, 255, 0.1) 20%,
+        rgba(255, 255, 255, 0.2) 60%,
+        rgba(255, 255, 255, 0));
     animation: shimmer 1.5s infinite;
     content: '';
   }
@@ -378,8 +370,13 @@ export default {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes shimmer {

@@ -54,11 +54,11 @@ const userDescription = computed(() => (userProfileInfo.value as any)?.descripti
 // Pobieranie obrazów za pomocą api.media.getImage (tylko po stronie klienta)
 onMounted(async () => {
   console.log("onMounted - userProfileInfo:", userProfileInfo.value);
-
+  
   if (userProfileInfo.value) {
     const profileDataVal = userProfileInfo.value as any; // Zmieniona nazwa, aby uniknąć konfliktu
     console.log("Profile data:", profileDataVal);
-
+    
     // Pobieranie awatara
     if (profileDataVal.profilePicture) {
       console.log("Próba pobrania awatara:", profileDataVal.profilePicture);
@@ -74,7 +74,7 @@ onMounted(async () => {
     } else {
       console.log("Brak profilePicture w danych użytkownika");
     }
-
+    
     // Pobieranie obrazu okładki
     if (profileDataVal.profileBanner) {
       console.log("Próba pobrania okładki:", profileDataVal.profileBanner);
@@ -113,7 +113,7 @@ const formatDate = (dateString: string) => {
 };
 
 // Używamy formatowanej daty jako computed property
-const userJoinDate = computed(() =>
+const userJoinDate = computed(() => 
   (userProfileInfo.value as any)?.createdAt
     ? formatDate((userProfileInfo.value as any).createdAt)
     : "Nieznana data"
@@ -326,12 +326,27 @@ const updateProfile = async () => {
 </script>
 
 <template>
-  <v-container fluid class="profile-layout pa-0">
+  <v-container
+    fluid
+    class="profile-layout pa-0"
+  >
     <!-- Cover Image Section -->
-    <v-img :src="profileData.coverImage" height="240" cover class="profile-cover">
+    <v-img
+      :src="profileData.coverImage"
+      height="240"
+      cover
+      class="profile-cover"
+    >
       <template v-slot:placeholder>
-        <v-row class="fill-height ma-0" align="center" justify="center">
-          <v-progress-circular indeterminate color="grey-lighten-5"></v-progress-circular>
+        <v-row
+          class="fill-height ma-0"
+          align="center"
+          justify="center"
+        >
+          <v-progress-circular
+            indeterminate
+            color="grey-lighten-5"
+          ></v-progress-circular>
         </v-row>
       </template>
     </v-img>
@@ -339,26 +354,54 @@ const updateProfile = async () => {
     <!-- Profile Information Section -->
     <v-container>
       <v-row>
-        <v-col cols="12" md="4" class="profile-info">
+        <v-col
+          cols="12"
+          md="4"
+          class="profile-info"
+        >
           <!-- Avatar and Main Info -->
           <div class="d-flex flex-column align-center">
             <div class="position-relative">
-              <v-avatar size="150" class="profile-avatar mt-n10 mb-4">
-                <v-img :src="profileData.avatar" alt="Avatar"></v-img>
+              <v-avatar
+                size="150"
+                class="profile-avatar mt-n10 mb-4"
+              >
+                <v-img
+                  :src="profileData.avatar"
+                  alt="Avatar"
+                ></v-img>
               </v-avatar>
 
               <!-- Edit Profile Button -->
-              <v-dialog v-model="editProfileDialog" max-width="600px" class="mt-6">
+              <v-dialog
+                v-model="editProfileDialog"
+                max-width="600px"
+                class="mt-6"
+              >
                 <template v-slot:activator="{ props }">
-                  <v-btn v-if="canEditProfile" icon="mdi-pencil" color="grey" variant="elevated" size="small"
-                    class="edit-profile-btn" v-bind="props" @click="initEditValues"></v-btn>
+                  <v-btn
+                    v-if="canEditProfile"
+                    icon="mdi-pencil"
+                    color="grey"
+                    variant="elevated"
+                    size="small"
+                    class="edit-profile-btn"
+                    v-bind="props"
+                    @click="initEditValues"
+                  ></v-btn>
                 </template>
                 <v-card>
                   <v-card-title>Edytuj profil</v-card-title>
                   <v-card-text>
                     <v-form @submit.prevent="updateProfile">
-                      <v-textarea v-model="editedDescription" label="Opis profilu" variant="outlined" rows="4"
-                        class="mb-4" required></v-textarea>
+                      <v-textarea
+                        v-model="editedDescription"
+                        label="Opis profilu"
+                        variant="outlined"
+                        rows="4"
+                        class="mb-4"
+                        required
+                      ></v-textarea>
 
                       <!-- Sekcja zdjęcia profilowego -->
                       <div class="mb-4">
@@ -376,28 +419,46 @@ const updateProfile = async () => {
                         </div>
 
                         <!-- Input do wyboru pliku -->
-                        <input ref="avatarFileInput" type="file" accept="image/*" style="display: none"
-                          @change="handleAvatarSelect" />
+                        <input
+                          ref="avatarFileInput"
+                          type="file"
+                          accept="image/*"
+                          style="display: none"
+                          @change="handleAvatarSelect"
+                        />
 
                         <!-- Przyciski akcji -->
                         <div class="d-flex gap-2 mb-3">
-                          <v-btn color="primary" variant="outlined" prepend-icon="mdi-upload"
-                            :loading="isUploadingAvatar" :disabled="isUploadingAvatar"
-                            @click="avatarFileInput?.click()">
+                          <v-btn
+                            color="primary"
+                            variant="outlined"
+                            prepend-icon="mdi-upload"
+                            :loading="isUploadingAvatar"
+                            :disabled="isUploadingAvatar"
+                            @click="avatarFileInput?.click()"
+                          >
                             {{ isUploadingAvatar ? "Uploadowanie..." : "Wybierz avatar" }}
                           </v-btn>
 
-                          <v-btn v-if="selectedAvatarFile && !isUploadingAvatar" color="error" variant="text"
-                            prepend-icon="mdi-close" @click="clearAvatarSelection">
+                          <v-btn
+                            v-if="selectedAvatarFile && !isUploadingAvatar"
+                            color="error"
+                            variant="text"
+                            prepend-icon="mdi-close"
+                            @click="clearAvatarSelection"
+                          >
                             Usuń
                           </v-btn>
                         </div>
 
                         <!-- Informacja o wybranym pliku -->
                         <div v-if="selectedAvatarFile" class="mb-3">
-                          <v-chip :color="isUploadingAvatar ? 'orange' : 'success'" variant="tonal"
+                          <v-chip
+                            :color="isUploadingAvatar ? 'orange' : 'success'"
+                            variant="tonal"
                             :prepend-icon="isUploadingAvatar ? 'mdi-loading mdi-spin' : 'mdi-check'"
-                            class="text-caption">
+                            class="text-caption"
+                          >
                             {{ selectedAvatarFile.name }} ({{ (selectedAvatarFile.size / 1024 / 1024).toFixed(2) }} MB)
                             {{ isUploadingAvatar ? "- Uploadowanie..." : "- Gotowy do przesłania!" }}
                           </v-chip>
@@ -420,28 +481,46 @@ const updateProfile = async () => {
                         </div>
 
                         <!-- Input do wyboru pliku bannera -->
-                        <input ref="bannerFileInput" type="file" accept="image/*" style="display: none"
-                          @change="handleBannerSelect" />
+                        <input
+                          ref="bannerFileInput"
+                          type="file"
+                          accept="image/*"
+                          style="display: none"
+                          @change="handleBannerSelect"
+                        />
 
                         <!-- Przyciski akcji -->
                         <div class="d-flex gap-2 mb-3">
-                          <v-btn color="primary" variant="outlined" prepend-icon="mdi-upload"
-                            :loading="isUploadingBanner" :disabled="isUploadingBanner"
-                            @click="bannerFileInput?.click()">
+                          <v-btn
+                            color="primary"
+                            variant="outlined"
+                            prepend-icon="mdi-upload"
+                            :loading="isUploadingBanner"
+                            :disabled="isUploadingBanner"
+                            @click="bannerFileInput?.click()"
+                          >
                             {{ isUploadingBanner ? "Uploadowanie..." : "Wybierz okładkę" }}
                           </v-btn>
 
-                          <v-btn v-if="selectedBannerFile && !isUploadingBanner" color="error" variant="text"
-                            prepend-icon="mdi-close" @click="clearBannerSelection">
+                          <v-btn
+                            v-if="selectedBannerFile && !isUploadingBanner"
+                            color="error"
+                            variant="text"
+                            prepend-icon="mdi-close"
+                            @click="clearBannerSelection"
+                          >
                             Usuń
                           </v-btn>
                         </div>
 
                         <!-- Informacja o wybranym pliku bannera -->
                         <div v-if="selectedBannerFile" class="mb-3">
-                          <v-chip :color="isUploadingBanner ? 'orange' : 'success'" variant="tonal"
+                          <v-chip
+                            :color="isUploadingBanner ? 'orange' : 'success'"
+                            variant="tonal"
                             :prepend-icon="isUploadingBanner ? 'mdi-loading mdi-spin' : 'mdi-check'"
-                            class="text-caption">
+                            class="text-caption"
+                          >
                             {{ selectedBannerFile.name }} ({{ (selectedBannerFile.size / 1024 / 1024).toFixed(2) }} MB)
                             {{ isUploadingBanner ? "- Uploadowanie..." : "- Gotowy do przesłania!" }}
                           </v-chip>
@@ -451,11 +530,19 @@ const updateProfile = async () => {
                   </v-card-text>
                   <v-card-actions>
                     <v-spacer></v-spacer>
-                    <v-btn color="error" variant="text" @click="editProfileDialog = false"
-                      :disabled="isUploadingAvatar || isUploadingBanner">
+                    <v-btn
+                      color="error"
+                      variant="text"
+                      @click="editProfileDialog = false"
+                      :disabled="isUploadingAvatar || isUploadingBanner"
+                    >
                       Anuluj
                     </v-btn>
-                    <v-btn color="primary" @click="updateProfile" :disabled="isUploadingAvatar || isUploadingBanner">
+                    <v-btn
+                      color="primary"
+                      @click="updateProfile"
+                      :disabled="isUploadingAvatar || isUploadingBanner"
+                    >
                       Zapisz zmiany
                     </v-btn>
                   </v-card-actions>
@@ -468,9 +555,20 @@ const updateProfile = async () => {
               @{{ profileData.username }}
             </p>
             <div class="d-flex">
-              <v-btn color="primary" class="mt-2 mr-2" prepend-icon="mdi-check">Obserwuj</v-btn>
-              <v-btn v-if="streamsStore.isStreamerLive(displayName as string)" color="secondary" class="mt-2"
-                prepend-icon="mdi-video" @click="router.push(`/user/${displayName}`)">view Stream</v-btn>
+              <v-btn
+                color="primary"
+                class="mt-2 mr-2"
+                prepend-icon="mdi-check"
+                >Obserwuj</v-btn
+              >
+              <v-btn
+                v-if="streamsStore.isStreamerLive(displayName as string)"
+                color="secondary"
+                class="mt-2"
+                prepend-icon="mdi-video"
+                @click="router.push(`/user/${displayName}`)"
+                >view Stream</v-btn
+              >
             </div>
           </div>
 
@@ -487,32 +585,53 @@ const updateProfile = async () => {
           </div>
         </v-col>
 
-        <v-col cols="12" md="8">
+        <v-col
+          cols="12"
+          md="8"
+        >
           <!-- Stats Section -->
           <v-card class="mb-4">
             <v-card-text>
               <v-row>
-                <v-col cols="6" md="4" class="text-center">
+                <v-col
+                  cols="6"
+                  md="4"
+                  class="text-center"
+                >
                   <div class="text-h5">
                     {{ profileData.followers.toLocaleString() }}
                   </div>
-                  <NuxtLink @click="
+                  <NuxtLink
+                    @click="
                       router.push(`/user/${displayName}/profile/followers`)
-                    " class="profile-link">
+                    "
+                    class="profile-link"
+                  >
                     Obserwujący
                   </NuxtLink>
                 </v-col>
-                <v-col cols="6" md="4" class="text-center">
+                <v-col
+                  cols="6"
+                  md="4"
+                  class="text-center"
+                >
                   <div class="text-h5">
                     {{ profileData.following.toLocaleString() }}
                   </div>
-                  <NuxtLink @click="
+                  <NuxtLink
+                    @click="
                       router.push(`/user/${displayName}/profile/following`)
-                    " class="profile-link">
+                    "
+                    class="profile-link"
+                  >
                     Obserwuje
                   </NuxtLink>
                 </v-col>
-                <v-col cols="12" md="4" class="text-center">
+                <v-col
+                  cols="12"
+                  md="4"
+                  class="text-center"
+                >
                   <div class="text-h5">{{ profileData.joinDate }}</div>
                   <div class="text-subtitle-2">Dołączył/a</div>
                 </v-col>
@@ -532,18 +651,35 @@ const updateProfile = async () => {
           <v-card class="mt-4">
             <v-card-title class="d-flex justify-space-between">
               <span>Ostatnie transmisje</span>
-              <v-btn variant="text" color="primary">Zobacz wszystkie</v-btn>
+              <v-btn
+                variant="text"
+                color="primary"
+                >Zobacz wszystkie</v-btn
+              >
             </v-card-title>
             <v-card-text>
               <v-row>
-                <v-col cols="12" sm="6" md="4" v-for="i in 3" :key="i">
+                <v-col
+                  cols="12"
+                  sm="6"
+                  md="4"
+                  v-for="i in 3"
+                  :key="i"
+                >
                   <v-card class="stream-preview">
-                    <v-img src="/Buddyshare.svg" height="120" cover class="align-end">
+                    <v-img
+                      src="/Buddyshare.svg"
+                      height="120"
+                      cover
+                      class="align-end"
+                    >
                       <div class="pa-2 bg-black bg-opacity-60">
                         <div class="text-caption">2 godz. temu</div>
                       </div>
                     </v-img>
-                    <v-card-title class="text-body-1 pb-0">Tytuł transmisji {{ i }}</v-card-title>
+                    <v-card-title class="text-body-1 pb-0"
+                      >Tytuł transmisji {{ i }}</v-card-title
+                    >
                     <v-card-subtitle>12.8K wyświetleń</v-card-subtitle>
                   </v-card>
                 </v-col>
