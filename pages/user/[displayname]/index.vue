@@ -1,10 +1,23 @@
 <!-- pages/[displayname]/index.vue -->
 <template>
-  <v-container fluid class="stream-layout pa-0 fill-height">
-    <v-row no-gutters class="fill-height">
+  <v-container
+    fluid
+    class="stream-layout pa-0 fill-height"
+  >
+    <v-row
+      no-gutters
+      class="fill-height"
+    >
       <!-- Main Content Column -->
-      <v-col cols="12" lg="9" class="h-100">
-        <v-responsive :aspect-ratio="16 / 9" class="h-100">
+      <v-col
+        cols="12"
+        lg="9"
+        class="h-100"
+      >
+        <v-responsive
+          :aspect-ratio="16 / 9"
+          class="h-100"
+        >
           <!-- Poprawione przekazywanie jakości do VideoPlayer -->
           <LazyStreamVideoPlayer :display-name="displayName" />
         </v-responsive>
@@ -19,17 +32,34 @@
               <h1 class="text-h4 mb-0">{{ stream.title || "" }}</h1>
             </template>
             <template v-else>
-              <div class="skeleton-text skeleton-bg" style="width: 70%; height: 38px;"></div>
+              <div
+                class="skeleton-text skeleton-bg"
+                style="width: 70%; height: 38px"
+              ></div>
             </template>
 
             <v-spacer></v-spacer>
 
             <div class="d-flex flex-column">
               <!-- Dodajemy margin top do dialogu -->
-              <v-dialog v-model="editDialog" max-width="600px" class="mt-6">
+              <v-dialog
+                v-model="editDialog"
+                max-width="600px"
+                class="mt-6"
+              >
                 <template v-slot:activator="{ props }">
-                  <v-btn v-if="streamStore.isStreamOwner()" color="pink-darken-1" variant="elevated"
-                    prepend-icon="mdi-video" v-bind="props" class="text-uppercase font-weight-bold py-2" block>
+                  <v-btn
+                    v-if="
+                      authStore.userName === displayName &&
+                      streamStore.isStreamOwner()
+                    "
+                    color="pink-darken-1"
+                    variant="elevated"
+                    prepend-icon="mdi-video"
+                    v-bind="props"
+                    class="text-uppercase font-weight-bold py-2"
+                    block
+                  >
                     GO LIVE
                   </v-btn>
                 </template>
@@ -37,17 +67,41 @@
                   <v-card-title>Edytuj informacje o streamie</v-card-title>
                   <v-card-text>
                     <v-form @submit.prevent="updateStreamInfo">
-                      <v-text-field v-model="editedTitle" label="Tytuł streamu" variant="outlined" class="mb-4"
-                        required></v-text-field>
-                      <v-textarea v-model="editedDescription" label="Opis streamu" variant="outlined" rows="4"
-                        class="mb-4" required></v-textarea>
-                      <v-switch v-model="isPublic" label="Stream publiczny" color="primary"></v-switch>
+                      <v-text-field
+                        v-model="editedTitle"
+                        label="Tytuł streamu"
+                        variant="outlined"
+                        class="mb-4"
+                        required
+                      ></v-text-field>
+                      <v-textarea
+                        v-model="editedDescription"
+                        label="Opis streamu"
+                        variant="outlined"
+                        rows="4"
+                        class="mb-4"
+                        required
+                      ></v-textarea>
+                      <v-switch
+                        v-model="isPublic"
+                        label="Stream publiczny"
+                        color="primary"
+                      ></v-switch>
                     </v-form>
                   </v-card-text>
                   <v-card-actions>
                     <v-spacer></v-spacer>
-                    <v-btn color="error" variant="text" @click="editDialog = false">Anuluj</v-btn>
-                    <v-btn color="primary" @click="updateStreamInfo">Zapisz zmiany</v-btn>
+                    <v-btn
+                      color="error"
+                      variant="text"
+                      @click="editDialog = false"
+                      >Anuluj</v-btn
+                    >
+                    <v-btn
+                      color="primary"
+                      @click="updateStreamInfo"
+                      >Zapisz zmiany</v-btn
+                    >
                   </v-card-actions>
                 </v-card>
               </v-dialog>
@@ -59,9 +113,18 @@
             <p class="text-body-1 mb-4">{{ stream.stream_description }}</p>
           </template>
           <template v-else>
-            <div class="skeleton-text skeleton-bg mb-2" style="width: 95%; height: 18px;"></div>
-            <div class="skeleton-text skeleton-bg mb-2" style="width: 88%; height: 18px;"></div>
-            <div class="skeleton-text skeleton-bg mb-4" style="width: 65%; height: 18px;"></div>
+            <div
+              class="skeleton-text skeleton-bg mb-2"
+              style="width: 95%; height: 18px"
+            ></div>
+            <div
+              class="skeleton-text skeleton-bg mb-2"
+              style="width: 88%; height: 18px"
+            ></div>
+            <div
+              class="skeleton-text skeleton-bg mb-4"
+              style="width: 65%; height: 18px"
+            ></div>
           </template>
 
           <v-divider class="mb-3"></v-divider>
@@ -69,8 +132,14 @@
           <!-- Informacje o streamerze - skeleton lub dane -->
           <div class="d-flex align-center">
             <template v-if="!isLoading">
-              <v-avatar class="mr-3" size="42">
-                <v-img :src="avatarUrl || '/Buddyshare.svg'" alt="Streamer avatar" />
+              <v-avatar
+                class="mr-3"
+                size="42"
+              >
+                <v-img
+                  :src="avatarUrl || '/Buddyshare.svg'"
+                  alt="Streamer avatar"
+                />
               </v-avatar>
               <div>
                 <span class="text-h6">{{ displayName }}</span>
@@ -78,19 +147,34 @@
               </div>
             </template>
             <template v-else>
-              <v-avatar class="mr-3 skeleton-bg" size="42"></v-avatar>
+              <v-avatar
+                class="mr-3 skeleton-bg"
+                size="42"
+              ></v-avatar>
               <div>
-                <div class="skeleton-text skeleton-bg mb-1" style="width: 120px; height: 24px;"></div>
-                <div class="skeleton-text skeleton-bg" style="width: 180px; height: 16px;"></div>
+                <div
+                  class="skeleton-text skeleton-bg mb-1"
+                  style="width: 120px; height: 24px"
+                ></div>
+                <div
+                  class="skeleton-text skeleton-bg"
+                  style="width: 180px; height: 16px"
+                ></div>
               </div>
             </template>
 
             <v-spacer></v-spacer>
 
             <!-- Przycisk profilu - pokazujemy nawet w trybie ładowania -->
-            <v-btn color="white" variant="outlined" prepend-icon="mdi-account"
-              @click="navigateTo(`/user/${displayName}/profile`)" class="profile-button-styled font-weight-bold"
-              rounded="pill" :disabled="isLoading">
+            <v-btn
+              color="white"
+              variant="outlined"
+              prepend-icon="mdi-account"
+              @click="navigateTo(`/user/${displayName}/profile`)"
+              class="profile-button-styled font-weight-bold"
+              rounded="pill"
+              :disabled="isLoading"
+            >
               Profil
             </v-btn>
           </div>
@@ -98,17 +182,26 @@
       </v-col>
 
       <!-- Chat Column -->
-      <v-col v-if="streamID" cols="12" lg="3" class="h-100 bg-grey-darken-4">
-        <LazyLiveChat :stream-id="streamID" title="Live Chat" @message-action="handleMessageAction" />
+      <v-col
+        v-if="streamID"
+        cols="12"
+        lg="3"
+        class="h-100 bg-grey-darken-4"
+      >
+        <LazyLiveChat
+          :stream-id="streamID"
+          title="Live Chat"
+          @message-action="handleMessageAction"
+        />
       </v-col>
     </v-row>
   </v-container>
 </template>
 
 <script setup lang="ts">
-import { LazyLiveChat } from '#components';
-import { ChatAction } from '~/types/ChatAction';
-import { ref, onMounted } from 'vue'; // Dodano import ref i onMounted
+import { LazyLiveChat } from "#components";
+import { ChatAction } from "~/types/ChatAction";
+import { ref, onMounted } from "vue"; // Dodano import ref i onMounted
 
 const streamsStore = useStreamsStore();
 const route = useRoute();
@@ -124,7 +217,7 @@ const authWS = useAuthWebSocket();
 const isLoading = ref(true);
 const avatarUrl = ref<string | null>(null); // Dodano ref dla URL awatara
 
-onMounted(async() => {
+onMounted(async () => {
   // Fetch stream data when the component is mounted
   // await streamsStore.fetchStreams(); // Zakomentowane, jeśli nie jest już potrzebne
   if (displayName) {
@@ -250,13 +343,13 @@ const handleMessageAction = ({ action, message, index, moderator }) => {
     console.error("Brak zalogowanego użytkownika.");
     return;
   }
-  
+
   console.log(`Message action: ${action}`, message, index, moderator);
   switch (action) {
     case ChatAction.DELETE:
       // Emitowanie zdarzenia do backendu przez WebSocket
       if (message && message.chatMessageId) {
-        authWS.patchChatMessage(message, action)
+        authWS.patchChatMessage(message, action);
       }
       // Przykład lokalnego usuwania z listy (jeśli masz dostęp do listy wiadomości):
       // if (typeof index === 'number' && index > -1 && messages.value) {
@@ -266,12 +359,12 @@ const handleMessageAction = ({ action, message, index, moderator }) => {
     case ChatAction.TIMEOUT:
       // Przykład: ws.emit("timeoutUser", { userId: message.userId })
       break;
-      case ChatAction.BAN:
-        if (message && message.chatMessageId) {
+    case ChatAction.BAN:
+      if (message && message.chatMessageId) {
         const options = {
-            bannedBy: authStore.currentUser?.userId,
+          bannedBy: authStore.currentUser?.userId,
         };
-        authWS.banUserInChat(message, action, options)
+        authWS.banUserInChat(message, action, options);
       }
       // Przykład: ws.emit("banUser", { userId: message.userId })
       break;
@@ -349,13 +442,15 @@ const handleMessageAction = ({ action, message, index, moderator }) => {
     bottom: 0;
     left: 0;
     transform: translateX(-100%);
-    background-image: linear-gradient(90deg,
-        rgba(255, 255, 255, 0) 0,
-        rgba(255, 255, 255, 0.1) 20%,
-        rgba(255, 255, 255, 0.2) 60%,
-        rgba(255, 255, 255, 0));
+    background-image: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0,
+      rgba(255, 255, 255, 0.1) 20%,
+      rgba(255, 255, 255, 0.2) 60%,
+      rgba(255, 255, 255, 0)
+    );
     animation: shimmer 1.5s infinite;
-    content: '';
+    content: "";
   }
 }
 

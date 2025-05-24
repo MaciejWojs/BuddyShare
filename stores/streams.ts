@@ -11,7 +11,16 @@ export const useStreamsStore = defineStore("Streams", () => {
   const headers = useRequestHeaders(["cookie"]);
   const ws = usePublicWebSocket();
   const streams = ref<Stream[]>([]);
-  const streamHistory = ref<{ id: number, viewers: any[], followers: any[], subscribers: any[], chatMessages?: any[], topChatters?: any[] }[]>([]);
+  const streamHistory = ref<
+    {
+      id: number;
+      viewers: any[];
+      followers: any[];
+      subscribers: any[];
+      chatMessages?: any[];
+      topChatters?: any[];
+    }[]
+  >([]);
   const authStore = useAuthStore();
 
   const fetchStreams = async () => {
@@ -32,7 +41,7 @@ export const useStreamsStore = defineStore("Streams", () => {
       followers: [],
       subscribers: [],
       chatMessages: [],
-      topChatters: []
+      topChatters: [],
     }));
     console.log("Fetched streams:", streams.value);
     if (data.length > 0) {
@@ -51,7 +60,7 @@ export const useStreamsStore = defineStore("Streams", () => {
         followers: [],
         subscribers: [],
         chatMessages: [],
-        topChatters: []
+        topChatters: [],
       });
     }
   }
@@ -76,13 +85,13 @@ export const useStreamsStore = defineStore("Streams", () => {
     console.log("Removing stream with ID:", streamId);
     const index = streams.value.findIndex((s) => {
       console.log("Checking stream:", s.options_id, "against", streamId);
-      return s.options_id === streamId
+      return s.options_id === streamId;
     });
     console.log("Index to remove stream:", index);
     if (index !== -1) {
       streams.value.splice(index, 1);
       const histIdx = streamHistory.value.findIndex((h) => h.id === streamId);
-      console.log('Removing stream:', streamId);
+      console.log("Removing stream:", streamId);
       if (histIdx !== -1) streamHistory.value.splice(histIdx, 1);
     }
   }
@@ -139,7 +148,8 @@ export const useStreamsStore = defineStore("Streams", () => {
   function getHistoryByStreamerName(streamerName: string) {
     const stream = getStreamByStreamerName(streamerName);
     const foundHistory = streamHistory.value.find(
-      (history) => history.id === stream?.options_id);
+      (history) => history.id === stream?.options_id
+    );
     if (!foundHistory) {
       console.log("getHistoryByStreamerName - history not found");
       return undefined;
@@ -190,6 +200,12 @@ export const useStreamsStore = defineStore("Streams", () => {
   };
 
   const isStreamOwner = () => {
+    console.log(
+      "VALIDATE STREAM: Checking if user is stream owner:",
+      authStore.userName,
+      "is in streams:",
+      streams.value
+    );
     return streams.value.some(
       (stream) => stream.username === authStore.userName
     );
