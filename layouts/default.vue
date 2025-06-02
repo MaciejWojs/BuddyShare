@@ -348,18 +348,53 @@
       </v-card>
     </v-dialog>
   </client-only>
+
+  <!-- Snackbar informujący o utracie połączenia internetowego -->
+  <v-snackbar
+    v-model="showOfflineMessage"
+    :timeout="-1"
+    color="error"
+    location="bottom center"
+    multi-line
+    app
+  >
+    Utracono połączenie z internetem. Niektóre funkcje mogą być niedostępne.
+    <template #actions>
+      <v-btn
+        color="white"
+        variant="text"
+        @click="showOfflineMessage = false"
+      >
+        Zamknij
+      </v-btn>
+    </template>
+  </v-snackbar>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue"; // Dodano watch
 import { useNotificationsStore } from "~/stores/notifications";
 import { useAuthStore } from "~/stores/auth";
+import { useOnline } from '@vueuse/core'; // Import useOnline
 
 // Inicjalizacja prostych wartości (nie zależnych od stanu autentykacji)
 const drawer = ref(false);
 const showNotifications = ref(false);
 const showDeleteConfirmDialog = ref(false);
 const openGroups = ref<boolean[]>([]);
+
+// Online status
+const online = useOnline();
+const showOfflineMessage = ref(false);
+
+watch(online, (isOnline) => {
+  if (!isOnline) {
+    showOfflineMessage.value = true;
+  } else {
+    // Automatycznie ukryj komunikat, gdy połączenie wróci
+    showOfflineMessage.value = false;
+  }
+}, { immediate: true }); // immediate: true uruchomi watchera od razu przy montowaniu komponentu
 
 // Zmienne do śledzenia przewijania
 const lastScrollY = ref(0);
