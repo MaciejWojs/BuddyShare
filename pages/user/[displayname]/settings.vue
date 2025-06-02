@@ -37,15 +37,27 @@ const userSettings = ref({
 
 // Dodaj store dla autentykacji
 const authStore = useAuthStore();
-const username = authStore.userName;
+const username = computed(() => authStore.userName); // Użyj computed dla reaktywności
+
+// API instance
+const api = useApi();
+
+// Streamer status state
+const isStreamer = ref<boolean | null>(null); // null: unknown, true: is streamer, false: not streamer
+const isLoadingStreamerStatus = ref(true);
+const streamerStatusError = ref<string | null>(null);
+
+// Become streamer state
+const isBecomingStreamer = ref(false);
+const becomeStreamerError = ref<string | null>(null);
 
 // Stream token state
 const isFetchingToken = ref(false);
-const tokenError = ref(null);
+const tokenError = ref<string | null>(null); // Zmieniono na string dla komunikatów błędów
 
 // Stan dla resetowania klucza
 const isResetting = ref(false);
-const resetError = ref(false);
+const resetError = ref<string | null>(null); // Zmieniono na string dla komunikatów błędów
 
 // Dodaj nowe refy
 const confirmResetDialog = ref(false);
@@ -149,23 +161,10 @@ const setActiveCategory = (categoryId: string) => {
 const streamKeyDialog = ref(false);
 const copySuccess = ref(false);
 
-// Pobierz początkowy klucz przy mountowaniu komponentu
+// Pobierz początkowy klucz i status streamera przy mountowaniu komponentu
 onMounted(async () => {
-  try {
-    const { data } = await useFetch(`${endpoint}/streamers/${username}/token`, {
-      method: "GET",
-      headers: {
-        ...headers,
-        Accept: "application/json",
-      },
-      credentials: "include",
-    });
-    if (data.value?.token) {
-      userSettings.value.streamKey = data.value.token;
-    }
-  } catch (err) {
-    console.error("Error fetching stream key:", err);
-  }
+  await checkStreamerStatus();
+  // Pozostałe dane (fetchedSettings) są ładowane przez useAsyncData
 });
 
 // Dodaj funkcję do potwierdzenia resetu
@@ -175,30 +174,22 @@ const promptReset = () => {
 
 // Funkcja do resetowania klucza
 const resetStreamKey = async () => {
+  if (!username.value) return;
   confirmResetDialog.value = false;
   isResetting.value = true;
-  resetError.value = false;
+  resetError.value = null;
   try {
-    const { data, error } = await useFetch(
-      `${endpoint}/streamers/${username}/token`,
-      {
-        method: "PATCH",
-        headers: {
-          ...headers,
-          Accept: "application/json",
-        },
-        credentials: "include",
-      }
-    );
-
+    const { data, error } = await api.streamers.updateToken(username.value);
     if (error.value) throw error.value;
     if (data.value?.token) {
       userSettings.value.streamKey = data.value.token;
       streamKeyDialog.value = true;
+    } else {
+      throw new Error("New token not received after reset.");
     }
-  } catch (err) {
+  } catch (err: any) {
     console.error("Error resetting stream key:", err);
-    resetError.value = true;
+    resetError.value = err.data?.message || err.message || "Failed to generate new key.";
   } finally {
     isResetting.value = false;
   }
@@ -230,6 +221,73 @@ const copyStreamKey = () => {
     .catch((err) => {
       console.error("Failed to copy the key: ", err);
     });
+};
+
+// Check if current user is a streamer
+const checkStreamerStatus = async () => {
+  if (!username.value) {
+    isLoadingStreamerStatus.value = false;
+    isStreamer.value = false;
+    return;
+  }
+  isLoadingStreamerStatus.value = true;
+  streamerStatusError.value = null;
+  try {
+    const isUserStreamer = await api.streamers.isStreamer(username.value);
+    isStreamer.value = isUserStreamer;
+    if (isUserStreamer) {
+      await fetchStreamKey();
+    }
+  } catch (err: any) {
+    console.error("Error checking streamer status:", err);
+    streamerStatusError.value = err.data?.message || err.message || "Failed to check streamer status.";
+    isStreamer.value = false;
+  } finally {
+    isLoadingStreamerStatus.value = false;
+  }
+};
+
+const fetchStreamKey = async () => {
+  if (!username.value) return;
+  isFetchingToken.value = true;
+  tokenError.value = null;
+  try {
+    const { data, error } = await api.streamers.getToken(username.value);
+    if (error.value) throw error.value;
+    if (data.value?.token) {
+      userSettings.value.streamKey = data.value.token;
+    } else {
+      userSettings.value.streamKey = ""; // Wyczyść, jeśli brak tokenu
+      console.warn("Stream key not found.");
+    }
+  } catch (err: any) {
+    console.error("Error fetching stream key:", err);
+    tokenError.value = err.data?.message || err.message || "Failed to fetch stream key.";
+    userSettings.value.streamKey = ""; // Wyczyść w przypadku błędu
+  } finally {
+    isFetchingToken.value = false;
+  }
+};
+
+// Function to become a streamer
+const handleBecomeStreamer = async () => {
+  if (!username.value) return;
+  isBecomingStreamer.value = true;
+  becomeStreamerError.value = null;
+  try {
+    const { error } = await api.users.becomeStreamer(username.value);
+    if (error.value) throw error.value;
+    isStreamer.value = true;
+    await fetchStreamKey();
+    if (userSettings.value.streamKey) {
+      streamKeyDialog.value = true; // Pokaż dialog z nowym kluczem
+    }
+  } catch (err: any) {
+    console.error("Error becoming streamer:", err);
+    becomeStreamerError.value = err.data?.message || err.message || "Failed to become a streamer.";
+  } finally {
+    isBecomingStreamer.value = false;
+  }
 };
 </script>
 
@@ -413,208 +471,331 @@ const copyStreamKey = () => {
               <template v-else-if="activeCategory === 'stream'">
                 <h2 class="text-h5 mb-4">Stream Settings</h2>
 
-                <!-- Dialog potwierdzenia resetowania klucza -->
-                <v-dialog
-                  v-model="confirmResetDialog"
-                  max-width="400"
-                >
-                  <v-card>
-                    <v-card-title class="text-h5">Confirm Reset</v-card-title>
-                    <v-card-text>
-                      Are you sure you want to generate a new stream key? The
-                      old key will become invalid immediately.
-                    </v-card-text>
-                    <v-card-actions>
-                      <v-spacer></v-spacer>
-                      <v-btn
-                        color="secondary"
-                        @click="confirmResetDialog = false"
-                      >
-                        Cancel
-                      </v-btn>
-                      <v-btn
-                        color="error"
-                        @click="resetStreamKey"
-                        :loading="isResetting"
-                      >
-                        Confirm
-                      </v-btn>
-                    </v-card-actions>
-                  </v-card>
-                </v-dialog>
+                <!-- Loader for streamer status check -->
+                <v-skeleton-loader
+                  v-if="isLoadingStreamerStatus"
+                  type="list-item-two-line, button"
+                  class="mb-4"
+                ></v-skeleton-loader>
 
-                <!-- Dodaj alert dla błędów -->
+                <!-- Error checking streamer status -->
                 <v-alert
-                  v-if="resetError"
+                  v-else-if="streamerStatusError"
                   type="error"
                   class="mb-4"
-                  title="Błąd resetowania"
-                  text="Nie udało się wygenerować nowego klucza"
-                />
+                  title="Error"
+                  :text="streamerStatusError"
+                  variant="tonal"
+                ></v-alert>
 
-                <SettingItem
-                  title="Auto-record"
-                  description="Automatically record your streams"
-                  icon="mdi-record-circle-outline"
-                  v-model="userSettings.stream.autoRecord"
-                  setting-id="stream.autoRecord"
-                  @save:success="handleSuccess"
-                  @save:error="handleError"
-                />
-
-                <SettingItem
-                  title="Low latency mode"
-                  description="Reduce stream delay at the cost of quality"
-                  icon="mdi-clock-fast"
-                  v-model="userSettings.stream.lowLatencyMode"
-                  setting-id="stream.lowLatencyMode"
-                  @save:success="handleSuccess"
-                  @save:error="handleError"
-                />
-
-                <SettingItem
-                  title="Chat moderation"
-                  description="Level of automatic chat moderation"
-                  icon="mdi-message-alert-outline"
-                  type="select"
-                  v-model="userSettings.stream.chatModeration"
-                  :options="moderationOptions"
-                  setting-id="stream.chatModeration"
-                  @save:success="handleSuccess"
-                  @save:error="handleError"
-                />
-
-                <SettingItem
-                  title="Clips"
-                  description="Allow viewers to create clips from your stream"
-                  icon="mdi-content-cut"
-                  v-model="userSettings.stream.allowClips"
-                  setting-id="stream.allowClips"
-                  @save:success="handleSuccess"
-                  @save:error="handleError"
-                />
-
-                <!-- Zaktualizowany SettingItem z obsługą ładowania -->
-                <SettingItem
-                  title="Reset stream key"
-                  description="Generate a new stream key"
-                  icon="mdi-key-variant"
-                  type="button"
-                  buttonText="Generate new key"
-                  buttonColor="error"
-                  buttonVariant="outlined"
-                  setting-id="stream.resetStreamKey"
-                  :loading="isResetting"
-                  @click="promptReset"
-                />
-
-                <!-- Stream key dialog -->
-                <v-dialog
-                  v-model="streamKeyDialog"
-                  max-width="500"
-                >
-                  <v-card>
-                    <v-card-title
-                      class="d-flex justify-space-between align-center"
-                    >
-                      <span class="text-h5">Your stream key</span>
-                      <v-btn
-                        icon="mdi-close"
-                        variant="text"
-                        density="comfortable"
-                        @click="streamKeyDialog = false"
-                      ></v-btn>
-                    </v-card-title>
-
-                    <v-card-text>
-                      <p class="text-body-2 mb-4">
-                        This key is private and allows you to start streaming.
-                        Do not share it with anyone.
-                      </p>
-
-                      <v-card
-                        color="grey-darken-3"
-                        class="stream-key-container pa-3 mb-4"
-                      >
-                        <div class="d-flex align-center">
-                          <code
-                            class="stream-key text-body-2 font-weight-medium flex-grow-1"
-                            >{{ maskedStreamKey }}</code
-                          >
-
-                          <v-btn
-                            :icon="showStreamKey ? 'mdi-eye-off' : 'mdi-eye'"
-                            variant="text"
-                            density="comfortable"
-                            @click="toggleKeyVisibility"
-                            class="ml-2"
-                            :title="showStreamKey ? 'Hide key' : 'Show key'"
-                          ></v-btn>
-
-                          <v-btn
-                            :icon="
-                              copySuccess ? 'mdi-check' : 'mdi-content-copy'
-                            "
-                            :color="copySuccess ? 'success' : 'default'"
-                            variant="text"
-                            density="comfortable"
-                            @click="copyStreamKey"
-                            class="ml-2"
-                            :title="
-                              copySuccess ? 'Copied!' : 'Copy to clipboard'
-                            "
-                          ></v-btn>
-                        </div>
-                      </v-card>
-
-                      <v-slide-y-transition>
-                        <v-alert
-                          v-if="copySuccess"
-                          type="success"
-                          variant="tonal"
-                          class="mb-4"
-                          icon="mdi-check-circle"
-                          closable
-                        >
-                          Key has been copied to clipboard!
-                        </v-alert>
-                      </v-slide-y-transition>
-
-                      <v-alert
-                        type="info"
-                        variant="tonal"
-                        density="compact"
-                        icon="mdi-information"
-                      >
-                        <strong>How to use:</strong> Paste this key in your
-                        streaming application settings (e.g. OBS Studio,
-                        Streamlabs).
-                      </v-alert>
+                <!-- Become Streamer Section -->
+                <template v-else-if="isStreamer === false">
+                  <v-card
+                    variant="outlined"
+                    class="pa-3 mb-6"
+                  >
+                    <v-card-title class="text-h6">Become a Streamer</v-card-title>
+                    <v-card-text class="pb-2">
+                      Start sharing your content with the world. Becoming a streamer will generate a unique stream key for you to use with your streaming software.
                     </v-card-text>
-
-                    <v-divider></v-divider>
-
-                    <v-card-actions>
-                      <v-spacer></v-spacer>
-                      <v-btn
-                        color="error"
-                        variant="tonal"
-                        prepend-icon="mdi-refresh"
-                        @click="promptReset"
-                        :loading="isResetting"
-                      >
-                        Reset key
-                      </v-btn>
+                    <v-card-actions class="px-4 pb-3">
                       <v-btn
                         color="primary"
+                        @click="handleBecomeStreamer"
+                        :loading="isBecomingStreamer"
+                        block
+                        size="large"
                         variant="flat"
-                        @click="streamKeyDialog = false"
                       >
-                        Close
+                        <v-icon
+                          start
+                          icon="mdi-video-plus-outline"
+                        ></v-icon>
+                        Become a Streamer
                       </v-btn>
                     </v-card-actions>
                   </v-card>
-                </v-dialog>
+                  <v-alert
+                    v-if="becomeStreamerError"
+                    type="error"
+                    class="mb-4"
+                    title="Could not become streamer"
+                    :text="becomeStreamerError"
+                    variant="tonal"
+                  ></v-alert>
+                </template>
+
+                <!-- Stream Key Management (if user is a streamer) -->
+                <template v-else-if="isStreamer === true">
+                  <!-- Dialog potwierdzenia resetowania klucza -->
+                  <v-dialog
+                    v-model="confirmResetDialog"
+                    max-width="400"
+                    persistent
+                  >
+                    <v-card>
+                      <v-card-title class="text-h5">Confirm Reset</v-card-title>
+                      <v-card-text>
+                        Are you sure you want to generate a new stream key? The
+                        old key will become invalid immediately.
+                      </v-card-text>
+                      <v-card-actions>
+                        <v-spacer></v-spacer>
+                        <v-btn
+                          text
+                          @click="confirmResetDialog = false"
+                        >
+                          Cancel
+                        </v-btn>
+                        <v-btn
+                          color="error"
+                          @click="resetStreamKey"
+                          :loading="isResetting"
+                          variant="tonal"
+                        >
+                          Confirm
+                        </v-btn>
+                      </v-card-actions>
+                    </v-card>
+                  </v-dialog>
+
+                  <!-- Alert dla błędów resetowania klucza -->
+                  <v-alert
+                    v-if="resetError"
+                    type="error"
+                    class="mb-4"
+                    title="Reset Error"
+                    :text="resetError"
+                    variant="tonal"
+                    closable
+                  />
+                  
+                  <!-- Alert dla błędów pobierania klucza -->
+                  <v-alert
+                    v-if="tokenError && !userSettings.streamKey && !isFetchingToken"
+                    type="error"
+                    class="mb-4"
+                    title="Stream Key Error"
+                    :text="tokenError"
+                    variant="tonal"
+                    closable
+                  ></v-alert>
+                  
+                  <v-card
+                    class="mb-4 pa-0"
+                    flat
+                    border
+                  >
+                    <v-list-item lines="two">
+                       <template v-slot:prepend>
+                        <v-icon
+                          class="ml-1 mr-3"
+                          size="large"
+                        >mdi-key-variant</v-icon>
+                      </template>
+                      <v-list-item-title class="font-weight-medium">Stream Key</v-list-item-title>
+                      <v-list-item-subtitle>Your unique key for streaming software.</v-list-item-subtitle>
+
+                      <template v-slot:append>
+                        <div class="d-flex align-center py-2">
+                          <v-progress-circular
+                            v-if="isFetchingToken"
+                            indeterminate
+                            size="24"
+                            width="2"
+                            class="mr-4"
+                          ></v-progress-circular>
+                          <template v-else>
+                            <v-btn
+                              v-if="userSettings.streamKey"
+                              @click="streamKeyDialog = true"
+                              color="primary"
+                              variant="tonal"
+                              size="small"
+                              class="mr-2"
+                            >
+                              Show Key
+                            </v-btn>
+                            <v-btn
+                              v-else-if="!tokenError"
+                              @click="fetchStreamKey"
+                              color="primary"
+                              variant="tonal"
+                              size="small"
+                              class="mr-2"
+                              :loading="isFetchingToken"
+                            >
+                              Get Key
+                            </v-btn>
+                            <v-btn
+                              v-if="userSettings.streamKey"
+                              @click="promptReset"
+                              color="error"
+                              variant="outlined"
+                              size="small"
+                              :loading="isResetting"
+                            >
+                              Reset Key
+                            </v-btn>
+                          </template>
+                        </div>
+                      </template>
+                    </v-list-item>
+                  </v-card>
+                  
+                  <SettingItem
+                    title="Auto-record"
+                    description="Automatically record your streams"
+                    icon="mdi-record-circle-outline"
+                    v-model="userSettings.stream.autoRecord"
+                    setting-id="stream.autoRecord"
+                    @save:success="handleSuccess"
+                    @save:error="handleError"
+                  />
+
+                  <SettingItem
+                    title="Low latency mode"
+                    description="Reduce stream delay at the cost of quality"
+                    icon="mdi-clock-fast"
+                    v-model="userSettings.stream.lowLatencyMode"
+                    setting-id="stream.lowLatencyMode"
+                    @save:success="handleSuccess"
+                    @save:error="handleError"
+                  />
+
+                  <SettingItem
+                    title="Chat moderation"
+                    description="Level of automatic chat moderation"
+                    icon="mdi-message-alert-outline"
+                    type="select"
+                    v-model="userSettings.stream.chatModeration"
+                    :options="moderationOptions"
+                    setting-id="stream.chatModeration"
+                    @save:success="handleSuccess"
+                    @save:error="handleError"
+                  />
+
+                  <SettingItem
+                    title="Clips"
+                    description="Allow viewers to create clips from your stream"
+                    icon="mdi-content-cut"
+                    v-model="userSettings.stream.allowClips"
+                    setting-id="stream.allowClips"
+                    @save:success="handleSuccess"
+                    @save:error="handleError"
+                  />
+
+                  <!-- Stream key dialog -->
+                  <v-dialog
+                    v-model="streamKeyDialog"
+                    max-width="500"
+                    persistent
+                  >
+                    <v-card>
+                      <v-card-title
+                        class="d-flex justify-space-between align-center"
+                      >
+                        <span class="text-h5">Your stream key</span>
+                        <v-btn
+                          icon="mdi-close"
+                          variant="text"
+                          density="comfortable"
+                          @click="streamKeyDialog = false"
+                        ></v-btn>
+                      </v-card-title>
+
+                      <v-card-text>
+                        <p class="text-body-2 mb-4">
+                          This key is private and allows you to start streaming.
+                          Do not share it with anyone.
+                        </p>
+
+                        <v-card
+                          color="grey-darken-3"
+                          class="stream-key-container pa-3 mb-4"
+                          variant="outlined"
+                        >
+                          <div class="d-flex align-center">
+                            <code
+                              class="stream-key text-body-2 font-weight-medium flex-grow-1"
+                              >{{ maskedStreamKey }}</code
+                            >
+
+                            <v-btn
+                              :icon="showStreamKey ? 'mdi-eye-off' : 'mdi-eye'"
+                              variant="text"
+                              density="comfortable"
+                              @click="toggleKeyVisibility"
+                              class="ml-2"
+                              :title="showStreamKey ? 'Hide key' : 'Show key'"
+                            ></v-btn>
+
+                            <v-btn
+                              :icon="
+                                copySuccess ? 'mdi-check' : 'mdi-content-copy'
+                              "
+                              :color="copySuccess ? 'success' : undefined"
+                              variant="text"
+                              density="comfortable"
+                              @click="copyStreamKey"
+                              class="ml-2"
+                              :title="
+                                copySuccess ? 'Copied!' : 'Copy to clipboard'
+                              "
+                            ></v-btn>
+                          </div>
+                        </v-card>
+
+                        <v-slide-y-transition>
+                          <v-alert
+                            v-if="copySuccess"
+                            type="success"
+                            variant="tonal"
+                            class="mb-4"
+                            icon="mdi-check-circle"
+                            density="compact"
+                            closable
+                          >
+                            Key has been copied to clipboard!
+                          </v-alert>
+                        </v-slide-y-transition>
+
+                        <v-alert
+                          type="info"
+                          variant="tonal"
+                          density="compact"
+                          icon="mdi-information-outline"
+                        >
+                          <strong>How to use:</strong> Paste this key in your
+                          streaming application settings (e.g. OBS Studio,
+                          Streamlabs).
+                        </v-alert>
+                      </v-card-text>
+
+                      <v-divider></v-divider>
+
+                      <v-card-actions class="pa-3">
+                        <v-btn
+                          color="error"
+                          variant="tonal"
+                          prepend-icon="mdi-refresh"
+                          @click="promptReset"
+                          :loading="isResetting"
+                        >
+                          Reset key
+                        </v-btn>
+                        <v-spacer></v-spacer>
+                        <v-btn
+                          color="primary"
+                          variant="flat"
+                          @click="streamKeyDialog = false"
+                        >
+                          Close
+                        </v-btn>
+                      </v-card-actions>
+                    </v-card>
+                  </v-dialog>
+                </template>
               </template>
 
               <!-- Category content: Appearance -->

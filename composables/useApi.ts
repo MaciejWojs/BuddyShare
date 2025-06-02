@@ -228,6 +228,11 @@ export const useApi = () => {
     getSubscriptions: (username: string) =>
       request(`/users/${username}/subscriptions`),
 
+    becomeStreamer: (username: string) =>
+      request(`/users/${username}/become-streamer`, {
+        method: "POST",
+      }),
+
     getNotifications: (username: string) => {
       console.log("(COMPOSABLES) useApi: getNotifications", username);
       return request(`/users/${username}/notifications`);
@@ -264,6 +269,17 @@ export const useApi = () => {
     getAll: () => request("/streamers/"),
 
     getByUsername: (username: string) => request(`/streamers/${username}`),
+
+    isStreamer: async (username: string) => {
+      try {
+        const { error } = await request(`/streamers/${username}`);
+        // Jeśli nie ma błędu (np. 404), użytkownik jest streamerem
+        return !error.value;
+      } catch (e) {
+        // Na wypadek innych nieoczekiwanych błędów w samym request
+        return false;
+      }
+    },
 
     getModerators: (username: string) =>
       request(`/streamers/${username}/moderators`),
