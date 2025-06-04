@@ -423,13 +423,31 @@ export const useApi = () => {
         title?: string;
         description?: string;
         isPublic?: boolean;
-        thumbnail?: string;
+        thumbnail?: File | null;
+      },
+
+    ) => {
+      const { thumbnail, ...otherData } = streamData;
+
+      const formData = new FormData();
+
+      // Dodaj podstawowe dane tekstowe
+      Object.entries(otherData).forEach(([key, value]) => {
+        if (value !== undefined) {
+          formData.append(key, String(value));
+        }
+      });
+
+      // Zbierz pliki do tablicy
+      if (thumbnail) {
+        formData.append('file', thumbnail);
       }
-    ) =>
-      request(`/streams/${username}/${streamId}`, {
+
+      return request(`/streams/${username}/${streamId}`, {
         method: "PATCH",
-        body: streamData,
-      }),
+        body: formData,
+      });
+    },
 
     deleteStream: (username: string, streamId: string) =>
       request(`/streams/${username}/${streamId}`, {

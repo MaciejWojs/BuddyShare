@@ -59,6 +59,7 @@
                     v-bind="props"
                     class="text-uppercase font-weight-bold py-2"
                     block
+                    @click="initEditValues"
                   >
                     GO LIVE
                   </v-btn>
@@ -86,7 +87,70 @@
                         v-model="isPublic"
                         label="Stream publiczny"
                         color="primary"
+                        class="mb-4"
                       ></v-switch>
+
+                      <!-- Sekcja miniaturki streamu -->
+                      <div class="mb-4">
+                        <v-label class="text-subtitle-2 mb-2">Miniaturka streamu</v-label>
+
+                        <!-- Podgląd aktualnej miniaturki -->
+                        <div class="d-flex align-center mb-3">
+                          <div class="mr-4" style="width: 120px; height: 68px; border-radius: 8px; overflow: hidden;">
+                            <v-img :src="editedThumbnail" alt="Podgląd miniaturki" cover height="100%"></v-img>
+                          </div>
+                          <div class="flex-grow-1">
+                            <div class="text-caption text-grey">Aktualna miniaturka streamu</div>
+                            <div class="text-caption text-grey">Maksymalny rozmiar: 10 MB</div>
+                          </div>
+                        </div>
+
+                        <!-- Input do wyboru pliku -->
+                        <input
+                          ref="thumbnailFileInput"
+                          type="file"
+                          accept="image/*"
+                          style="display: none"
+                          @change="handleThumbnailSelect"
+                        />
+
+                        <!-- Przyciski akcji -->
+                        <div class="d-flex gap-2 mb-3">
+                          <v-btn
+                            color="primary"
+                            variant="outlined"
+                            prepend-icon="mdi-upload"
+                            :loading="isUploadingThumbnail"
+                            :disabled="isUploadingThumbnail"
+                            @click="thumbnailFileInput?.click()"
+                          >
+                            {{ isUploadingThumbnail ? "Uploadowanie..." : "Wybierz miniaturkę" }}
+                          </v-btn>
+
+                          <v-btn
+                            v-if="selectedThumbnailFile && !isUploadingThumbnail"
+                            color="error"
+                            variant="text"
+                            prepend-icon="mdi-close"
+                            @click="clearThumbnailSelection"
+                          >
+                            Usuń
+                          </v-btn>
+                        </div>
+
+                        <!-- Informacja o wybranym pliku -->
+                        <div v-if="selectedThumbnailFile" class="mb-3">
+                          <v-chip
+                            :color="isUploadingThumbnail ? 'orange' : 'success'"
+                            variant="tonal"
+                            :prepend-icon="isUploadingThumbnail ? 'mdi-loading mdi-spin' : 'mdi-check'"
+                            class="text-caption"
+                          >
+                            {{ selectedThumbnailFile.name }} ({{ (selectedThumbnailFile.size / 1024 / 1024).toFixed(2) }} MB)
+                            {{ isUploadingThumbnail ? "- Uploadowanie..." : "- Gotowy do przesłania!" }}
+                          </v-chip>
+                        </div>
+                      </div>
                     </v-form>
                   </v-card-text>
                   <v-card-actions>
@@ -95,11 +159,13 @@
                       color="error"
                       variant="text"
                       @click="editDialog = false"
+                      :disabled="isUploadingThumbnail"
                       >Anuluj</v-btn
                     >
                     <v-btn
                       color="primary"
                       @click="updateStreamInfo"
+                      :disabled="isUploadingThumbnail"
                       >Zapisz zmiany</v-btn
                     >
                   </v-card-actions>
@@ -292,6 +358,10 @@ const editDialog = ref(false);
 const editedTitle = ref("");
 const editedDescription = ref("");
 const isPublic = ref(true);
+const editedThumbnail = ref<string | null>(null);
+const selectedThumbnailFile = ref<File | null>(null);
+const isUploadingThumbnail = ref(false);
+const thumbnailFileInput = ref<HTMLInputElement | null>(null);
 
 // Inicjalizuj wartości po załadowaniu danych
 watch(
@@ -300,10 +370,48 @@ watch(
     if (newValue) {
       editedTitle.value = newValue.title || "";
       editedDescription.value = newValue.stream_description || "";
+      editedThumbnail.value = newValue.thumbnail || null;
     }
   },
   { immediate: true }
 );
+
+const handleThumbnailSelect = async (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
+
+  if (!file) {
+    selectedThumbnailFile.value = null;
+    return;
+  }
+
+  if (!file.type.startsWith("image/")) {
+    alert("Proszę wybrać plik obrazu (JPG, PNG, GIF, etc.)");
+    target.value = "";
+    selectedThumbnailFile.value = null;
+    return;
+  }
+
+  const maxSize = 10 * 1024 * 1024;
+  if (file.size > maxSize) {
+    alert("Rozmiar pliku nie może przekraczać 10 MB");
+    target.value = "";
+    selectedThumbnailFile.value = null;
+    return;
+  }
+
+  selectedThumbnailFile.value = file;
+  isUploadingThumbnail.value = false;
+
+  // Stwórz lokalny podgląd pliku
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    if (e.target?.result) {
+      editedThumbnail.value = e.target.result as string;
+    }
+  };
+  reader.readAsDataURL(file);
+};
 
 const updateStreamInfo = async () => {
   if (!editedTitle.value || !editedDescription.value) {
@@ -312,29 +420,57 @@ const updateStreamInfo = async () => {
     return;
   }
 
-  const { error } = await api.streams.updateStream(
-    displayName,
-    streamID.value,
-    {
-      title: editedTitle.value,
-      description: editedDescription.value,
-      isPublic: isPublic.value,
-      thumbnail: null,
+  try {
+    const result = await api.streams.updateStream(
+      displayName,
+      streamID.value,
+      {
+        title: editedTitle.value,
+        description: editedDescription.value,
+        isPublic: isPublic.value,
+        thumbnail: selectedThumbnailFile.value,
+      }
+    );
+
+    // Sprawdź czy result istnieje i ma właściwość error
+    if (result && result.error && result.error.value) {
+      console.error("Błąd aktualizacji:", result.error.value);
+      alert("Błąd podczas aktualizacji streamu.");
+      return;
     }
-  );
 
-  if (error.value) {
-    console.error("Błąd aktualizacji:", error.value);
-    return;
+    editDialog.value = false;
+    const currentStream = streamsStore.getStreamByStreamerName(displayName);
+    if (currentStream) {
+      currentStream.title = editedTitle.value;
+      currentStream.stream_description = editedDescription.value;
+    }
+    
+    // Wyczyść wybrane pliki po udanej aktualizacji
+    selectedThumbnailFile.value = null;
+    console.log("Stream zaktualizowany pomyślnie");
+    
+  } catch (error) {
+    console.error("Błąd podczas aktualizacji streamu:", error);
+    alert("Błąd podczas aktualizacji streamu.");
   }
+};
 
-  editDialog.value = false;
-  const currentStream = streamsStore.getStreamByStreamerName(displayName);
-  if (currentStream) {
-    currentStream.title = editedTitle.value;
-    currentStream.stream_description = editedDescription.value;
+const clearThumbnailSelection = () => {
+  selectedThumbnailFile.value = null;
+  editedThumbnail.value = stream.value.thumbnail || "/Buddyshare.svg";
+  isUploadingThumbnail.value = false;
+  if (thumbnailFileInput.value) {
+    thumbnailFileInput.value.value = "";
   }
-  // streamsStore.fetchStreams();
+};
+
+const initEditValues = () => {
+  editedTitle.value = stream.value.title || "";
+  editedDescription.value = stream.value.stream_description || "";
+  editedThumbnail.value = stream.value.thumbnail || "/Buddyshare.svg";
+  selectedThumbnailFile.value = null;
+  isUploadingThumbnail.value = false;
 };
 
 // Funkcja obsługi akcji wiadomości z czatu
