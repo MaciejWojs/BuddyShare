@@ -1,4 +1,3 @@
-import type { UseFetchOptions } from "#app";
 import { useMemoize, useObjectUrl } from "@vueuse/core";
 import { ImageTypes } from "~/types/ImageTypes";
 

@@ -1,5 +1,4 @@
 import { defineStore } from "pinia";
-import StreamSettings from "~/components/stream/StreamSettings.vue";
 import type { Stream } from "~/types/Streams";
 
 export const useStreamsStore = defineStore("Streams", () => {
