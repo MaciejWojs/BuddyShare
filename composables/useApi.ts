@@ -449,6 +449,30 @@ export const useApi = () => {
       });
     },
 
+    getStreamThumbnail: useMemoize(
+      async (username: string, streamId: string) => {
+        try {
+          const data = await $fetch<Blob>(`/streams/${username}/${streamId}/thumbnail`, {
+            responseType: 'blob',
+            credentials: "include" as RequestCredentials,
+            baseURL,
+          });
+          if (!data) {
+            throw new Error("Nie udało się pobrać danych obrazu");
+          }
+          const objectUrl = useObjectUrl(data);
+          console.log("API getStreamThumbnail zwraca URL:", objectUrl.value);
+          return objectUrl.value;
+        } catch (error) {
+          console.error("Błąd podczas pobierania miniatury strumienia:", error);
+          throw error;
+        }
+      },
+      {
+        getKey: (username: string, streamId: string) => `streamThumbnail:${username}:${streamId}`,
+      }
+    ),
+
     deleteStream: (username: string, streamId: string) =>
       request(`/streams/${username}/${streamId}`, {
         method: "DELETE",

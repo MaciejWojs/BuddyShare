@@ -319,7 +319,7 @@ console.log(streamerAndStreamingStatus.value);
           <!-- Thumbnail z indykatorem live -->
           <div class="thumbnail-container">
             <v-img v-if="!shouldShowPreview(stream.id) || !stream.isLive"
-              :src="stream.thumbnailUrl || '/Buddyshare.svg'" height="160px" cover class="stream-thumbnail" />
+              :src="stream.thumbnail || '/Buddyshare.svg'" height="160px" cover class="stream-thumbnail" />
 
             <!-- Kontener na wideo podczas hovera - używamy unikalnej referencji dla każdego streamu -->
             <div v-if="shouldShowPreview(stream.id) && stream.isLive" class="video-preview-container">

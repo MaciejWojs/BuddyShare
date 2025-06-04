@@ -9,6 +9,8 @@ export const useStreamsStore = defineStore("Streams", () => {
   const endpoint = `http://${BACK_URL}/streams`;
   const headers = useRequestHeaders(["cookie"]);
   const ws = usePublicWebSocket();
+  const api = useApi(); // Dodaj useApi
+
   const streams = ref<Stream[]>([]);
   const streamHistory = ref<
     {
@@ -42,9 +44,75 @@ export const useStreamsStore = defineStore("Streams", () => {
       chatMessages: [],
       topChatters: [],
     }));
+
+    // Pobierz miniaturki dla wszystkich streamów
+    await fetchStreamThumbnails();
+
     console.log("Fetched streams:", streams.value);
     if (data.length > 0) {
       console.log("Fetched streams:", data[0]);
+    }
+  };
+
+  // Funkcja do pobierania miniaturek dla wszystkich streamów
+  const fetchStreamThumbnails = async () => {
+    console.log("Fetching stream thumbnails...");
+
+    const thumbnailPromises = streams.value.map(async (stream) => {
+      try {
+        if (stream.username && stream.options_id) {
+          const thumbnailUrl = await api.streams.getStreamThumbnail(
+            stream.username,
+            stream.options_id.toString()
+          );
+
+          const streamIndex = streams.value.findIndex(s => s.id === stream.id);
+          if (streamIndex !== -1) {
+            streams.value[streamIndex].thumbnail = thumbnailUrl || "/Buddyshare.svg";
+          }
+
+          console.log(`Thumbnail loaded for ${stream.username}:`, thumbnailUrl);
+        }
+      } catch (error) {
+        console.error(`Failed to load thumbnail for stream ${stream.username}:`, error);
+        const streamIndex = streams.value.findIndex(s => s.id === stream.id);
+        if (streamIndex !== -1) {
+          streams.value[streamIndex].thumbnail = "/Buddyshare.svg";
+        }
+      }
+    });
+
+    await Promise.allSettled(thumbnailPromises);
+    console.log("All stream thumbnails processed");
+  };
+
+  // Uproszczona funkcja do odświeżania miniaturki
+  const refreshThumbnail = async (stream: Stream, clearCache = false) => {
+    if (!stream.username || !stream.options_id) return;
+    
+    try {
+      console.log(`Refreshing thumbnail for ${stream.username}...`);
+      
+      if (clearCache) {
+        api.streams.getStreamThumbnail.clear();
+      }
+      
+      const thumbnailUrl = await api.streams.getStreamThumbnail(
+        stream.username,
+        stream.options_id.toString()
+      );
+
+      const streamIndex = streams.value.findIndex(s => s.id === stream.id);
+      if (streamIndex !== -1) {
+        streams.value[streamIndex].thumbnail = thumbnailUrl || "/Buddyshare.svg";
+        console.log(`Thumbnail updated for ${stream.username}:`, thumbnailUrl);
+      }
+    } catch (error) {
+      console.error(`Failed to load thumbnail for stream ${stream.username}:`, error);
+      const streamIndex = streams.value.findIndex(s => s.id === stream.id);
+      if (streamIndex !== -1) {
+        streams.value[streamIndex].thumbnail = "/Buddyshare.svg";
+      }
     }
   };
 
@@ -61,6 +129,9 @@ export const useStreamsStore = defineStore("Streams", () => {
         chatMessages: [],
         topChatters: [],
       });
+
+      // Pobierz miniaturkę dla nowego streamu
+      refreshThumbnail(stream);
     }
   }
 
@@ -71,6 +142,14 @@ export const useStreamsStore = defineStore("Streams", () => {
         ...streams.value[index],
         ...updatedStream,
       });
+
+      // Odśwież miniaturkę po aktualizacji
+      if (updatedStream.username && updatedStream.options_id) {
+        console.log(`Stream updated, refreshing thumbnail for ${updatedStream.username}...`);
+        nextTick(() => {
+          refreshThumbnail(updatedStream, true);
+        });
+      }
     } else {
       addStream(updatedStream);
       console.log("Stream not found, added instead:", updatedStream);
@@ -210,6 +289,15 @@ export const useStreamsStore = defineStore("Streams", () => {
     );
   };
 
+  // Dodaj funkcję do wymuszenia odświeżenia miniaturki po aktualizacji przez użytkownika
+  const refreshStreamThumbnail = async (username: string, streamId: string) => {
+    const stream = streams.value.find(s => s.username === username && s.options_id.toString() === streamId);
+    if (stream) {
+      console.log(`Force refreshing thumbnail for ${username}...`);
+      await refreshThumbnail(stream, true);
+    }
+  };
+
   // Zwracamy dostępne dane i funkcje ze store'a
   return {
     streams,
@@ -223,6 +311,8 @@ export const useStreamsStore = defineStore("Streams", () => {
     updateStream,
     removeStream,
     fetchStreams,
+    fetchStreamThumbnails,
+    refreshStreamThumbnail,
     isStreamerLive,
     isStreamOwner,
   };
