@@ -22,12 +22,14 @@ use([
   CanvasRenderer
 ])
 
-const props = defineProps<{ streamerName: string; title?: string }>()
+const props = defineProps<{
+  streamerName: string; title?: string; streamExists: boolean
+}>()
 const streamsStore = useStreamsStore()
 
 const topChatters = computed(() => {
   const history = streamsStore.getHistoryByStreamerName(props.streamerName)
-  
+
   // Jeśli topChatters to tablica z czasami i użytkownikami, przetwarzamy ją
   if (history?.topChatters && Array.isArray(history.topChatters)) {
     // Sprawdzamy czy dane mają format z timestamp i users
@@ -39,13 +41,27 @@ const topChatters = computed(() => {
     // Jeśli dane są już w oczekiwanym formacie
     return history.topChatters;
   }
-  
+
   return [];
 })
 
 const chartRef = ref<any>(null)
 
 const chartOptions = computed(() => {
+  if (!props.streamExists) {
+    return {
+      title: {
+        text: 'Brak danych lub stream offline',
+        subtext: 'Dane będą dostępne po rozpoczęciu streamowania',
+        left: 'center',
+        top: 'middle',
+        textStyle: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' },
+        subtextStyle: { color: '#cccccc', fontSize: 14 }
+      },
+      grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+      backgroundColor: 'transparent'
+    }
+  }
   const usernames = topChatters.value.map(u => u.username)
   const counts = topChatters.value.map(u => u.count)
   return {
@@ -129,6 +145,7 @@ const chartOptions = computed(() => {
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
   box-sizing: border-box;
 }
+
 .chart {
   width: 100%;
   height: 100%;
