@@ -35,7 +35,12 @@ export const useStreamsStore = defineStore("Streams", () => {
       credentials: "include",
     });
 
-    streams.value = data;
+    // Upewnij się, że każdy stream ma zainicjalizowaną właściwość bannedUsers
+    streams.value = data.map(stream => ({
+      ...stream,
+      bannedUsers: stream.bannedUsers || []
+    }));
+    
     streamHistory.value = streams.value.map((stream) => ({
       id: stream.options_id,
       viewers: [],
@@ -120,7 +125,13 @@ export const useStreamsStore = defineStore("Streams", () => {
   function addStream(stream: Stream) {
     const exists = streams.value.some((s) => s.id === stream.id);
     if (!exists) {
-      streams.value.push(stream);
+      // Upewnij się, że stream ma zainicjalizowaną właściwość bannedUsers
+      const streamWithBannedUsers = {
+        ...stream,
+        bannedUsers: stream.bannedUsers || []
+      };
+      
+      streams.value.push(streamWithBannedUsers);
       streamHistory.value.push({
         id: stream.id,
         viewers: [],
@@ -131,7 +142,7 @@ export const useStreamsStore = defineStore("Streams", () => {
       });
 
       // Pobierz miniaturkę dla nowego streamu
-      refreshThumbnail(stream);
+      refreshThumbnail(streamWithBannedUsers);
     }
   }
 
@@ -300,13 +311,13 @@ export const useStreamsStore = defineStore("Streams", () => {
 
   const isUserBannedFromStream = (streamId: number, username: string): boolean => {
     const stream = streams.value.find(s => s.options_id === streamId);
-    return stream ? stream.bannedUsers.includes(username) : false;
+    return stream && stream.bannedUsers ? stream.bannedUsers.includes(username) : false;
   };
 
   const setBannedUsersForStream = (streamId: number, bannedUsers: string[]) => {
     const stream = streams.value.find(s => s.options_id === streamId);
     if (stream) {
-      stream.bannedUsers = bannedUsers;
+      stream.bannedUsers = bannedUsers || [];
       console.log(`Banned users updated for stream ${streamId}:`, bannedUsers);
     } else {
       console.warn(`Stream with ID ${streamId} not found for setting banned users.`);

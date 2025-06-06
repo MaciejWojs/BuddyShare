@@ -8,13 +8,7 @@
             <v-col>
               <v-card-title class="text-h4 pa-0">
                 Dashboard
-                <v-chip 
-                  v-if="isStreamLive" 
-                  color="error" 
-                  text-color="white" 
-                  size="small" 
-                  class="ml-3"
-                >
+                <v-chip v-if="isStreamLive" color="error" text-color="white" size="small" class="ml-3">
                   <v-icon start size="small">mdi-circle</v-icon>
                   NA ŻYWO
                 </v-chip>
@@ -24,16 +18,8 @@
               </v-card-subtitle>
             </v-col>
             <v-col cols="auto">
-              <v-btn-toggle 
-                v-model="isAutoRefresh" 
-                density="compact"
-                variant="outlined"
-              >
-                <v-btn 
-                  :color="isAutoRefresh ? 'primary' : 'default'"
-                  size="small"
-                  @click="toggleAutoRefresh()"
-                >
+              <v-btn-toggle v-model="isAutoRefresh" density="compact" variant="outlined">
+                <v-btn :color="isAutoRefresh ? 'primary' : 'default'" size="small" @click="toggleAutoRefresh()">
                   <v-icon>mdi-refresh</v-icon>
                   Auto-odświeżanie
                 </v-btn>
@@ -51,7 +37,7 @@
               </v-card-title>
               <Suspense>
                 <template #default>
-                  <component :is="section.component" :streamerName="displayName" />
+                  <component :is="section.component" :streamerName="displayName" :streamExists="!!streamData" />
                 </template>
                 <template #fallback>
                   <v-skeleton-loader type="article" />
@@ -66,18 +52,8 @@
         <v-card elevation="2" class="pa-6">
           <v-card-title class="text-h5 mb-4 pa-0">Szybkie akcje</v-card-title>
           <v-row dense>
-            <v-col 
-              v-for="action in quickActions" 
-              :key="action.title"
-              cols="12" 
-              sm="6" 
-              md="4"
-            >
-              <v-card 
-                hover 
-                class="fill-height d-flex flex-column transition-swing"
-                :ripple="false"
-              >
+            <v-col v-for="action in quickActions" :key="action.title" cols="12" sm="6" md="4">
+              <v-card hover class="fill-height d-flex flex-column transition-swing" :ripple="false">
                 <v-card-title class="pb-2">
                   <v-icon :color="action.color" class="mr-2">{{ action.icon }}</v-icon>
                   {{ action.title }}
@@ -86,13 +62,7 @@
                   {{ action.description }}
                 </v-card-text>
                 <v-card-actions class="pt-0">
-                  <v-btn 
-                    block 
-                    :color="action.color" 
-                    variant="outlined"
-                    :to="action.to"
-                    :disabled="action.disabled"
-                  >
+                  <v-btn block :color="action.color" variant="outlined" :to="action.to" :disabled="action.disabled">
                     Przejdź
                   </v-btn>
                 </v-card-actions>
@@ -109,12 +79,12 @@
 import { storeToRefs } from 'pinia'
 import { useRoute } from 'vue-router'
 import { useDisplay, useTheme } from 'vuetify'
-import { 
-  useDocumentVisibility, 
-  useIntervalFn, 
+import {
+  useDocumentVisibility,
+  useIntervalFn,
   useLocalStorage,
   useTitle,
-  useToggle 
+  useToggle
 } from '@vueuse/core'
 import { useStreamsStore } from '~/stores/streams'
 
@@ -146,13 +116,13 @@ const lastVisit = useLocalStorage('dashboard-last-visit', Date.now())
 const ws = usePublicWebSocket()
 
 // Computed properties
-const streamData = computed(() => 
+const streamData = computed(() =>
   streamsStore.getStreamByStreamerName(displayName.value)
 )
 
 const isStreamLive = computed(() => streamData.value?.isLive ?? false)
 
-const dashboardTitle = computed(() => 
+const dashboardTitle = computed(() =>
   `Dashboard - ${displayName.value} | BuddyShare`
 )
 
@@ -171,19 +141,19 @@ const previousOptionsId = ref<string | undefined>()
 
 watchEffect(() => {
   const newId = streamData.value?.options_id?.toString()
-  
+
   if (newId === previousOptionsId.value) return
-  
+
   // Leave previous stream
   if (previousOptionsId.value) {
     ws.leaveStream(previousOptionsId.value)
   }
-  
+
   // Join new stream if live
   if (streamData.value?.isLive && newId) {
     ws.joinStream(newId, true)
   }
-  
+
   previousOptionsId.value = newId
 })
 
