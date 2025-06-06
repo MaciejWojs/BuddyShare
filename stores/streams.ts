@@ -298,6 +298,21 @@ export const useStreamsStore = defineStore("Streams", () => {
     }
   };
 
+  const isUserBannedFromStream = (streamId: number, username: string): boolean => {
+    const stream = streams.value.find(s => s.options_id === streamId);
+    return stream ? stream.bannedUsers.includes(username) : false;
+  };
+
+  const setBannedUsersForStream = (streamId: number, bannedUsers: string[]) => {
+    const stream = streams.value.find(s => s.options_id === streamId);
+    if (stream) {
+      stream.bannedUsers = bannedUsers;
+      console.log(`Banned users updated for stream ${streamId}:`, bannedUsers);
+    } else {
+      console.warn(`Stream with ID ${streamId} not found for setting banned users.`);
+    }
+  };
+
   // Zwracamy dostępne dane i funkcje ze store'a
   return {
     streams,
@@ -313,6 +328,8 @@ export const useStreamsStore = defineStore("Streams", () => {
     fetchStreams,
     fetchStreamThumbnails,
     refreshStreamThumbnail,
+    isUserBannedFromStream,
+    setBannedUsersForStream,
     isStreamerLive,
     isStreamOwner,
   };

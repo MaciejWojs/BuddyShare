@@ -100,6 +100,10 @@ export default defineNuxtPlugin(nuxtApp => {
         console.log('Stream history updated:', data.history);
     });
 
+    publicSocket.on("bannedUsersUpdated", (data: { streamId: number, bannedUsers: string[] }) => {
+        streamsStore.setBannedUsersForStream(data.streamId, data.bannedUsers);
+        console.log("Banned users updated from Public WebSocket (Plugin):", data);
+    })
     // --- Autoryzowany WebSocket ---
     // Używamy ref, aby umożliwić reaktywne aktualizacje bez redefiniowania provide
     const authSocketRef = ref<Socket | null>(null);

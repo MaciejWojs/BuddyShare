@@ -81,10 +81,18 @@
                     </template>
                   </v-tooltip>
 
-                  <v-tooltip location="top" text="Zbanuj użytkownika">
+                  <!-- Przycisk Ban/Unban w zależności od statusu użytkownika -->
+                  <v-tooltip v-if="!isUserBanned(msg.userId)" location="top" text="Zbanuj użytkownika">
                     <template v-slot:activator="{ props }">
                       <v-btn v-bind="props" icon="mdi-account-cancel" density="compact" variant="text" color="error"
                         size="small" @click.stop="onMessageAction('ban', msg, index)" />
+                    </template>
+                  </v-tooltip>
+
+                  <v-tooltip v-else location="top" text="Odbanuj użytkownika">
+                    <template v-slot:activator="{ props }">
+                      <v-btn v-bind="props" icon="mdi-account-check" density="compact" variant="text" color="success"
+                        size="small" @click.stop="onMessageAction('unban', msg, index)" />
                     </template>
                   </v-tooltip>
 
@@ -95,8 +103,10 @@
                         @click.stop="onMessageAction(ChatAction.DELETE, msg, index)" />
                       <v-btn icon="mdi-timer-off" density="compact" variant="text" color="warning" size="small"
                         @click.stop="onMessageAction('timeout', msg, index)" />
-                      <v-btn icon="mdi-account-cancel" density="compact" variant="text" color="error" size="small"
+                      <v-btn v-if="!isUserBanned(msg.userId)" icon="mdi-account-cancel" density="compact" variant="text" color="error" size="small"
                         @click.stop="onMessageAction('ban', msg, index)" />
+                      <v-btn v-else icon="mdi-account-check" density="compact" variant="text" color="success" size="small"
+                        @click.stop="onMessageAction('unban', msg, index)" />
                     </div>
                   </template>
                 </ClientOnly>
@@ -181,6 +191,14 @@ const isUserModerator = !!(
 const readOnly = computed(() => {
   return !authStore.authenticated;
 });
+
+// Funkcja sprawdzająca czy użytkownik jest zbanowany
+const isUserBanned = (userID: string) => {
+  console.log(`[isUserBanned] Checking if user ${userID} is banned...`);
+  const userStringID = String(userID);
+  
+  return streamStore.isUserBannedFromStream(props.streamId, userStringID);
+};
 
 const props = defineProps({
   streamId: {
@@ -401,46 +419,70 @@ watch(
       publicWS.joinChatRoom(String(newStreamId));
       publicWS.getAllMessages(String(newStreamId));
       publicWS.onAllMessages(async (data) => {
-        // Pobierz awatary dla wszystkich wiadomości
-        const messagesWithAvatars = await Promise.all(
-          data.map(async (msg: any) => {
-            const avatarUrl = await getCachedAvatar(msg.username, msg.avatar);
-            return {
-              chatMessageId: msg.chatMessageId,
-              streamId: msg.streamId,
-              userId: msg.userId,
-              message: msg.message,
-              createdAt: msg.createdAt,
-              isDeleted: msg.isDeleted,
-              username: msg.username,
-              avatar: avatarUrl,
-              type: msg.type,
-            };
-          })
-        );
-        messages.value = messagesWithAvatars;
-        console.log("[COMPONENT] Received all messages:", data);
-        scrollToBottom();
+        try {
+          if (!data || !Array.isArray(data)) {
+            console.warn("[COMPONENT] Invalid messages data received:", data);
+            return;
+          }
+          
+          // Pobierz awatary dla wszystkich wiadomości
+          const messagesWithAvatars = await Promise.all(
+            data.map(async (msg: any) => {
+              if (!msg) return null;
+              
+              const avatarUrl = await getCachedAvatar(msg.username || 'Unknown', msg.avatar);
+              return {
+                chatMessageId: msg.chatMessageId || null,
+                streamId: msg.streamId || null,
+                userId: msg.userId || null,
+                message: msg.message || '',
+                createdAt: msg.createdAt || new Date().toISOString(),
+                isDeleted: msg.isDeleted || false,
+                username: msg.username || 'Unknown',
+                avatar: avatarUrl,
+                type: msg.type || 'user',
+              };
+            })
+          );
+          
+          // Filtruj null wartości
+          messages.value = messagesWithAvatars.filter(msg => msg !== null);
+          console.log("[COMPONENT] Received all messages:", data);
+          scrollToBottom();
+        } catch (error) {
+          console.error("[COMPONENT] Error processing all messages:", error);
+        }
       });
       publicWS.onChatMessage(async (data) => {
-        // Pobierz awatar dla nowej wiadomości
-        const avatarUrl = await getCachedAvatar(data.username, data.avatar);
-        
-        // Mapowanie danych z backendu do lokalnego formatu ChatMessage
-        messages.value.push({
-          chatMessageId: data.chatMessageId,
-          streamId: data.streamId,
-          userId: data.userId,
-          message: data.message,
-          createdAt: data.createdAt,
-          isDeleted: data.isDeleted,
-          username: data.username,
-          avatar: avatarUrl,
-          type: data.type,
-        });
-        emit("send-message", data);
-        console.log("[COMPONENT] Received message:", data);
-        scrollToBottom();
+        try {
+          if (!data) {
+            console.warn("[COMPONENT] Invalid message data received:", data);
+            return;
+          }
+          
+          // Pobierz awatar dla nowej wiadomości
+          const avatarUrl = await getCachedAvatar(data.username || 'Unknown', data.avatar);
+          
+          // Mapowanie danych z backendu do lokalnego formatu ChatMessage
+          const newMessage = {
+            chatMessageId: data.chatMessageId || null,
+            streamId: data.streamId || null,
+            userId: data.userId || null,
+            message: data.message || '',
+            createdAt: data.createdAt || new Date().toISOString(),
+            isDeleted: data.isDeleted || false,
+            username: data.username || 'Unknown',
+            avatar: avatarUrl,
+            type: data.type || 'user',
+          };
+          
+          messages.value.push(newMessage);
+          emit("send-message", data);
+          console.log("[COMPONENT] Received message:", data);
+          scrollToBottom();
+        } catch (error) {
+          console.error("[COMPONENT] Error processing message:", error);
+        }
       });
 
       authWS.onChatMessageError((data) => {
@@ -456,14 +498,39 @@ watch(
           showSnackbar(data.message, "error", 4000);
         }
       });
+      
+      authWS.onUnBanUserStatus((data) => {
+        console.log("[COMPONENT] Ban user status:", data);
+        if (data.success) {
+          showSnackbar(data.message, "success", 4000);
+        } else {
+          showSnackbar(data.message, "error", 4000);
+        }
+      });
+
+
 
       publicWS.onPatchChatMessage((data) => {
-        console.log("[COMPONENT] Received patch message:", data);
-        const index = messages.value.findIndex(
-          (msg) => msg.chatMessageId === data.chatMessageId
-        );
-        if (index !== -1) {
-          messages.value[index] = data;
+        try {
+          if (!data || !data.chatMessageId) {
+            console.warn("[COMPONENT] Invalid patch message data received:", data);
+            return;
+          }
+          
+          console.log("[COMPONENT] Received patch message:", data);
+          const index = messages.value.findIndex(
+            (msg) => msg && msg.chatMessageId === data.chatMessageId
+          );
+          
+          if (index !== -1) {
+            // Zachowaj istniejące właściwości i zaktualizuj nowe
+            messages.value[index] = {
+              ...messages.value[index],
+              ...data
+            };
+          }
+        } catch (error) {
+          console.error("[COMPONENT] Error processing patch message:", error);
         }
       });
     }

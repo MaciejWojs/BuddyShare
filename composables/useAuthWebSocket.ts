@@ -150,9 +150,18 @@ export const useAuthWebSocket = () => {
         emit("manageChat", message, action, options);
     }
 
+    const unbanUserInChat = (message: ChatMessage, action: ChatAction, options?: BanOptions) => {
+        emit("manageChat", message, action, options);
+    }
+
     const onBanUserStatus = (handler: (data: { message: string, success: boolean }) => void) => {
         on("banUserStatus", handler);
         console.log("banUserStatus: ", handler);
+    };
+
+    const onUnBanUserStatus = (handler: (data: { message: string, success: boolean }) => void) => {
+        on("unbanUserStatus", handler);
+        console.log("unbanUserStatus: ", handler);
     };
 
     const patchChatMessage = (message: ChatMessage, action: ChatAction) => {
@@ -180,7 +189,9 @@ export const useAuthWebSocket = () => {
         // Chat message handling
         onChatMessageError,
         banUserInChat,
+        unbanUserInChat,
         onBanUserStatus,
+        onUnBanUserStatus,
         patchChatMessage,
     };
 };

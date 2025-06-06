@@ -504,6 +504,12 @@ const handleMessageAction = ({ action, message, index, moderator }) => {
       }
       // Przykład: ws.emit("banUser", { userId: message.userId })
       break;
+    case ChatAction.UNBAN:
+      if (message && message.chatMessageId) {
+        authWS.unbanUserInChat(message, action);
+      }
+      // Przykład: ws.emit("unbanUser", { userId: message.userId })
+      break;
     default:
       console.log("Unknown action");
       break;
