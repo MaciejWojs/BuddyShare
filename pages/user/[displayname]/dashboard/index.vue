@@ -119,6 +119,7 @@ import {
 import { useStreamsStore } from '~/stores/streams'
 
 // Explicit imports for chart components
+const LazyChartStats = defineAsyncComponent(() => import('~/components/Chart/Stats.vue'))
 const LazyChartViewers = defineAsyncComponent(() => import('~/components/Chart/Viewers.vue'))
 const LazyChartSubsribers = defineAsyncComponent(() => import('~/components/Chart/Subsribers.vue'))
 const LazyChartFollowers = defineAsyncComponent(() => import('~/components/Chart/Followers.vue'))
@@ -239,6 +240,7 @@ const quickActions = computed(() => [
 
 // Chart sections configuration
 const chartSections = [
+  { component: LazyChartStats, title: 'Ogólne statystyki' },
   { component: LazyChartViewers, title: 'Statystyki streama' },
   { component: LazyChartSubsribers },
   { component: LazyChartFollowers },

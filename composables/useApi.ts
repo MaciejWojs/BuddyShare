@@ -266,6 +266,8 @@ export const useApi = () => {
    */
   const streamers = {
     getAll: () => request("/streamers/"),
+    
+    getAllStats: (username: string) => request(`/streamers/${username}/stats`),
 
     getByUsername: (username: string) => request(`/streamers/${username}`),
 
