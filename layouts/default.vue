@@ -369,6 +369,27 @@
       </v-btn>
     </template>
   </v-snackbar>
+
+  <!-- Snackbar informujący o problemach z WebSocket -->
+  <v-snackbar
+    v-model="showWebSocketMessage"
+    :timeout="-1"
+    color="warning"
+    location="bottom center"
+    multi-line
+    app
+  >
+    {{ websocketStatus.message }}
+    <template #actions>
+      <v-btn
+        color="white"
+        variant="text"
+        @click="showWebSocketMessage = false"
+      >
+        Zamknij
+      </v-btn>
+    </template>
+  </v-snackbar>
 </template>
 
 <script setup lang="ts">
@@ -376,6 +397,8 @@ import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue"; // Dodan
 import { useNotificationsStore } from "~/stores/notifications";
 import { useAuthStore } from "~/stores/auth";
 import { useOnline } from '@vueuse/core'; // Import useOnline
+import { useAuthWebSocket } from "~/composables/useAuthWebSocket";
+import { usePublicWebSocket } from "~/composables/usePublicWebSocket";
 
 // Inicjalizacja prostych wartości (nie zależnych od stanu autentykacji)
 const drawer = ref(false);
@@ -383,29 +406,70 @@ const showNotifications = ref(false);
 const showDeleteConfirmDialog = ref(false);
 const openGroups = ref<boolean[]>([]);
 
-// Online status
-const online = useOnline();
-const showOfflineMessage = ref(false);
-
-watch(online, (isOnline) => {
-  if (!isOnline) {
-    showOfflineMessage.value = true;
-  } else {
-    // Automatycznie ukryj komunikat, gdy połączenie wróci
-    showOfflineMessage.value = false;
-  }
-}, { immediate: true }); // immediate: true uruchomi watchera od razu przy montowaniu komponentu
-
-// Zmienne do śledzenia przewijania
-const lastScrollY = ref(0);
-const isScrollingDown = ref(false);
-
 // Store
 const authStore = useAuthStore();
 const notificationsStore = useNotificationsStore();
 
 // Izolujemy dane zależne od stanu autentykacji do computed
 const isAuthenticated = computed(() => authStore.authenticated);
+
+// Online status
+const online = useOnline();
+const showOfflineMessage = ref(false);
+
+// WebSocket connection status
+const { isConnected: authConnected } = useAuthWebSocket();
+const { isConnected: publicConnected } = usePublicWebSocket();
+const showWebSocketMessage = ref(false);
+
+const websocketStatus = computed(() => {
+  if (!online.value) return { connected: false, message: '' };
+  
+  const authShouldBeConnected = isAuthenticated.value;
+  const authConnectedStatus = authShouldBeConnected ? authConnected.value : true; // true jeśli nie powinien być połączony
+  const publicConnectedStatus = publicConnected.value;
+  
+  if (!authConnectedStatus && !publicConnectedStatus) {
+    return { 
+      connected: false, 
+      message: 'Brak połączenia z serwerem. Niektóre funkcje mogą być niedostępne.' 
+    };
+  } else if (!authConnectedStatus && authShouldBeConnected) {
+    return { 
+      connected: false, 
+      message: 'Brak połączenia z serwerem autoryzacji. Powiadomienia mogą być niedostępne.' 
+    };
+  } else if (!publicConnectedStatus) {
+    return { 
+      connected: false, 
+      message: 'Brak połączenia z serwerem publicznym. Streamy mogą być niedostępne.' 
+    };
+  }
+  
+  return { connected: true, message: '' };
+});
+
+watch(online, (isOnline) => {
+  if (!isOnline) {
+    showOfflineMessage.value = true;
+    showWebSocketMessage.value = false; // ukryj websocket message gdy offline
+  } else {
+    // Automatycznie ukryj komunikat, gdy połączenie wróci
+    showOfflineMessage.value = false;
+  }
+}, { immediate: true }); // immediate: true uruchomi watchera od razu przy montowaniu komponentu
+
+watch(websocketStatus, (status) => {
+  if (online.value && !status.connected) {
+    showWebSocketMessage.value = true;
+  } else {
+    showWebSocketMessage.value = false;
+  }
+}, { immediate: true });
+
+// Zmienne do śledzenia przewijania
+const lastScrollY = ref(0);
+const isScrollingDown = ref(false);
 const userName = computed(() => authStore.userName);
 const isAdmin = computed(() => authStore.isAdmin);
 
