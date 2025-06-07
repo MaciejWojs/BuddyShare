@@ -420,6 +420,9 @@ const updateStreamInfo = async () => {
     return;
   }
 
+  const wasPrivate = !stream.value.isPublic;
+  const willBePublic = isPublic.value;
+
   try {
     const result = await api.streams.updateStream(
       displayName,
@@ -444,6 +447,19 @@ const updateStreamInfo = async () => {
     if (currentStream) {
       currentStream.title = editedTitle.value;
       currentStream.stream_description = editedDescription.value;
+      currentStream.isPublic = isPublic.value;
+    }
+    
+    // Jeśli stream był prywatny i teraz jest publiczny, odśwież czat
+    if (wasPrivate && willBePublic && streamID.value) {
+      console.log("Stream zmieniony z prywatnego na publiczny - odświeżanie czatu");
+      // Wyślij event do komponentu czatu o konieczności odświeżenia
+      await nextTick();
+      // Emituj event do LiveChat komponentu
+      const liveChatEvent = new CustomEvent('refreshChat', {
+        detail: { reason: 'visibility-change', streamId: streamID.value }
+      });
+      window.dispatchEvent(liveChatEvent);
     }
     
     // Wyczyść wybrane pliki po udanej aktualizacji

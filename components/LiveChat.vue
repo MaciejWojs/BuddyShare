@@ -14,6 +14,52 @@
 
     <!-- Wiadomości czatu -->
     <v-card-text class="chat-messages pa-2 flex-grow-1" ref="chatContainer">
+      <!-- Komunikaty o problemach z połączeniem -->
+      <v-alert
+        v-if="!publicConnected && !authConnected"
+        type="error"
+        variant="tonal"
+        class="mb-2"
+        density="compact"
+      >
+        <template #prepend>
+          <v-icon>mdi-wifi-off</v-icon>
+        </template>
+        <div class="text-caption">
+          Brak połączenia z serwerem czatu. Nie można wysyłać ani odbierać wiadomości.
+        </div>
+      </v-alert>
+
+      <v-alert
+        v-else-if="!publicConnected"
+        type="warning"
+        variant="tonal"
+        class="mb-2"
+        density="compact"
+      >
+        <template #prepend>
+          <v-icon>mdi-account-multiple-remove</v-icon>
+        </template>
+        <div class="text-caption">
+          Problemy z odbiorem wiadomości. Możesz wysyłać wiadomości, ale mogą nie docierać nowe.
+        </div>
+      </v-alert>
+
+      <v-alert
+        v-else-if="!authConnected && authStore.authenticated"
+        type="warning"
+        variant="tonal"
+        class="mb-2"
+        density="compact"
+      >
+        <template #prepend>
+          <v-icon>mdi-send-lock</v-icon>
+        </template>
+        <div class="text-caption">
+          Problemy z wysyłaniem wiadomości. Możesz odbierać wiadomości, ale nie możesz pisać.
+        </div>
+      </v-alert>
+
       <v-list lines="two" density="compact" class="bg-transparent messages-list">
         <!-- Skeleton loading wiadomości -->
         <template v-if="isLoading">
@@ -126,10 +172,27 @@
 
     <!-- Pole wprowadzania wiadomości -->
     <v-card-actions v-if="!readOnly" class="chat-input pa-2 px-4">
-      <v-text-field v-model="newMessage" :placeholder="inputPlaceholder" variant="outlined" density="compact"
-        hide-details rounded bg-color="grey-darken-3" class="mt-2" @keyup.enter="sendMessage">
+      <v-text-field 
+        v-model="newMessage" 
+        :placeholder="inputPlaceholder" 
+        variant="outlined" 
+        density="compact"
+        hide-details 
+        rounded 
+        bg-color="grey-darken-3" 
+        class="mt-2" 
+        :disabled="(!authConnected && authStore.authenticated) || !publicConnected"
+        @keyup.enter="sendMessage"
+      >
         <template #append-inner>
-          <v-btn :icon="sendIcon" variant="text" color="primary" size="small" @click="sendMessage" />
+          <v-btn 
+            :icon="sendIcon" 
+            variant="text" 
+            color="primary" 
+            size="small" 
+            :disabled="(!authConnected && authStore.authenticated) || !publicConnected || !newMessage.trim()"
+            @click="sendMessage" 
+          />
         </template>
         <slot name="input-actions"></slot>
       </v-text-field>
@@ -144,20 +207,23 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, warn } from "vue";
 import { useState } from "#app"; // Import useState z Nuxt
+import { useEventListener } from '@vueuse/core';
 
 import type { Moderator } from "@/types/moderator"; // Import typu Moderator
 import type { ChatMessage } from "~/types/ChatMessage";
 import { ChatAction } from "~/types/ChatAction";
-// Dodajemy obsługę snackbara Vuetify
-import { useDisplay } from 'vuetify';
 
 const publicWS = usePublicWebSocket();
 const streamStore = useStreamsStore();
 const authStore = useAuthStore();
 const authWS = useAuthWebSocket();
-const api = useApi(); // Dodaj to
+const api = useApi();
 
 const isLoading = ref(true);
+
+// Dodawanie statusów połączenia WebSocket
+const publicConnected = computed(() => publicWS.isConnected.value);
+const authConnected = computed(() => authWS.isConnected.value);
 
 interface ChatMessageNew extends ChatMessage {
   role?: "user" | "moderator" | "admin" | "streamer";
@@ -538,8 +604,41 @@ watch(
   { immediate: true }
 );
 
+// Funkcja do odświeżania czatu
+const refreshChat = async () => {
+  console.log("[COMPONENT] Refreshing chat for stream:", props.streamId);
+  
+  // Wyczyść obecne wiadomości
+  messages.value = [];
+  
+  // Ustaw loading state
+  isLoading.value = true;
+  
+  // Opuść i dołącz ponownie do czatu
+  if (props.streamId) {
+    publicWS.leaveChatRoom(String(props.streamId));
+    await nextTick();
+    publicWS.joinChatRoom(String(props.streamId));
+    publicWS.getAllMessages(String(props.streamId));
+  }
+  
+  // Reset loading po krótkim czasie
+  setTimeout(() => {
+    isLoading.value = false;
+  }, 1000);
+};
+
+// Dodajemy nasłuchiwanie na CustomEvent z window za pomocą VueUse
 onMounted(() => {
   scrollToBottom();
+  
+  // Używamy VueUse useEventListener dla automatycznego cleanup
+  useEventListener(window, 'refreshChat', (event: CustomEvent) => {
+    console.log("[COMPONENT] Received refresh chat event:", event.detail);
+    if (event.detail?.streamId === props.streamId) {
+      refreshChat();
+    }
+  });
 });
 </script>
 
