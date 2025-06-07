@@ -270,7 +270,7 @@ export const useApi = () => {
     getAllStats: (username: string) => request(`/streamers/${username}/stats`),
 
     getStreamingRaport: (username: string) =>
-      request(`/streamers/${username}/stats/streaming-raport`),
+      request(`/streamers/${username}/stats/streaming-raport`, { lazy: true }),
 
     getByUsername: (username: string) => request(`/streamers/${username}`),
 
