@@ -350,55 +350,91 @@
   </client-only>
 
   <!-- Snackbar informujący o utracie połączenia internetowego -->
-  <v-snackbar
-    v-model="showOfflineMessage"
-    :timeout="-1"
-    color="error"
-    location="bottom center"
-    multi-line
-    app
-  >
-    Utracono połączenie z internetem. Niektóre funkcje mogą być niedostępne.
-    <template #actions>
-      <v-btn
-        color="white"
-        variant="text"
-        @click="showOfflineMessage = false"
-      >
-        Zamknij
-      </v-btn>
-    </template>
-  </v-snackbar>
+  <client-only>
+    <v-snackbar
+      v-model="showOfflineMessage"
+      :timeout="-1"
+      color="error"
+      location="bottom center"
+      multi-line
+      app
+    >
+      Utracono połączenie z internetem. Niektóre funkcje mogą być niedostępne.
+      <template #actions>
+        <v-btn
+          color="white"
+          variant="text"
+          @click="showOfflineMessage = false"
+        >
+          Zamknij
+        </v-btn>
+      </template>
+    </v-snackbar>
+  </client-only>
 
   <!-- Snackbar informujący o problemach z WebSocket -->
-  <v-snackbar
-    v-model="showWebSocketMessage"
-    :timeout="-1"
-    color="warning"
-    location="bottom center"
-    multi-line
-    app
-  >
-    {{ websocketStatus.message }}
-    <template #actions>
-      <v-btn
-        color="white"
-        variant="text"
-        @click="showWebSocketMessage = false"
-      >
-        Zamknij
-      </v-btn>
-    </template>
-  </v-snackbar>
+  <client-only>
+    <v-snackbar
+      v-model="showWebSocketMessage"
+      :timeout="-1"
+      :color="websocketSnackbarColor"
+      location="bottom center"
+      multi-line
+      app
+    >
+      <div class="d-flex align-center">
+        <v-icon
+          :icon="websocketStatus.type === 'critical' ? 'mdi-close-circle' : 
+                 websocketStatus.type === 'auth' ? 'mdi-account-alert' : 
+                 'mdi-alert-circle'"
+          class="mr-2"
+        />
+        <div>
+          <div class="font-weight-medium">
+            {{ websocketStatus.type === 'critical' ? 'Krytyczny błąd połączenia' :
+               websocketStatus.type === 'auth' ? 'Problem z autoryzacją' :
+               'Problem z połączeniem publicznym' }}
+          </div>
+          <div class="text-caption">{{ websocketStatus.message }}</div>
+          <div class="text-caption mt-1" v-if="online">
+            Spróbuj odświeżyć stronę, aby przywrócić połączenie
+          </div>
+        </div>
+      </div>
+      
+      <template #actions>
+        <v-btn
+          v-if="online"
+          color="white"
+          variant="text"
+          size="small"
+          @click="refreshPage"
+          class="mr-2"
+        >
+          Odśwież
+        </v-btn>
+        <v-btn
+          color="white"
+          variant="text"
+          size="small"
+          @click="showWebSocketMessage = false"
+        >
+          Zamknij
+        </v-btn>
+      </template>
+    </v-snackbar>
+  </client-only>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue"; // Dodano watch
+import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue";
 import { useNotificationsStore } from "~/stores/notifications";
 import { useAuthStore } from "~/stores/auth";
-import { useOnline } from '@vueuse/core'; // Import useOnline
+import { useOnline, useEventListener, useTimeoutFn, watchDebounced } from '@vueuse/core';
 import { useAuthWebSocket } from "~/composables/useAuthWebSocket";
 import { usePublicWebSocket } from "~/composables/usePublicWebSocket";
+
+const nuxtApp = useNuxtApp(); // Dodajemy nuxtApp
 
 // Inicjalizacja prostych wartości (nie zależnych od stanu autentykacji)
 const drawer = ref(false);
@@ -422,50 +458,131 @@ const { isConnected: authConnected } = useAuthWebSocket();
 const { isConnected: publicConnected } = usePublicWebSocket();
 const showWebSocketMessage = ref(false);
 
-const websocketStatus = computed(() => {
-  if (!online.value) return { connected: false, message: '' };
-  
-  const authShouldBeConnected = isAuthenticated.value;
-  const authConnectedStatus = authShouldBeConnected ? authConnected.value : true; // true jeśli nie powinien być połączony
-  const publicConnectedStatus = publicConnected.value;
-  
-  if (!authConnectedStatus && !publicConnectedStatus) {
-    return { 
-      connected: false, 
-      message: 'Brak połączenia z serwerem. Niektóre funkcje mogą być niedostępne.' 
-    };
-  } else if (!authConnectedStatus && authShouldBeConnected) {
-    return { 
-      connected: false, 
-      message: 'Brak połączenia z serwerem autoryzacji. Powiadomienia mogą być niedostępne.' 
-    };
-  } else if (!publicConnectedStatus) {
-    return { 
-      connected: false, 
-      message: 'Brak połączenia z serwerem publicznym. Streamy mogą być niedostępne.' 
-    };
+// Zabezpieczenie przed undefined podczas inicjalizacji
+const safeAuthConnected = computed(() => authConnected?.value ?? false);
+const safePublicConnected = computed(() => publicConnected?.value ?? false);
+
+// Dostęp do błędów WebSocket z plugin'u z zabezpieczeniem
+const websocketErrors = computed(() => {
+  try {
+    // Sprawdź czy plugin'y są już załadowane
+    if (!nuxtApp.$websocketErrors) {
+      return { public: null, auth: null };
+    }
+    const errors = nuxtApp.$websocketErrors as Ref<{ public: string | null, auth: string | null }>;
+    return errors?.value ?? { public: null, auth: null };
+  } catch (error) {
+    return { public: null, auth: null };
   }
-  
-  return { connected: true, message: '' };
 });
 
-watch(online, (isOnline) => {
+const websocketStatus = computed(() => {
+  if (!online.value) return { connected: false, message: '', type: 'offline' };
+  
+  const authShouldBeConnected = isAuthenticated.value;
+  const authConnectedStatus = authShouldBeConnected ? safeAuthConnected.value : true;
+  const publicConnectedStatus = safePublicConnected.value;
+  
+  // Sprawdź błędy z plugin'u z zabezpieczeniem
+  const hasPublicError = websocketErrors.value.public !== null;
+  const hasAuthError = websocketErrors.value.auth !== null;
+  
+  // Krytyczny błąd - oba websockety są odłączone i mamy błędy
+  if (!authConnectedStatus && !publicConnectedStatus && authShouldBeConnected && (hasPublicError || hasAuthError)) {
+    return { 
+      connected: false, 
+      message: 'Utracono połączenie z serwerem. Próba ponownego połączenia...',
+      type: 'critical',
+      details: {
+        public: websocketErrors.value.public,
+        auth: websocketErrors.value.auth
+      }
+    };
+  } 
+  // Auth websocket odłączony (użytkownik zalogowany)
+  else if (!authConnectedStatus && authShouldBeConnected && hasAuthError) {
+    return { 
+      connected: false, 
+      message: websocketErrors.value.auth || 'Brak połączenia z serwerem autoryzacji',
+      type: 'auth',
+      details: { auth: websocketErrors.value.auth }
+    };
+  } 
+  // Public websocket odłączony
+  else if (!publicConnectedStatus && hasPublicError) {
+    return { 
+      connected: false, 
+      message: websocketErrors.value.public || 'Brak połączenia z serwerem publicznym',
+      type: 'public',
+      details: { public: websocketErrors.value.public }
+    };
+  }
+  
+  return { connected: true, message: '', type: 'connected', details: {} };
+});
+
+const websocketSnackbarColor = computed(() => {
+  switch (websocketStatus.value.type) {
+    case 'critical': return 'error';
+    case 'auth': return 'warning';
+    case 'public': return 'info';
+    default: return 'warning';
+  }
+});
+
+// Używamy VueUse useTimeoutFn do zarządzania opóźnieniami
+const { start: startWebSocketTimer, stop: stopWebSocketTimer } = useTimeoutFn(() => {
+  try {
+    if (!websocketStatus.value?.connected && online.value) {
+      showWebSocketMessage.value = true;
+    }
+  } catch (error) {
+    console.warn('WebSocket timer error:', error);
+  }
+}, 2000, { immediate: false });
+
+// Dodatkowy timer dla sprawdzania po powrocie połączenia internetowego
+const { start: startOnlineCheckTimer, stop: stopOnlineCheckTimer } = useTimeoutFn(() => {
+  try {
+    if (online.value && !websocketStatus.value?.connected) {
+      showWebSocketMessage.value = true;
+    }
+  } catch (error) {
+    console.warn('Online check timer error:', error);
+  }
+}, 1000, { immediate: false });
+
+// Obsługa statusu online/offline z VueUse
+watchDebounced(online, (isOnline) => {
   if (!isOnline) {
     showOfflineMessage.value = true;
-    showWebSocketMessage.value = false; // ukryj websocket message gdy offline
+    showWebSocketMessage.value = false;
+    stopWebSocketTimer();
+    stopOnlineCheckTimer();
   } else {
-    // Automatycznie ukryj komunikat, gdy połączenie wróci
     showOfflineMessage.value = false;
+    // Opóźnij sprawdzanie WebSocket po powrocie połączenia internetowego
+    startOnlineCheckTimer();
   }
-}, { immediate: true }); // immediate: true uruchomi watchera od razu przy montowaniu komponentu
+}, { debounce: 500, immediate: true });
 
-watch(websocketStatus, (status) => {
-  if (online.value && !status.connected) {
-    showWebSocketMessage.value = true;
-  } else {
+// Obsługa statusu WebSocket z VueUse watchDebounced
+watchDebounced(websocketStatus, (status) => {
+  stopWebSocketTimer();
+  
+  if (!online.value) return; // Nie pokazuj komunikatów WebSocket gdy offline
+  
+  // Dodatkowe zabezpieczenie przed undefined
+  if (!status || typeof status.connected === 'undefined') return;
+  
+  if (!status.connected && status.message) {
+    // Używamy VueUse timer zamiast setTimeout
+    startWebSocketTimer();
+  } else if (status.connected) {
     showWebSocketMessage.value = false;
   }
-}, { immediate: true });
+}, { debounce: 300, immediate: true, deep: true });
+
 
 // Zmienne do śledzenia przewijania
 const lastScrollY = ref(0);
@@ -480,6 +597,13 @@ const navigateToProfile = () => {
 
 const logout = () => {
   authStore.logout();
+};
+
+// Funkcja do odświeżenia strony z zabezpieczeniem SSR
+const refreshPage = () => {
+  if (import.meta.client && window) {
+    window.location.reload();
+  }
 };
 
 // Notifications
@@ -503,7 +627,16 @@ const computedNavItems = computed(() => {
       icon: "mdi-compass",
       to: "/discover",
     }
-  ];
+  ] as Array<{
+    title: string;
+    icon: string;
+    to?: string;
+    children?: Array<{
+      title: string;
+      icon: string;
+      to: string;
+    }>;
+  }>;
   
   // Dynamiczne elementy tylko gdy użytkownik jest zalogowany
   if (isAuthenticated.value) {
@@ -601,24 +734,17 @@ const confirmDeleteAllNotifications = async () => {
   showNotifications.value = false;
 };
 
-const handleScroll = () => {
-  const currentScrollY = window.scrollY;
-  isScrollingDown.value = currentScrollY > lastScrollY.value;
-  lastScrollY.value = currentScrollY;
-};
-
-// Lifecycle hooks
+// Lifecycle hooks z VueUse
 onMounted(() => {
   if (import.meta.client) {
-    window.addEventListener("scroll", handleScroll, { passive: true });
+    useEventListener(window, 'scroll', () => {
+      const currentScrollY = window.scrollY;
+      isScrollingDown.value = currentScrollY > lastScrollY.value;
+      lastScrollY.value = currentScrollY;
+    }, { passive: true });
   }
 });
 
-onBeforeUnmount(() => {
-  if (import.meta.client) {
-    window.removeEventListener("scroll", handleScroll);
-  }
-});
 </script>
 
 <style scoped>

@@ -27,6 +27,18 @@ export default defineNuxtPlugin(nuxtApp => {
     const BACK_PORT = config.public.BACK_PORT;
     const BACK_URL = `${BACK_HOST}${BACK_PORT ? `:${BACK_PORT}` : ""}`;
 
+    // Sprawdź czy plugin został już zainicjalizowany
+    if (nuxtApp.$publicSocket) {
+        console.log("WebSocket plugin already initialized, skipping...");
+        return;
+    }
+
+    // Dodajemy system notyfikacji o błędach WebSocket
+    const websocketErrors = ref({
+        public: null as string | null,
+        auth: null as string | null
+    });
+
     const socketsOptions = {
         autoConnect: true,
         reconnection: true,
@@ -52,6 +64,7 @@ export default defineNuxtPlugin(nuxtApp => {
     publicSocket.on("connect", () => {
         console.log("✅ Connected to Public WebSocket (Plugin)");
         publicSocketReconnectAttempts = 0; // Reset licznika po udanym połączeniu
+        websocketErrors.value.public = null; // Wyczyść błąd
     });
 
     publicSocket.on("disconnect", (reason) => {
@@ -91,6 +104,7 @@ export default defineNuxtPlugin(nuxtApp => {
 
     publicSocket.on("connect_error", (error) => {
         console.error("❌ Public WebSocket connection error (Plugin):", error.message);
+        websocketErrors.value.public = "Błąd połączenia z serwerem publicznym";
         
         // Logika dodatkowych prób w przypadku błędów połączenia
         if (publicSocketReconnectAttempts < maxReconnectAttempts) {
@@ -166,6 +180,7 @@ export default defineNuxtPlugin(nuxtApp => {
             socket.on("connect", () => {
                 console.log("✅ Connected to Auth WebSocket (Plugin)");
                 authSocketReconnectAttempts = 0; // Reset licznika po udanym połączeniu
+                websocketErrors.value.auth = null; // Wyczyść błąd
             });
 
             socket.on("disconnect", (reason) => {
@@ -212,6 +227,7 @@ export default defineNuxtPlugin(nuxtApp => {
 
             socket.on("connect_error", (error) => {
                 console.error("❌ Auth WebSocket connection error (Plugin):", error.message);
+                websocketErrors.value.auth = "Błąd połączenia z serwerem autoryzacji";
                 
                 // Logika dodatkowych prób w przypadku błędów połączenia
                 if (authSocketReconnectAttempts < maxReconnectAttempts) {
@@ -285,10 +301,8 @@ export default defineNuxtPlugin(nuxtApp => {
         initializeAuthSocket();
     }, { immediate: true }); // Uruchom od razu przy ładowaniu wtyczki
 
-    // Udostępnij instancje WebSocket w kontekście Nuxt tylko raz
+    // Udostępnij instancje WebSocket w kontekście Nuxt
     nuxtApp.provide('publicSocket', publicSocket);
-
-    // Używamy gettera, który zawsze zwraca aktualną wartość z ref
-    // zamiast wielokrotnie wywoływać provide
     nuxtApp.provide('authSocket', computed(() => authSocketRef.value));
+    nuxtApp.provide('websocketErrors', websocketErrors);
 });
