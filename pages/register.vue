@@ -21,8 +21,7 @@
           :prepend-inner-icon="field.icon"
           :append-inner-icon="typeof field.appendIcon === 'function' ? field.appendIcon() : field.appendIcon"
           :error-messages="touched[field.model] ? [errors[field.model]].filter(Boolean) : []"
-          @focus="touched[field.model] = true" @mousedown.prevent:append-inner="field.toggle?.()"
-          @update:model-value="field.validate?.()" />
+          @focus="touched[field.model] = true" @mousedown.prevent:append-inner="field.toggle?.()" />
 
         <!-- Wskaźnik siły hasła -->
         <div v-if="form.password" class="password-strength-container">
@@ -103,35 +102,42 @@ const validatePassword = watchDebounced(() => form.password, () => {
   errors.password = form.password.length < 14 ? 'Min. 14 znaków'
     : form.password.toLowerCase().includes(form.username.toLowerCase()) ? 'Hasło zawiera login'
       : strength.value.score < 3 ? 'Hasło za słabe' : '';
+  
+  // Waliduj również potwierdzenie przy zmianie hasła
+  validateConfirmField();
 }, { debounce: 150 });
 
-const validateConfirm = watchDebounced(() => form.confirm, () => {
+// Funkcja walidująca potwierdzenie hasła
+const validateConfirmField = () => {
   errors.confirm = form.confirm !== form.password ? 'Hasła nie są zgodne' : '';
-}, { debounce: 150 });
+};
+
+// Watch dla potwierdzenia hasła
+watchDebounced(() => form.confirm, validateConfirmField, { debounce: 150 });
 
 // Pola formularza
 const fields = [
   {
     model: 'username', label: 'Nazwa użytkownika', type: 'text', icon: 'mdi-account',
-    clearable: true, counter: 50, maxlength: 50, validate: validateUsername
+    clearable: true, counter: 50, maxlength: 50
   },
   {
     model: 'email', label: 'Adres email', type: 'email', icon: 'mdi-email',
-    clearable: true, validate: validateEmail
+    clearable: true
   },
   {
     model: 'password', label: 'Hasło',
     type: () => showPwd.value ? 'text' : 'password',
     icon: 'mdi-lock',
     appendIcon: () => showPwd.value ? 'mdi-eye-off' : 'mdi-eye',
-    toggle: togglePwd, validate: validatePassword
+    toggle: togglePwd
   },
   {
     model: 'confirm', label: 'Powtórz hasło',
     type: () => showPwd.value ? 'text' : 'password',
     icon: 'mdi-lock-check',
     appendIcon: () => showPwd.value ? 'mdi-eye-off' : 'mdi-eye',
-    toggle: togglePwd, validate: validateConfirm
+    toggle: togglePwd
   }
 ];
 
