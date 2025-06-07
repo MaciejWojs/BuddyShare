@@ -21,5 +21,6 @@ export interface Stream {
     stream_urls: {
         name: string;
         dash: string;
-    }[];
+    }[],
+    bannedUsers: string[];
 }
