@@ -54,8 +54,8 @@ export default defineNuxtConfig({
         'dashjs',
         '@vueuse/core',
         'http-status-codes',
-        'crypto-js'
-
+        'crypto-js',
+        'zxcvbn'
       ],
     },
     cacheDir: '.nuxt/vite',
