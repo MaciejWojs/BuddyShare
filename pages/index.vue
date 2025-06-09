@@ -4,7 +4,33 @@ import { ClientOnly } from '#components';
 const streamStore = useStreamsStore();
 const authStore = useAuthStore();
 const router = useRouter();
+const api = useApi(); // Dodaj to
 const searchQuery = ref("");
+
+// Dodaj reactive mapę awatarów
+const avatarCache = ref<Map<string, string>>(new Map());
+
+// Funkcja do pobierania i cache'owania awatara
+const getCachedAvatar = async (username: string, currentAvatar?: string) => {
+  if (currentAvatar && currentAvatar !== '/Buddyshare.svg') {
+    return currentAvatar;
+  }
+  
+  if (avatarCache.value.has(username)) {
+    return avatarCache.value.get(username)!;
+  }
+  
+  try {
+    const avatarUrl = await api.users.getUserAvatar(username);
+    avatarCache.value.set(username, avatarUrl);
+    return avatarUrl;
+  } catch (error) {
+    console.warn(`Nie udało się pobrać awatara dla ${username}:`, error);
+    avatarCache.value.set(username, '/Buddyshare.svg');
+    return '/Buddyshare.svg';
+  }
+};
+
 const streams = computed(() =>
   streamStore.streams.filter(stream => {
     if (!authStore.authenticated) return stream.isPublic;
@@ -12,6 +38,29 @@ const streams = computed(() =>
     return stream.username === authStore.userName || stream.isPublic;
   })
 );
+
+// Dodaj reactive mapę awatarów dla streamów
+const streamAvatars = ref<Map<string, string>>(new Map());
+
+// Funkcja do pobierania awatarów dla wszystkich streamów
+const loadStreamAvatars = async () => {
+  for (const stream of streams.value) {
+    if (stream.username && !streamAvatars.value.has(stream.username)) {
+      try {
+        const avatarUrl = await getCachedAvatar(stream.username, stream.user?.avatarUrl);
+        streamAvatars.value.set(stream.username, avatarUrl);
+      } catch (error) {
+        console.warn(`Nie udało się pobrać awatara dla ${stream.username}:`, error);
+        streamAvatars.value.set(stream.username, '/Buddyshare.svg');
+      }
+  }
+  }
+};
+
+// Funkcja do pobierania awatara dla konkretnego streamu
+const getStreamAvatar = (username: string, fallback?: string) => {
+  return streamAvatars.value.get(username) || fallback || '/Buddyshare.svg';
+};
 
 const hoverTimeout = ref<ReturnType<typeof setTimeout> | null>(null);
 const dashPlayerInstance = ref<{ destroy: () => void } | null>(null);
@@ -222,6 +271,11 @@ onBeforeUnmount(() => {
   }
 });
 
+// Dodaj watcher do ładowania awatarów gdy streamy się zmienią
+watch(streams, () => {
+  loadStreamAvatars();
+}, { immediate: true });
+
 console.log(streamerAndStreamingStatus.value);
 </script>
 <template>
@@ -265,7 +319,7 @@ console.log(streamerAndStreamingStatus.value);
           <!-- Thumbnail z indykatorem live -->
           <div class="thumbnail-container">
             <v-img v-if="!shouldShowPreview(stream.id) || !stream.isLive"
-              :src="stream.thumbnailUrl || '/Buddyshare.svg'" height="160px" cover class="stream-thumbnail" />
+              :src="stream.thumbnail || '/Buddyshare.svg'" height="160px" cover class="stream-thumbnail" />
 
             <!-- Kontener na wideo podczas hovera - używamy unikalnej referencji dla każdego streamu -->
             <div v-if="shouldShowPreview(stream.id) && stream.isLive" class="video-preview-container">
@@ -292,7 +346,7 @@ console.log(streamerAndStreamingStatus.value);
             <div class="d-flex align-center">
               <!-- Avatar streamera -->
               <v-avatar class="me-3" size="36">
-                <v-img :src="stream.user?.avatarUrl || '/Buddyshare.svg'" />
+                <v-img :src="getStreamAvatar(stream.username, stream.user?.avatarUrl)" />
               </v-avatar>
 
               <!-- Tytuł i autor -->

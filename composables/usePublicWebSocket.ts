@@ -101,16 +101,6 @@ export const usePublicWebSocket = () => {
         on("patchChatMessage", handler);
     };
 
-    const patchChatMessage = (message: ChatMessage, action: ChatAction) => {
-        console.log("emitting patchChatMessage", message.chatMessageId);
-        emit("manageChat", message, action);
-    };
-
-    const banUserInChat = (message: ChatMessage, action: ChatAction, options?: BanOptions) => {
-        emit("manageChat", message, action, options);
-    }
-
-
     return {
         // Nie zwracamy już connect/disconnect
         on,
@@ -134,7 +124,5 @@ export const usePublicWebSocket = () => {
         getAllMessages,
         onAllMessages,
         onPatchChatMessage,
-        patchChatMessage,
-        banUserInChat,
     };
 };

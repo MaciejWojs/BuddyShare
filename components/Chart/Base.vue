@@ -42,9 +42,12 @@ const chartOptions = computed(() => {
   if (!props.streamExists) {
     return {
       title: {
-        text: 'Brak danych',
+        text: 'Brak danych lub stream offline',
+        subtext: 'Dane będą dostępne po rozpoczęciu streamowania',
         left: 'center',
-        textStyle: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' }
+        top: 'middle',
+        textStyle: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' },
+        subtextStyle: { color: '#cccccc', fontSize: 14 }
       },
       grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
       backgroundColor: 'transparent'

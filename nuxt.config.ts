@@ -1,7 +1,6 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 
 import vuetify, { transformAssetUrls } from "vite-plugin-vuetify";
-import { L } from "vitest/dist/chunks/reporters.d.DG9VKi4m.js";
 import { md3 } from 'vuetify/blueprints';
 
 export default defineNuxtConfig({
@@ -54,8 +53,8 @@ export default defineNuxtConfig({
         'dashjs',
         '@vueuse/core',
         'http-status-codes',
-        'crypto-js'
-
+        'crypto-js',
+        'zxcvbn'
       ],
     },
     cacheDir: '.nuxt/vite',
