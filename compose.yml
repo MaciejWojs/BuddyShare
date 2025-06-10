@@ -1,0 +1,17 @@
+services:
+  BuddyShareFrontend:
+    image: buddy-share-front:latest
+    container_name: BuddyShareFrontend
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NUXT_PUBLIC_BACK_HOST: ${BACK_HOST}
+      NUXT_PUBLIC_SALT: ${SALT}
+      NUXT_PUBLIC_PEPPER: ${PEPPER}
+      NUXT_HOST: ${NUXT_HOST}
+      
+    ports:
+      - "3000:3000"
+

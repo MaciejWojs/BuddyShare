@@ -1,2 +1,9 @@
-node_modules/
+.env
 .output/
+.nuxt/
+node_modules/
+.git/
+.github/
+.devcontainer/
+.vscode/
+*.tar
